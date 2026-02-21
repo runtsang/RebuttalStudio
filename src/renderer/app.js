@@ -93,11 +93,44 @@ const appEl = document.querySelector('.app');
 
 const API_PROVIDER_KEYS = ['openai', 'anthropic', 'gemini', 'deepseek', 'azureOpenai'];
 
+
+const API_PROVIDER_GUIDE = {
+  openai: {
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o-mini',
+    baseUrlHelp: 'Use the official OpenAI endpoint unless you are using a proxy.',
+  },
+  anthropic: {
+    baseUrl: 'https://api.anthropic.com/v1',
+    model: 'claude-3-5-sonnet-latest',
+    baseUrlHelp: 'Use the official Anthropic endpoint. Model list is prefilled with common IDs.',
+  },
+  gemini: {
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    model: 'gemini-1.5-pro',
+    baseUrlHelp: 'Google AI Studio key usually works with this default URL. You can keep this value as-is.',
+  },
+  deepseek: {
+    baseUrl: 'https://api.deepseek.com/v1',
+    model: 'deepseek-chat',
+    baseUrlHelp: 'Use the official DeepSeek endpoint unless your provider gave a custom URL.',
+  },
+  azureOpenai: {
+    baseUrl: '',
+    model: 'your-deployment-name',
+    baseUrlHelp: 'Fill your Azure resource endpoint, e.g. https://YOUR-RESOURCE.openai.azure.com/openai',
+  },
+};
+
 const apiProviderSelectEl = document.getElementById('apiProviderSelect');
 const apiBaseUrlInputEl = document.getElementById('apiBaseUrlInput');
 const apiModelInputEl = document.getElementById('apiModelInput');
 const apiInputEl = document.getElementById('apiInput');
 const apiSettingsErrorEl = document.getElementById('apiSettingsError');
+const apiBaseUrlHelpEl = document.getElementById('apiBaseUrlHelp');
+const apiModelHintEl = document.getElementById('apiModelHint');
+const apiModelListEl = document.getElementById('apiModelList');
+const detectModelsBtnEl = document.getElementById('detectModelsBtn');
 
 // Stage advance modal
 const stageAdvanceModalEl = document.getElementById('stageAdvanceModal');
@@ -571,6 +604,61 @@ function renderApiForm(providerKey = state.apiSettings.activeApiProvider) {
   apiBaseUrlInputEl.value = profile.baseUrl || '';
   apiModelInputEl.value = profile.model || '';
   apiInputEl.value = profile.apiKey || '';
+  renderProviderGuide(providerKey);
+}
+
+
+function fillModelSuggestions(models = []) {
+  apiModelListEl.innerHTML = models.map((name) => `<option value="${name}"></option>`).join('');
+}
+
+function renderProviderGuide(providerKey) {
+  const guide = API_PROVIDER_GUIDE[providerKey] || {};
+  apiBaseUrlHelpEl.textContent = guide.baseUrlHelp || '';
+  if (!apiBaseUrlInputEl.value.trim() && guide.baseUrl) {
+    apiBaseUrlInputEl.value = guide.baseUrl;
+  }
+  if (!apiModelInputEl.value.trim() && guide.model) {
+    apiModelInputEl.value = guide.model;
+  }
+}
+
+async function detectProviderModels() {
+  apiSettingsErrorEl.textContent = '';
+  apiModelHintEl.textContent = '';
+  const providerKey = apiProviderSelectEl.value;
+  const currentProfile = getActiveApiProfile(providerKey) || {};
+  const profile = {
+    ...currentProfile,
+    baseUrl: apiBaseUrlInputEl.value.trim(),
+    apiKey: apiInputEl.value.trim(),
+    model: apiModelInputEl.value.trim(),
+  };
+
+  if (!profile.apiKey) {
+    apiSettingsErrorEl.textContent = 'Please fill API key first, then click Detect models.';
+    return;
+  }
+
+  detectModelsBtnEl.disabled = true;
+  detectModelsBtnEl.textContent = 'Detecting...';
+  try {
+    const result = await window.studioApi.listProviderModels({ providerKey, profile });
+    const models = result?.models || [];
+    fillModelSuggestions(models);
+    if (!apiModelInputEl.value.trim() && models.length) {
+      apiModelInputEl.value = models[0];
+    }
+    apiModelHintEl.textContent = result?.hint || '';
+    if (!models.length && !result?.hint) {
+      apiModelHintEl.textContent = 'No models returned.';
+    }
+  } catch (error) {
+    apiSettingsErrorEl.textContent = error.message || 'Failed to detect models.';
+  } finally {
+    detectModelsBtnEl.disabled = false;
+    detectModelsBtnEl.textContent = 'Detect models';
+  }
 }
 
 function validateApiSettingsInput(providerKey, profile) {
@@ -580,7 +668,7 @@ function validateApiSettingsInput(providerKey, profile) {
   if (!profile.apiKey || !profile.apiKey.trim()) {
     return 'API key is required.';
   }
-  if (!profile.baseUrl || !profile.baseUrl.trim()) {
+  if (providerKey !== 'azureOpenai' && (!profile.baseUrl || !profile.baseUrl.trim())) {
     return 'Base URL is required.';
   }
   if (!profile.model || !profile.model.trim()) {
@@ -601,10 +689,11 @@ async function saveApiSettings() {
   apiSettingsErrorEl.textContent = '';
   const providerKey = apiProviderSelectEl.value;
   const currentProfile = getActiveApiProfile(providerKey) || {};
+  const guide = API_PROVIDER_GUIDE[providerKey] || {};
   const nextProfile = {
     ...currentProfile,
-    baseUrl: apiBaseUrlInputEl.value.trim(),
-    model: apiModelInputEl.value.trim(),
+    baseUrl: apiBaseUrlInputEl.value.trim() || guide.baseUrl || '',
+    model: apiModelInputEl.value.trim() || guide.model || '',
     apiKey: apiInputEl.value.trim(),
   };
 
@@ -738,7 +827,11 @@ document.getElementById('cancelApiBtn').addEventListener('click', () => closeMod
 document.getElementById('saveApiBtn').addEventListener('click', saveApiSettings);
 apiProviderSelectEl.addEventListener('change', (e) => {
   renderApiForm(e.target.value);
+  apiSettingsErrorEl.textContent = '';
+  apiModelHintEl.textContent = '';
+  fillModelSuggestions([]);
 });
+detectModelsBtnEl.addEventListener('click', detectProviderModels);
 
 // Settings button — both modes
 document.getElementById('settingsBtn').addEventListener('click', () => {
