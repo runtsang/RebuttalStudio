@@ -19,19 +19,36 @@
     <main class="main">
       <header class="topbar">
         <div class="topbar-left">
-          <div class="brand">Rebuttal Studio</div>
-          <button id="newBtn" class="btn">+ New</button>
+          <button id="brandBtn" class="brand-btn" aria-label="Go to projects home">
+            <img src="../../img/rebuttalstudio_hori.png" alt="Rebuttal Studio" class="brand-logo" />
+          </button>
+          <input id="projectSearch" class="search-input" placeholder="Search projects" aria-label="Search projects" />
         </div>
         <div class="topbar-right">
+          <div class="view-toggle" role="group" aria-label="Layout mode">
+            <button id="listViewBtn" class="btn icon-btn" aria-label="List view">☰</button>
+            <button id="gridViewBtn" class="btn icon-btn" aria-label="Grid view">▦</button>
+          </div>
+          <button id="newBtn" class="btn">+ New</button>
           <button id="apiOpenBtn" class="btn">Enter API</button>
         </div>
       </header>
 
       <section class="content">
         <div id="namingPanel" class="panel hidden">
-          <h3>Name your new project</h3>
-          <div class="row">
+          <h3>Create New Project</h3>
+          <div class="row stacked-on-mobile">
             <input id="projectNameInput" class="text-input" placeholder="Project name" />
+          </div>
+          <div class="conference-picker" role="radiogroup" aria-label="Conference">
+            <button class="conference-chip selected" data-conference="ICLR" aria-checked="true" role="radio">ICLR</button>
+            <button class="conference-chip" data-conference="NeurIPS" disabled title="Coming soon">NeurIPS</button>
+            <button class="conference-chip" data-conference="ICML" disabled title="Coming soon">ICML</button>
+            <button class="conference-chip" data-conference="ACL" disabled title="Coming soon">ACL</button>
+            <button class="conference-chip" data-conference="EMNLP" disabled title="Coming soon">EMNLP</button>
+          </div>
+          <div class="row">
+            <button id="cancelProjectBtn" class="btn">Cancel</button>
             <button id="confirmProjectBtn" class="btn primary">Create Project</button>
           </div>
           <p id="projectNameError" class="error"></p>
@@ -43,6 +60,8 @@
             <textarea id="reviewerInput" class="reviewer-input" placeholder="Paste reviewer feedback here"></textarea>
           </section>
 
+          <div class="arrow-column" aria-hidden="true">→</div>
+
           <section class="panel">
             <h3>Structured Breakdown</h3>
             <textarea id="breakdownOutput" class="reviewer-input" placeholder="API-assisted breakdown placeholder"></textarea>
@@ -53,6 +72,10 @@
           <h3>Create or open a project to begin.</h3>
         </div>
       </section>
+
+      <div id="stageDock" class="stage-dock hidden" aria-label="Stage navigation">
+        <div id="stageRow" class="stage-row"></div>
+      </div>
     </main>
   </div>
 

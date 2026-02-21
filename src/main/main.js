@@ -102,9 +102,9 @@ ipcMain.handle('app:settings:updateDefaultInterval', async (_event, seconds) => 
   return saveAppSettings({ defaultAutosaveIntervalSeconds: normalized });
 });
 
-ipcMain.handle('projects:create', async (_event, { projectName, autosaveIntervalSeconds }) => {
+ipcMain.handle('projects:create', async (_event, { projectName, conference, autosaveIntervalSeconds }) => {
   const interval = normalizeInterval(autosaveIntervalSeconds);
-  const result = await createProject(projectName, interval);
+  const result = await createProject(projectName, conference, interval);
   autosaveState.currentFolder = result.folderName;
   autosaveState.currentDoc = result.doc;
   autosaveState.intervalSeconds = interval;
