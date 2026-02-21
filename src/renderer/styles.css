@@ -1100,3 +1100,84 @@ select {
     display: none;
   }
 }
+
+.section-editable {
+  min-height: 40px;
+  white-space: pre-wrap;
+  outline: none;
+}
+
+.section-editable:focus,
+.score-value[contenteditable="true"]:focus,
+.issue-text:focus {
+  box-shadow: inset 0 0 0 1px var(--text-muted);
+  border-radius: 4px;
+}
+
+.section-editable.breakdown-placeholder:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.breakdown-output-block .breakdown-section + .breakdown-section {
+  border-top: 1px dashed var(--border);
+}
+
+.issues-grid,
+.responses-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.issue-card,
+.response-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  background: var(--panel);
+}
+
+.issue-id,
+.response-header {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.issue-text {
+  white-space: pre-wrap;
+  min-height: 36px;
+  outline: none;
+}
+
+.response-card label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+  margin-bottom: 3px;
+}
+
+.response-input,
+.response-textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel-muted);
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 0.82rem;
+}
+
+.response-textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.convert-btn.loading {
+  opacity: 0.75;
+  pointer-events: none;
+}

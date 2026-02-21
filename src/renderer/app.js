@@ -107,7 +107,7 @@ const API_PROVIDER_GUIDE = {
   },
   gemini: {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-    model: 'gemini-1.5-pro',
+    model: 'gemini-3-flash-preview',
     baseUrlHelp: 'Google AI Studio key usually works with this default URL. You can keep this value as-is.',
   },
   deepseek: {
@@ -408,35 +408,31 @@ function renderBreakdownPanel() {
   const tpl = getConferenceTemplate();
   const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
 
-  // Build scores header
   let scoresHTML = '<div class="scores-header">';
 
-  // Row 1: Rating | Confidence
   scoresHTML += '<div class="scores-row">';
   tpl.scores.forEach((s, i) => {
     if (i > 0) scoresHTML += '<span class="score-divider">|</span>';
     const val = data.scores[s.key] || s.default;
-    scoresHTML += `<div class="score-item">
+    scoresHTML += `<div class="score-item" data-score-key="${s.key}">
       <span class="score-label">${s.label}</span>
-      <span class="score-value">${val}</span>
+      <span class="score-value" contenteditable="true" data-score-edit="${s.key}">${escapeHTML(val)}</span>
     </div>`;
   });
   scoresHTML += '</div>';
 
-  // Row 2: Soundness | Presentation | Contribution
   scoresHTML += '<div class="scores-row">';
   tpl.metrics.forEach((s, i) => {
     if (i > 0) scoresHTML += '<span class="score-divider">|</span>';
     const val = data.scores[s.key] || s.default;
-    scoresHTML += `<div class="score-item">
+    scoresHTML += `<div class="score-item" data-score-key="${s.key}">
       <span class="score-label">${s.label}</span>
-      <span class="score-value">${val}</span>
+      <span class="score-value" contenteditable="true" data-score-edit="${s.key}">${escapeHTML(val)}</span>
     </div>`;
   });
   scoresHTML += '</div>';
   scoresHTML += '</div>';
 
-  // Build section blocks
   let blocksHTML = '';
   tpl.blocks.forEach(blockIdxs => {
     blocksHTML += '<div class="breakdown-block">';
@@ -444,8 +440,8 @@ function renderBreakdownPanel() {
       const sec = tpl.sections[sIdx];
       const content = data.sections[sec.key];
       const body = content
-        ? `<p style="margin:0;white-space:pre-wrap;">${escapeHTML(content)}</p>`
-        : `<p class="breakdown-placeholder">${sec.placeholder}</p>`;
+        ? `<div class="section-editable" contenteditable="true" data-section-edit="${sec.key}">${escapeHTML(content)}</div>`
+        : `<div class="section-editable breakdown-placeholder" contenteditable="true" data-section-edit="${sec.key}" data-placeholder="${escapeHTML(sec.placeholder)}"></div>`;
       blocksHTML += `<div class="breakdown-section">
         <h4 class="breakdown-section-title">${sec.label}</h4>
         <div class="breakdown-section-body" id="section_${sec.key}">${body}</div>
@@ -454,8 +450,15 @@ function renderBreakdownPanel() {
     blocksHTML += '</div>';
   });
 
+  const issues = Array.isArray(data.atomicIssues) ? data.atomicIssues : [];
+  const responses = Array.isArray(data.responses) ? data.responses : [];
+  if (issues.length || responses.length) {
+    blocksHTML += renderAtomicIssuesAndResponses(issues, responses);
+  }
+
   breakdownContentEl.innerHTML = scoresHTML + blocksHTML;
 }
+
 
 function escapeHTML(str) {
   const div = document.createElement('div');
@@ -463,59 +466,88 @@ function escapeHTML(str) {
   return div.innerHTML;
 }
 
+
+function renderAtomicIssuesAndResponses(issues, responses) {
+  const issueItems = issues.map((issue) => `
+    <div class="issue-card" data-issue-id="${escapeHTML(issue.id)}">
+      <div class="issue-id">${escapeHTML(issue.id)}</div>
+      <div class="issue-text" contenteditable="true" data-issue-edit="${escapeHTML(issue.id)}">${escapeHTML(issue.text)}</div>
+    </div>`).join('');
+
+  const responseItems = responses.map((resp) => `
+    <div class="response-card" data-response-id="${escapeHTML(resp.id)}">
+      <div class="response-header">${escapeHTML(resp.id)} · ${escapeHTML(resp.title || '')}</div>
+      <label>Source</label>
+      <input class="response-input" data-response-field="source" data-response-id="${escapeHTML(resp.id)}" value="${escapeHTML(resp.source || '')}" />
+      <label>Source ID</label>
+      <input class="response-input" data-response-field="source_id" data-response-id="${escapeHTML(resp.id)}" value="${escapeHTML(resp.source_id || '')}" />
+      <label>Quoted Issue</label>
+      <textarea class="response-textarea" data-response-field="quoted_issue" data-response-id="${escapeHTML(resp.id)}">${escapeHTML(resp.quoted_issue || '')}</textarea>
+    </div>`).join('');
+
+  return `<div class="breakdown-block breakdown-output-block">
+    <div class="breakdown-section">
+      <h4 class="breakdown-section-title">Atomic Issues (API Output)</h4>
+      <div class="issues-grid">${issueItems || '<p class="breakdown-placeholder">No issues extracted.</p>'}</div>
+    </div>
+    <div class="breakdown-section">
+      <h4 class="breakdown-section-title">Responses (Editable Check)</h4>
+      <div class="responses-grid">${responseItems || '<p class="breakdown-placeholder">No responses generated.</p>'}</div>
+    </div>
+  </div>`;
+}
+
+function parseSectionFromEditable(element) {
+  if (!element) return '';
+  return element.innerText.trim();
+}
+
+async function runStage1ApiBreakdown(rawText) {
+  const providerKey = state.apiSettings.activeApiProvider;
+  const profile = getActiveApiProfile(providerKey);
+  if (!profile || !profile.apiKey) {
+    throw new Error('Please configure API Settings first.');
+  }
+  return window.studioApi.runStage1Breakdown({
+    providerKey,
+    profile,
+    content: rawText,
+  });
+}
+
 /* ────────────────────────────────────────────────────────────
    Convert Button — parse reviewer input to breakdown
    ──────────────────────────────────────────────────────────── */
-function performBreakdown() {
+async function performBreakdown() {
   const rawText = reviewerInput.innerText.trim();
   if (!rawText) return;
 
-  const tpl = getConferenceTemplate();
   const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
+  convertBtnEl.disabled = true;
+  convertBtnEl.classList.add('loading');
 
-  // Simple parser: try to extract sections from the reviewer text
-  // Look for known section headers
-  const sectionPatterns = {
-    summary: /(?:^|\n)\s*(?:\*\*\s*)?summary(?:\s*(?:of|:))?(?:\s*\*\*\s*)?[:\s]*\n?([\s\S]*?)(?=\n\s*(?:\*\*\s*)?(?:strength|weakness|question|rating|confidence|soundness|presentation|contribution)(?:\s*(?:of|:|\*\*))|\n*$)/i,
-    strength: /(?:^|\n)\s*(?:\*\*\s*)?strengths?(?:\s*(?:of|:))?(?:\s*\*\*\s*)?[:\s]*\n?([\s\S]*?)(?=\n\s*(?:\*\*\s*)?(?:summary|weakness|question|rating|confidence|soundness|presentation|contribution)(?:\s*(?:of|:|\*\*))|\n*$)/i,
-    weakness: /(?:^|\n)\s*(?:\*\*\s*)?weaknesses?(?:\s*(?:of|:))?(?:\s*\*\*\s*)?[:\s]*\n?([\s\S]*?)(?=\n\s*(?:\*\*\s*)?(?:summary|strength|question|rating|confidence|soundness|presentation|contribution)(?:\s*(?:of|:|\*\*))|\n*$)/i,
-    questions: /(?:^|\n)\s*(?:\*\*\s*)?questions?(?:\s*(?:for|to|:))?(?:\s*(?:the\s+)?authors?)?(?:\s*\*\*\s*)?[:\s]*\n?([\s\S]*?)(?=\n\s*(?:\*\*\s*)?(?:summary|strength|weakness|rating|confidence|soundness|presentation|contribution)(?:\s*(?:of|:|\*\*))|\n*$)/i,
-  };
-
-  const scorePatterns = {
-    rating: /rating[:\s]*(\d+(?:\.\d+)?)/i,
-    confidence: /confidence[:\s]*(\d+(?:\.\d+)?)/i,
-    soundness: /soundness[:\s]*(\d+(?:\.\d+)?)/i,
-    presentation: /presentation[:\s]*(\d+(?:\.\d+)?)/i,
-    contribution: /contribution[:\s]*(\d+(?:\.\d+)?)/i,
-  };
-
-  // Extract scores
-  for (const [key, pattern] of Object.entries(scorePatterns)) {
-    const match = rawText.match(pattern);
-    if (match) {
-      data.scores[key] = match[1];
-    }
+  try {
+    const result = await runStage1ApiBreakdown(rawText);
+    data.scores = {
+      ...data.scores,
+      ...(result?.scores || {}),
+    };
+    data.sections = {
+      ...data.sections,
+      ...(result?.sections || {}),
+    };
+    data.atomicIssues = Array.isArray(result?.atomicIssues) ? result.atomicIssues : [];
+    data.responses = Array.isArray(result?.responses) ? result.responses : [];
+  } catch (error) {
+    console.error(error);
+    alert(error.message || 'Failed to run Stage1 breakdown API.');
+  } finally {
+    convertBtnEl.disabled = false;
+    convertBtnEl.classList.remove('loading');
   }
 
-  // Extract sections
-  for (const [key, pattern] of Object.entries(sectionPatterns)) {
-    const match = rawText.match(pattern);
-    if (match && match[1]) {
-      data.sections[key] = match[1].trim();
-    }
-  }
-
-  // If no sections matched, put everything into summary
-  const anySectionFound = Object.values(data.sections).some(v => v.length > 0);
-  if (!anySectionFound) {
-    data.sections.summary = rawText;
-  }
-
-  // Update state
   state.breakdownData[state.activeReviewerIdx] = data;
 
-  // Also mark stage1 as having content
   if (state.currentDoc) {
     state.currentDoc.stage1.content = rawText;
     state.currentDoc.stage1.lastEditedAt = new Date().toISOString();
@@ -525,6 +557,7 @@ function performBreakdown() {
   renderBreakdownPanel();
   renderSidebarStages();
 }
+
 
 /* ────────────────────────────────────────────────────────────
    Stage Advance Modal
@@ -964,6 +997,48 @@ reviewerInput.addEventListener('input', (e) => {
   state.currentDoc.stage1.history.push({ timestamp: state.currentDoc.stage1.lastEditedAt, content: content });
   queueStateSync();
   renderSidebarStages();
+});
+
+
+breakdownContentEl.addEventListener('input', (e) => {
+  const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
+  const scoreKey = e.target?.dataset?.scoreEdit;
+  if (scoreKey) {
+    data.scores[scoreKey] = e.target.innerText.trim();
+    state.breakdownData[state.activeReviewerIdx] = data;
+    queueStateSync();
+    return;
+  }
+
+  const sectionKey = e.target?.dataset?.sectionEdit;
+  if (sectionKey) {
+    data.sections[sectionKey] = parseSectionFromEditable(e.target);
+    state.breakdownData[state.activeReviewerIdx] = data;
+    queueStateSync();
+    return;
+  }
+
+  const issueId = e.target?.dataset?.issueEdit;
+  if (issueId) {
+    const issue = (data.atomicIssues || []).find((item) => item.id === issueId);
+    if (issue) {
+      issue.text = parseSectionFromEditable(e.target);
+      state.breakdownData[state.activeReviewerIdx] = data;
+      queueStateSync();
+    }
+  }
+});
+
+breakdownContentEl.addEventListener('change', (e) => {
+  const field = e.target?.dataset?.responseField;
+  const responseId = e.target?.dataset?.responseId;
+  if (!field || !responseId) return;
+  const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
+  const response = (data.responses || []).find((item) => item.id === responseId);
+  if (!response) return;
+  response[field] = e.target.value.trim();
+  state.breakdownData[state.activeReviewerIdx] = data;
+  queueStateSync();
 });
 
 document.getElementById('apiOpenBtn').addEventListener('click', openApiSettingsModal);
