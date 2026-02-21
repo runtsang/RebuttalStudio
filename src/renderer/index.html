@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rebuttal Studio</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div>
+        <h2 class="sidebar-title">Your Projects</h2>
+        <div id="projectList" class="project-nav"></div>
+      </div>
+      <button id="settingsBtn" class="settings-btn" aria-label="Open settings">⚙</button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="brand">Rebuttal Studio</div>
+          <button id="newBtn" class="btn">+ New</button>
+        </div>
+        <div class="topbar-right">
+          <button id="apiOpenBtn" class="btn">Enter API</button>
+        </div>
+      </header>
+
+      <section class="content">
+        <div id="namingPanel" class="panel hidden">
+          <h3>Name your new project</h3>
+          <div class="row">
+            <input id="projectNameInput" class="text-input" placeholder="Project name" />
+            <button id="confirmProjectBtn" class="btn primary">Create Project</button>
+          </div>
+          <p id="projectNameError" class="error"></p>
+        </div>
+
+        <div id="workspace" class="workspace-layout hidden">
+          <section class="panel">
+            <h3>Reviewer Input</h3>
+            <textarea id="reviewerInput" class="reviewer-input" placeholder="Paste reviewer feedback here"></textarea>
+          </section>
+
+          <section class="panel">
+            <h3>Structured Breakdown</h3>
+            <textarea id="breakdownOutput" class="reviewer-input" placeholder="API-assisted breakdown placeholder"></textarea>
+          </section>
+        </div>
+
+        <div id="emptyState" class="panel empty-state">
+          <h3>Create or open a project to begin.</h3>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="apiModal" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="apiModalTitle">
+      <h3 id="apiModalTitle">Enter API Key</h3>
+      <input id="apiInput" type="password" class="text-input" placeholder="sk-..." />
+      <div class="modal-actions">
+        <button id="cancelApiBtn" class="btn">Cancel</button>
+        <button id="saveApiBtn" class="btn primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <h3 id="settingsTitle">Settings</h3>
+      <label>Autosave interval (seconds)</label>
+      <input id="autosaveInput" class="text-input" type="number" min="10" max="1800" />
+      <p class="muted">Minimum 10 seconds, maximum 1800 seconds (30 minutes).</p>
+      <p id="settingsError" class="error"></p>
+      <div class="modal-actions">
+        <button id="saveNowBtn" class="btn">Save now</button>
+        <button id="closeSettingsBtn" class="btn primary">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
