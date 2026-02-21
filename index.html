@@ -17,6 +17,7 @@
         --space-5: 32px;
         --shadow-soft: 0 4px 14px rgba(20, 20, 20, 0.06);
         --shadow-raised: 0 8px 24px rgba(20, 20, 20, 0.12);
+        --shadow-workflow: 0 -12px 40px rgba(20, 20, 20, 0.2);
         --trans: 180ms ease;
       }
 
@@ -29,6 +30,9 @@
           --text-muted: #6a6a6a;
           --border: #e2e2e2;
           --hover: #e9e9e9;
+          --step-active: #d4d4d4;
+          --step-complete: #b8b8b8;
+          --step-lock: #dcdcdc;
         }
       }
 
@@ -41,6 +45,9 @@
           --text-muted: #ababab;
           --border: #3a3a3a;
           --hover: #333333;
+          --step-active: #515151;
+          --step-complete: #5c5c5c;
+          --step-lock: #3d3d3d;
         }
       }
 
@@ -132,7 +139,8 @@
         gap: var(--space-3);
       }
 
-      button, input {
+      button,
+      input {
         font: inherit;
       }
 
@@ -160,6 +168,11 @@
       .btn.primary:hover {
         transform: translateY(-1px);
         box-shadow: var(--shadow-raised);
+      }
+
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
       }
 
       .search {
@@ -313,6 +326,165 @@
         gap: var(--space-2);
       }
 
+      .workflow-backdrop {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+        padding: var(--space-3);
+        background: color-mix(in srgb, #000 24%, transparent);
+        backdrop-filter: blur(6px);
+        z-index: 30;
+      }
+
+      .workflow-panel {
+        width: min(980px, 100%);
+        background: color-mix(in srgb, var(--panel) 95%, transparent);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        box-shadow: var(--shadow-workflow);
+        padding: var(--space-4);
+        display: grid;
+        gap: var(--space-4);
+        transform: translateY(30px);
+        opacity: 0;
+        transition: transform 300ms ease, opacity 300ms ease;
+      }
+
+      .workflow-backdrop.show {
+        display: flex;
+      }
+
+      .workflow-backdrop.show .workflow-panel {
+        transform: translateY(0);
+        opacity: 1;
+      }
+
+      .workflow-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .workflow-title {
+        margin: 0;
+        font-size: 1.05rem;
+      }
+
+      .close-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+      }
+
+      .stepper {
+        position: relative;
+        padding-bottom: var(--space-2);
+      }
+
+      .stepper::after {
+        content: '';
+        position: absolute;
+        left: 4%;
+        right: 4%;
+        bottom: 2px;
+        height: 1px;
+        background: var(--border);
+      }
+
+      .step-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--space-2);
+      }
+
+      .step-item {
+        text-align: center;
+      }
+
+      .step-short {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin-bottom: var(--space-1);
+        min-height: 1.2rem;
+      }
+
+      .step-trigger {
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--panel-muted);
+        color: var(--text);
+        cursor: pointer;
+        transition: all var(--trans);
+      }
+
+      .step-item.active .step-trigger {
+        background: var(--step-active);
+        border-color: color-mix(in srgb, var(--text-muted) 60%, var(--border));
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-muted) 25%, transparent);
+      }
+
+      .step-item.completed .step-trigger {
+        background: var(--step-complete);
+      }
+
+      .step-item.locked {
+        opacity: 0.42;
+      }
+
+      .step-item.locked .step-trigger {
+        cursor: default;
+        pointer-events: none;
+        background: var(--step-lock);
+      }
+
+      .step-content-wrap {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: var(--panel-muted);
+        padding: var(--space-4);
+        min-height: 170px;
+        overflow: hidden;
+      }
+
+      .step-content {
+        animation: content-slide 240ms ease;
+      }
+
+      .step-content h3 {
+        margin-top: 0;
+        margin-bottom: var(--space-1);
+      }
+
+      .step-content p {
+        margin: 0;
+        color: var(--text-muted);
+        max-width: 75ch;
+      }
+
+      @keyframes content-slide {
+        from {
+          opacity: 0;
+          transform: translateX(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      .workflow-actions {
+        display: flex;
+        justify-content: space-between;
+        gap: var(--space-2);
+      }
+
       .show {
         display: grid !important;
       }
@@ -391,6 +563,26 @@
       </div>
     </div>
 
+    <div id="workflowBackdrop" class="workflow-backdrop" role="dialog" aria-modal="true" aria-labelledby="workflowTitle">
+      <div class="workflow-panel">
+        <div class="workflow-header">
+          <h2 id="workflowTitle" class="workflow-title">New Project Workflow</h2>
+          <button id="workflowClose" class="btn close-btn" aria-label="Close workflow">✕</button>
+        </div>
+
+        <div class="stepper">
+          <ol id="stepList" class="step-list"></ol>
+        </div>
+
+        <section id="stepContent" class="step-content-wrap" aria-live="polite"></section>
+
+        <div class="workflow-actions">
+          <button id="backBtn" class="btn">Back</button>
+          <button id="continueBtn" class="btn primary">Continue</button>
+        </div>
+      </div>
+    </div>
+
     <script>
       const apiOpenBtn = document.getElementById('apiOpenBtn');
       const modalBackdrop = document.getElementById('modalBackdrop');
@@ -402,6 +594,42 @@
       const projectsEl = document.getElementById('projects');
       const emptyStateEl = document.getElementById('emptyState');
 
+      const workflowBackdrop = document.getElementById('workflowBackdrop');
+      const workflowClose = document.getElementById('workflowClose');
+      const stepList = document.getElementById('stepList');
+      const stepContent = document.getElementById('stepContent');
+      const backBtn = document.getElementById('backBtn');
+      const continueBtn = document.getElementById('continueBtn');
+
+      const steps = [
+        {
+          id: 1,
+          shortTitle: 'Framing',
+          title: 'Strategic Framing',
+          subtitle: 'Clarify intent, define scope, and deconstruct the core objective.'
+        },
+        {
+          id: 2,
+          shortTitle: 'Architecture',
+          title: 'Response Architecture',
+          subtitle: 'Construct the structured response and iterate for precision.'
+        },
+        {
+          id: 3,
+          shortTitle: 'Calibration',
+          title: 'Stylistic Calibration',
+          subtitle: 'Apply tone, format templates, and finalize the primary draft.'
+        },
+        {
+          id: 4,
+          shortTitle: 'Conclusion',
+          title: 'Iterative Refinement & Conclusion',
+          subtitle: 'Conduct multi-round enhancement and deliver the final synthesis.'
+        }
+      ];
+
+      let currentStep = 1;
+      let completedSteps = new Set();
       let isGrid = true;
       const projects = [];
 
@@ -442,6 +670,101 @@
           .join('');
       }
 
+      function isStepLocked(stepId) {
+        if (stepId === 1) {
+          return false;
+        }
+
+        if (stepId === 4) {
+          return !completedSteps.has(3);
+        }
+
+        return !completedSteps.has(stepId - 1);
+      }
+
+      function renderStepNavigator() {
+        stepList.innerHTML = steps
+          .map((step) => {
+            const locked = isStepLocked(step.id);
+            const completed = completedSteps.has(step.id);
+            const active = currentStep === step.id;
+            const label = completed ? '✓' : step.id;
+
+            return `
+              <li class="step-item ${locked ? 'locked' : ''} ${active ? 'active' : ''} ${completed ? 'completed' : ''}">
+                <div class="step-short">${step.shortTitle}</div>
+                <button class="step-trigger" type="button" data-step="${step.id}" aria-label="Go to step ${step.id}: ${step.title}" ${locked ? 'disabled' : ''}>${label}</button>
+              </li>
+            `;
+          })
+          .join('');
+      }
+
+      function renderStepContent() {
+        const step = steps.find((item) => item.id === currentStep);
+        stepContent.innerHTML = `
+          <div class="step-content" key="${step.id}">
+            <h3>${step.title}</h3>
+            <p>${step.subtitle}</p>
+          </div>
+        `;
+      }
+
+      function renderWorkflowActions() {
+        backBtn.disabled = currentStep === 1;
+        continueBtn.textContent = currentStep === 4 ? 'Finish Project' : 'Continue';
+      }
+
+      function renderWorkflow() {
+        renderStepNavigator();
+        renderStepContent();
+        renderWorkflowActions();
+      }
+
+      function resetWorkflow() {
+        currentStep = 1;
+        completedSteps = new Set();
+        renderWorkflow();
+      }
+
+      function openWorkflow() {
+        resetWorkflow();
+        workflowBackdrop.classList.add('show');
+      }
+
+      function closeWorkflow() {
+        workflowBackdrop.classList.remove('show');
+        resetWorkflow();
+      }
+
+      function goToStep(stepId) {
+        if (isStepLocked(stepId)) {
+          return;
+        }
+
+        currentStep = stepId;
+        renderWorkflow();
+      }
+
+      function handleContinue() {
+        completedSteps.add(currentStep);
+
+        if (currentStep === 4) {
+          closeWorkflow();
+          return;
+        }
+
+        currentStep += 1;
+        renderWorkflow();
+      }
+
+      function handleBack() {
+        if (currentStep > 1) {
+          currentStep -= 1;
+          renderWorkflow();
+        }
+      }
+
       apiOpenBtn.addEventListener('click', openModal);
       cancelBtn.addEventListener('click', closeModal);
       saveBtn.addEventListener('click', () => {
@@ -455,9 +778,27 @@
         }
       });
 
-      newBtn.addEventListener('click', () => {
-        console.log('Create new project (placeholder)');
+      newBtn.addEventListener('click', openWorkflow);
+
+      workflowBackdrop.addEventListener('click', (event) => {
+        if (event.target === workflowBackdrop) {
+          closeWorkflow();
+        }
       });
+
+      workflowClose.addEventListener('click', closeWorkflow);
+
+      stepList.addEventListener('click', (event) => {
+        const stepTrigger = event.target.closest('.step-trigger');
+        if (!stepTrigger) {
+          return;
+        }
+
+        goToStep(Number(stepTrigger.dataset.step));
+      });
+
+      continueBtn.addEventListener('click', handleContinue);
+      backBtn.addEventListener('click', handleBack);
 
       viewToggle.addEventListener('click', () => {
         isGrid = !isGrid;
@@ -465,6 +806,7 @@
         renderProjects();
       });
 
+      renderWorkflow();
       renderProjects();
     </script>
   </body>
