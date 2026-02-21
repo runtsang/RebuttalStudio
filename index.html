@@ -134,6 +134,11 @@
       .btn.primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-raised); }
       .btn:disabled { opacity: .45; cursor: not-allowed; }
 
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
       .search {
         width: min(600px, 100%);
         margin: 0 auto;
@@ -574,6 +579,101 @@
         }
       }
 
+      function isStepLocked(stepId) {
+        if (stepId === 1) {
+          return false;
+        }
+
+        if (stepId === 4) {
+          return !completedSteps.has(3);
+        }
+
+        return !completedSteps.has(stepId - 1);
+      }
+
+      function renderStepNavigator() {
+        stepList.innerHTML = steps
+          .map((step) => {
+            const locked = isStepLocked(step.id);
+            const completed = completedSteps.has(step.id);
+            const active = currentStep === step.id;
+            const label = completed ? '✓' : step.id;
+
+            return `
+              <li class="step-item ${locked ? 'locked' : ''} ${active ? 'active' : ''} ${completed ? 'completed' : ''}">
+                <div class="step-short">${step.shortTitle}</div>
+                <button class="step-trigger" type="button" data-step="${step.id}" aria-label="Go to step ${step.id}: ${step.title}" ${locked ? 'disabled' : ''}>${label}</button>
+              </li>
+            `;
+          })
+          .join('');
+      }
+
+      function renderStepContent() {
+        const step = steps.find((item) => item.id === currentStep);
+        stepContent.innerHTML = `
+          <div class="step-content" key="${step.id}">
+            <h3>${step.title}</h3>
+            <p>${step.subtitle}</p>
+          </div>
+        `;
+      }
+
+      function renderWorkflowActions() {
+        backBtn.disabled = currentStep === 1;
+        continueBtn.textContent = currentStep === 4 ? 'Finish Project' : 'Continue';
+      }
+
+      function renderWorkflow() {
+        renderStepNavigator();
+        renderStepContent();
+        renderWorkflowActions();
+      }
+
+      function resetWorkflow() {
+        currentStep = 1;
+        completedSteps = new Set();
+        renderWorkflow();
+      }
+
+      function openWorkflow() {
+        resetWorkflow();
+        workflowBackdrop.classList.add('show');
+      }
+
+      function closeWorkflow() {
+        workflowBackdrop.classList.remove('show');
+        resetWorkflow();
+      }
+
+      function goToStep(stepId) {
+        if (isStepLocked(stepId)) {
+          return;
+        }
+
+        currentStep = stepId;
+        renderWorkflow();
+      }
+
+      function handleContinue() {
+        completedSteps.add(currentStep);
+
+        if (currentStep === 4) {
+          closeWorkflow();
+          return;
+        }
+
+        currentStep += 1;
+        renderWorkflow();
+      }
+
+      function handleBack() {
+        if (currentStep > 1) {
+          currentStep -= 1;
+          renderWorkflow();
+        }
+      }
+
       apiOpenBtn.addEventListener('click', openModal);
       cancelBtn.addEventListener('click', closeModal);
       saveBtn.addEventListener('click', () => {
@@ -610,12 +710,16 @@
         }
       });
 
+      continueBtn.addEventListener('click', handleContinue);
+      backBtn.addEventListener('click', handleBack);
+
       viewToggle.addEventListener('click', () => {
         isGrid = !isGrid;
         viewToggle.textContent = isGrid ? '☷' : '☰';
         renderProjects();
       });
 
+      renderWorkflow();
       renderProjects();
     </script>
   </body>
