@@ -17,7 +17,7 @@
         --space-5: 32px;
         --shadow-soft: 0 4px 14px rgba(20, 20, 20, 0.06);
         --shadow-raised: 0 8px 24px rgba(20, 20, 20, 0.12);
-        --shadow-workflow: 0 -12px 40px rgba(20, 20, 20, 0.2);
+        --shadow-workflow: 0 -10px 36px rgba(20, 20, 20, 0.16);
         --trans: 180ms ease;
       }
 
@@ -30,9 +30,10 @@
           --text-muted: #6a6a6a;
           --border: #e2e2e2;
           --hover: #e9e9e9;
-          --step-active: #d4d4d4;
+          --step-active: #d8d8d8;
           --step-complete: #b8b8b8;
-          --step-lock: #dcdcdc;
+          --step-lock: #dbdbdb;
+          --rainbow-soft: linear-gradient(135deg, #b7c3f3, #d8bde8, #ecc6bf, #c4d8c3, #b8d4f0);
         }
       }
 
@@ -45,15 +46,14 @@
           --text-muted: #ababab;
           --border: #3a3a3a;
           --hover: #333333;
-          --step-active: #515151;
+          --step-active: #535353;
           --step-complete: #5c5c5c;
           --step-lock: #3d3d3d;
+          --rainbow-soft: linear-gradient(135deg, #6f78a4, #86719a, #a0817c, #6f8d70, #6e8ca8);
         }
       }
 
-      * {
-        box-sizing: border-box;
-      }
+      * { box-sizing: border-box; }
 
       body {
         margin: 0;
@@ -63,11 +63,7 @@
         color: var(--text);
       }
 
-      .app {
-        display: grid;
-        grid-template-columns: 260px 1fr;
-        min-height: 100vh;
-      }
+      .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
 
       .sidebar {
         position: sticky;
@@ -81,17 +77,8 @@
         justify-content: space-between;
       }
 
-      .sidebar-title {
-        font-size: 0.95rem;
-        margin: 0 0 var(--space-3) 0;
-        color: var(--text-muted);
-        letter-spacing: 0.02em;
-      }
-
-      .project-nav {
-        display: grid;
-        gap: var(--space-1);
-      }
+      .sidebar-title { font-size: .95rem; margin: 0 0 var(--space-3); color: var(--text-muted); letter-spacing: .02em; }
+      .project-nav { display: grid; gap: var(--space-1); }
 
       .project-item {
         border: 1px solid transparent;
@@ -101,11 +88,7 @@
         text-decoration: none;
         transition: background var(--trans), border-color var(--trans);
       }
-
-      .project-item:hover {
-        background: var(--hover);
-        border-color: var(--border);
-      }
+      .project-item:hover { background: var(--hover); border-color: var(--border); }
 
       .settings-btn {
         border: 1px solid var(--border);
@@ -119,11 +102,7 @@
         cursor: pointer;
       }
 
-      .main {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-      }
+      .main { display: flex; flex-direction: column; min-width: 0; }
 
       .topbar {
         position: sticky;
@@ -139,10 +118,7 @@
         gap: var(--space-3);
       }
 
-      button,
-      input {
-        font: inherit;
-      }
+      button, input, textarea { font: inherit; }
 
       .btn {
         border: 1px solid var(--border);
@@ -153,22 +129,10 @@
         cursor: pointer;
         transition: all var(--trans);
       }
-
-      .btn:hover {
-        background: var(--hover);
-      }
-
-      .btn.primary {
-        background: var(--text);
-        color: var(--panel);
-        border-color: transparent;
-        box-shadow: var(--shadow-soft);
-      }
-
-      .btn.primary:hover {
-        transform: translateY(-1px);
-        box-shadow: var(--shadow-raised);
-      }
+      .btn:hover { background: var(--hover); }
+      .btn.primary { background: var(--text); color: var(--panel); border-color: transparent; box-shadow: var(--shadow-soft); }
+      .btn.primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-raised); }
+      .btn:disabled { opacity: .45; cursor: not-allowed; }
 
       .btn:disabled {
         opacity: 0.45;
@@ -184,335 +148,167 @@
         padding: 10px 16px;
         color: var(--text);
         outline: none;
-        transition: border-color var(--trans), box-shadow var(--trans), background var(--trans);
       }
 
-      .search:focus,
-      .search:hover {
-        border-color: color-mix(in srgb, var(--text-muted) 45%, var(--border));
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-muted) 20%, transparent);
-      }
+      .topbar-actions { display: flex; align-items: center; gap: var(--space-2); }
+      .icon-btn { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel-muted); color: var(--text); display: grid; place-items: center; cursor: pointer; }
 
-      .topbar-actions {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-      }
+      .content { flex: 1; padding: var(--space-4); display: grid; padding-bottom: 168px; }
 
-      .icon-btn {
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
-        border: 1px solid var(--border);
-        background: var(--panel-muted);
-        color: var(--text);
-        display: grid;
-        place-items: center;
-        cursor: pointer;
-      }
+      .empty-state { margin: auto; text-align: center; max-width: 460px; }
+      .empty-state h1 { margin: 0 0 var(--space-2); font-size: clamp(1.5rem, 3vw, 2.2rem); }
+      .empty-state p { margin: 0 0 var(--space-4); color: var(--text-muted); }
 
-      .content {
-        flex: 1;
-        padding: var(--space-4);
-        display: grid;
-      }
+      .projects { width: 100%; display: none; gap: var(--space-2); opacity: 0; transform: translateY(8px); transition: opacity 220ms ease, transform 220ms ease; }
+      .projects.visible { opacity: 1; transform: translateY(0); }
+      .projects.grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+      .projects.list { grid-template-columns: 1fr; }
+      .project-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3); box-shadow: var(--shadow-soft); }
+      .project-meta { color: var(--text-muted); font-size: .9rem; margin-top: var(--space-1); }
 
-      .empty-state {
-        margin: auto;
-        text-align: center;
-        max-width: 460px;
+      .modal-backdrop {
+        position: fixed; inset: 0; display: none; place-items: center;
+        background: color-mix(in srgb, #000 25%, transparent); backdrop-filter: blur(5px); z-index: 20;
       }
+      .modal { width: min(440px, calc(100% - 32px)); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-raised); padding: var(--space-4); }
+      .api-input { width: 100%; margin-top: var(--space-2); margin-bottom: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; background: var(--panel-muted); color: var(--text); }
+      .modal-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 
-      .empty-state h1 {
-        margin: 0 0 var(--space-2);
-        font-size: clamp(1.5rem, 3vw, 2.2rem);
-      }
-
-      .empty-state p {
-        margin: 0 0 var(--space-4);
-        color: var(--text-muted);
-      }
-
-      .projects {
-        width: 100%;
+      .workflow-workspace {
         display: none;
-        gap: var(--space-2);
-        opacity: 0;
-        transform: translateY(8px);
-        transition: opacity 220ms ease, transform 220ms ease;
+        align-content: start;
+        gap: var(--space-3);
       }
 
-      .projects.visible {
-        opacity: 1;
-        transform: translateY(0);
+      .stage-head h2 { margin: 0 0 4px; font-size: 1.12rem; }
+      .stage-head p { margin: 0; color: var(--text-muted); }
+
+      .stage-layout {
+        display: grid;
+        grid-template-columns: minmax(320px, 1fr) auto minmax(280px, .95fr);
+        gap: var(--space-3);
+        align-items: stretch;
       }
 
-      .projects.grid {
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      }
-
-      .projects.list {
-        grid-template-columns: 1fr;
-      }
-
-      .project-card {
+      .panel {
         background: var(--panel);
         border: 1px solid var(--border);
         border-radius: var(--radius-md);
         padding: var(--space-3);
-        box-shadow: var(--shadow-soft);
-        transition: transform var(--trans), background var(--trans);
       }
 
-      .projects.grid .project-card:hover {
-        transform: translateY(-2px);
-      }
+      .reviewer-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2); }
+      .reviewer-list { display: flex; gap: var(--space-1); flex-wrap: wrap; margin-bottom: var(--space-2); }
 
-      .projects.list .project-card {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-radius: 0;
-        border-left: none;
-        border-right: none;
-        box-shadow: none;
-        background: transparent;
-        padding-inline: 0;
-      }
+      .reviewer-pill { border: 1px solid var(--border); background: var(--panel-muted); color: var(--text); border-radius: 999px; padding: 6px 12px; font-size: .85rem; }
+      .reviewer-pill.active { background: var(--hover); border-color: color-mix(in srgb, var(--text-muted) 45%, var(--border)); }
+      .reviewer-add { width: 30px; height: 30px; border-radius: 999px; padding: 0; }
 
-      .project-meta {
+      .hint-card {
+        border: 1px dashed var(--border);
+        background: color-mix(in srgb, var(--panel-muted) 88%, transparent);
+        border-radius: var(--radius-sm);
+        padding: var(--space-2);
+        margin-bottom: var(--space-2);
         color: var(--text-muted);
-        font-size: 0.9rem;
-        margin-top: var(--space-1);
+        font-size: .92rem;
       }
 
-      .modal-backdrop {
-        position: fixed;
-        inset: 0;
-        display: none;
-        place-items: center;
-        background: color-mix(in srgb, #000 25%, transparent);
-        backdrop-filter: blur(5px);
-        z-index: 20;
-      }
-
-      .modal {
-        width: min(440px, calc(100% - 32px));
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-raised);
-        padding: var(--space-4);
-      }
-
-      .modal h2 {
-        margin-top: 0;
-      }
-
-      .api-input {
+      .reviewer-input {
         width: 100%;
-        margin-top: var(--space-2);
-        margin-bottom: var(--space-4);
+        min-height: 170px;
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
-        padding: 10px 12px;
+        padding: 12px;
+        resize: vertical;
         background: var(--panel-muted);
         color: var(--text);
       }
 
-      .modal-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: var(--space-2);
-      }
-
-      .workflow-backdrop {
-        position: fixed;
-        inset: 0;
-        display: none;
-        align-items: flex-end;
-        justify-content: center;
-        padding: var(--space-3);
-        background: color-mix(in srgb, #000 24%, transparent);
-        backdrop-filter: blur(6px);
-        z-index: 30;
-      }
-
-      .workflow-panel {
-        width: min(980px, 100%);
-        background: color-mix(in srgb, var(--panel) 95%, transparent);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        box-shadow: var(--shadow-workflow);
-        padding: var(--space-4);
+      .flow-arrow {
         display: grid;
-        gap: var(--space-4);
-        transform: translateY(30px);
+        place-items: center;
+        color: var(--text-muted);
+        font-size: 2rem;
+        min-width: 40px;
+      }
+
+      .placeholder-title { margin-top: 0; margin-bottom: 8px; }
+      .placeholder-body { margin: 0; color: var(--text-muted); }
+
+      .workflow-status {
+        position: fixed;
+        left: 260px;
+        right: 0;
+        bottom: 0;
+        display: none;
+        padding: var(--space-3) var(--space-4);
+        background: color-mix(in srgb, var(--panel) 90%, transparent);
+        backdrop-filter: blur(8px);
+        border-top: 1px solid var(--border);
+        box-shadow: var(--shadow-workflow);
+        transform: translateY(28px);
         opacity: 0;
         transition: transform 300ms ease, opacity 300ms ease;
+        z-index: 15;
       }
 
-      .workflow-backdrop.show {
-        display: flex;
-      }
+      .workflow-status.show { display: block; transform: translateY(0); opacity: 1; }
+      .status-inner { max-width: 980px; margin: 0 auto; display: grid; gap: var(--space-3); }
 
-      .workflow-backdrop.show .workflow-panel {
-        transform: translateY(0);
-        opacity: 1;
-      }
+      .status-steps { list-style: none; margin: 0; padding: 0 8px 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); position: relative; }
+      .status-steps::after { content: ''; position: absolute; left: 5%; right: 5%; bottom: 4px; height: 1px; background: var(--border); }
+      .status-step { text-align: center; transition: opacity var(--trans); }
+      .status-label { font-size: .78rem; color: var(--text-muted); margin-bottom: 8px; }
 
-      .workflow-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-
-      .workflow-title {
-        margin: 0;
-        font-size: 1.05rem;
-      }
-
-      .close-btn {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-      }
-
-      .stepper {
-        position: relative;
-        padding-bottom: var(--space-2);
-      }
-
-      .stepper::after {
-        content: '';
-        position: absolute;
-        left: 4%;
-        right: 4%;
-        bottom: 2px;
-        height: 1px;
-        background: var(--border);
-      }
-
-      .step-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: var(--space-2);
-      }
-
-      .step-item {
-        text-align: center;
-      }
-
-      .step-short {
-        font-size: 0.78rem;
-        color: var(--text-muted);
-        margin-bottom: var(--space-1);
-        min-height: 1.2rem;
-      }
-
-      .step-trigger {
+      .status-node {
         width: 42px;
         height: 42px;
+        margin: 0 auto;
         border-radius: 999px;
         border: 1px solid var(--border);
         background: var(--panel-muted);
-        color: var(--text);
-        cursor: pointer;
+        display: grid;
+        place-items: center;
+        position: relative;
         transition: all var(--trans);
       }
 
-      .step-item.active .step-trigger {
+      .status-step.completed .status-node { background: var(--step-complete); }
+      .status-step.locked { opacity: .42; }
+      .status-step.locked .status-node { background: var(--step-lock); }
+
+      .status-step.active .status-node {
         background: var(--step-active);
-        border-color: color-mix(in srgb, var(--text-muted) 60%, var(--border));
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-muted) 25%, transparent);
+        border-color: transparent;
       }
 
-      .step-item.completed .step-trigger {
-        background: var(--step-complete);
+      .status-step.active .status-node::before {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        border-radius: inherit;
+        padding: 2px;
+        background: var(--rainbow-soft);
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
       }
 
-      .step-item.locked {
-        opacity: 0.42;
-      }
+      .status-actions { display: flex; justify-content: space-between; gap: var(--space-2); }
 
-      .step-item.locked .step-trigger {
-        cursor: default;
-        pointer-events: none;
-        background: var(--step-lock);
-      }
-
-      .step-content-wrap {
-        border: 1px solid var(--border);
-        border-radius: var(--radius-md);
-        background: var(--panel-muted);
-        padding: var(--space-4);
-        min-height: 170px;
-        overflow: hidden;
-      }
-
-      .step-content {
-        animation: content-slide 240ms ease;
-      }
-
-      .step-content h3 {
-        margin-top: 0;
-        margin-bottom: var(--space-1);
-      }
-
-      .step-content p {
-        margin: 0;
-        color: var(--text-muted);
-        max-width: 75ch;
-      }
-
-      @keyframes content-slide {
-        from {
-          opacity: 0;
-          transform: translateX(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateX(0);
-        }
-      }
-
-      .workflow-actions {
-        display: flex;
-        justify-content: space-between;
-        gap: var(--space-2);
-      }
-
-      .show {
-        display: grid !important;
-      }
+      .show { display: grid !important; }
 
       @media (max-width: 900px) {
-        .app {
-          grid-template-columns: 1fr;
-        }
-
-        .sidebar {
-          position: static;
-          height: auto;
-          border-right: none;
-          border-bottom: 1px solid var(--border);
-        }
-
-        .topbar {
-          grid-template-columns: 1fr;
-        }
-
-        .search {
-          width: 100%;
-          margin: 0;
-        }
-
-        .topbar-actions {
-          justify-content: flex-end;
-        }
+        .app { grid-template-columns: 1fr; }
+        .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+        .topbar { grid-template-columns: 1fr; }
+        .search { width: 100%; margin: 0; }
+        .topbar-actions { justify-content: flex-end; }
+        .content { padding-bottom: 200px; }
+        .workflow-status { left: 0; }
+        .stage-layout { grid-template-columns: 1fr; }
+        .flow-arrow { transform: rotate(90deg); min-height: 32px; }
       }
     </style>
   </head>
@@ -548,6 +344,8 @@
           </div>
 
           <div id="projects" class="projects grid" aria-live="polite"></div>
+
+          <div id="workflowWorkspace" class="workflow-workspace" aria-live="polite"></div>
         </section>
       </main>
     </div>
@@ -563,25 +361,18 @@
       </div>
     </div>
 
-    <div id="workflowBackdrop" class="workflow-backdrop" role="dialog" aria-modal="true" aria-labelledby="workflowTitle">
-      <div class="workflow-panel">
-        <div class="workflow-header">
-          <h2 id="workflowTitle" class="workflow-title">New Project Workflow</h2>
-          <button id="workflowClose" class="btn close-btn" aria-label="Close workflow">✕</button>
-        </div>
-
-        <div class="stepper">
-          <ol id="stepList" class="step-list"></ol>
-        </div>
-
-        <section id="stepContent" class="step-content-wrap" aria-live="polite"></section>
-
-        <div class="workflow-actions">
+    <aside id="workflowStatus" class="workflow-status" aria-live="polite">
+      <div class="status-inner">
+        <ol id="statusSteps" class="status-steps"></ol>
+        <div class="status-actions">
           <button id="backBtn" class="btn">Back</button>
-          <button id="continueBtn" class="btn primary">Continue</button>
+          <div style="display:flex; gap: 8px;">
+            <button id="closeWorkflowBtn" class="btn">Close</button>
+            <button id="continueBtn" class="btn primary">Continue</button>
+          </div>
         </div>
       </div>
-    </div>
+    </aside>
 
     <script>
       const apiOpenBtn = document.getElementById('apiOpenBtn');
@@ -594,80 +385,198 @@
       const projectsEl = document.getElementById('projects');
       const emptyStateEl = document.getElementById('emptyState');
 
-      const workflowBackdrop = document.getElementById('workflowBackdrop');
-      const workflowClose = document.getElementById('workflowClose');
-      const stepList = document.getElementById('stepList');
-      const stepContent = document.getElementById('stepContent');
+      const workflowWorkspace = document.getElementById('workflowWorkspace');
+      const workflowStatus = document.getElementById('workflowStatus');
+      const statusSteps = document.getElementById('statusSteps');
       const backBtn = document.getElementById('backBtn');
+      const closeWorkflowBtn = document.getElementById('closeWorkflowBtn');
       const continueBtn = document.getElementById('continueBtn');
 
       const steps = [
-        {
-          id: 1,
-          shortTitle: 'Framing',
-          title: 'Strategic Framing',
-          subtitle: 'Clarify intent, define scope, and deconstruct the core objective.'
-        },
-        {
-          id: 2,
-          shortTitle: 'Architecture',
-          title: 'Response Architecture',
-          subtitle: 'Construct the structured response and iterate for precision.'
-        },
-        {
-          id: 3,
-          shortTitle: 'Calibration',
-          title: 'Stylistic Calibration',
-          subtitle: 'Apply tone, format templates, and finalize the primary draft.'
-        },
-        {
-          id: 4,
-          shortTitle: 'Conclusion',
-          title: 'Iterative Refinement & Conclusion',
-          subtitle: 'Conduct multi-round enhancement and deliver the final synthesis.'
-        }
+        { id: 1, shortTitle: 'Framing', title: 'Strategic Framing', subtitle: 'Clarify intent, define scope, and deconstruct the core objective.' },
+        { id: 2, shortTitle: 'Architecture', title: 'Response Architecture', subtitle: 'Construct the structured response and iterate for precision.' },
+        { id: 3, shortTitle: 'Calibration', title: 'Stylistic Calibration', subtitle: 'Apply tone, format templates, and finalize the primary draft.' },
+        { id: 4, shortTitle: 'Conclusion', title: 'Iterative Refinement & Conclusion', subtitle: 'Conduct multi-round enhancement and deliver the final synthesis.' }
       ];
 
+      let isGrid = true;
+      let workflowActive = false;
       let currentStep = 1;
       let completedSteps = new Set();
-      let isGrid = true;
+      let reviewerProfiles = [{ id: 1, name: 'Reviewer 1', content: '' }];
+      let activeReviewerId = 1;
       const projects = [];
 
-      function openModal() {
-        modalBackdrop.classList.add('show');
-        apiInput.focus();
-      }
-
-      function closeModal() {
-        modalBackdrop.classList.remove('show');
-      }
+      function openModal() { modalBackdrop.classList.add('show'); apiInput.focus(); }
+      function closeModal() { modalBackdrop.classList.remove('show'); }
 
       function renderProjects() {
         if (!projects.length) {
-          emptyStateEl.style.display = 'block';
+          emptyStateEl.style.display = workflowActive ? 'none' : 'block';
           projectsEl.style.display = 'none';
           return;
         }
 
-        emptyStateEl.style.display = 'none';
-        projectsEl.style.display = 'grid';
+        emptyStateEl.style.display = workflowActive ? 'none' : 'none';
+        projectsEl.style.display = workflowActive ? 'none' : 'grid';
         projectsEl.classList.add('visible');
         projectsEl.classList.toggle('grid', isGrid);
         projectsEl.classList.toggle('list', !isGrid);
 
-        projectsEl.innerHTML = projects
-          .map(
-            (project) => `
+        projectsEl.innerHTML = projects.map((project) => `
             <article class="project-card">
               <div>
                 <strong>${project.name}</strong>
                 <div class="project-meta">${project.description}</div>
               </div>
-              ${!isGrid ? `<span class="project-meta">${project.updated}</span>` : ''}
             </article>
-          `
-          )
-          .join('');
+          `).join('');
+      }
+
+      function isStepLocked(stepId) {
+        if (stepId === 1) return false;
+        if (stepId === 4) return !completedSteps.has(3);
+        return !completedSteps.has(stepId - 1);
+      }
+
+      function renderStatusSteps() {
+        statusSteps.innerHTML = steps.map((step) => {
+          const completed = completedSteps.has(step.id);
+          const active = currentStep === step.id;
+          const locked = isStepLocked(step.id);
+          const marker = completed ? '✓' : step.id;
+          return `
+            <li class="status-step ${completed ? 'completed' : ''} ${active ? 'active' : ''} ${locked ? 'locked' : ''}">
+              <div class="status-label">${step.shortTitle}</div>
+              <div class="status-node">${marker}</div>
+            </li>
+          `;
+        }).join('');
+      }
+
+      function getActiveReviewer() {
+        return reviewerProfiles.find((profile) => profile.id === activeReviewerId);
+      }
+
+      function renderStepWorkspace() {
+        const step = steps.find((item) => item.id === currentStep);
+
+        if (currentStep === 1) {
+          const reviewerButtons = reviewerProfiles.map((profile) => `
+            <button class="reviewer-pill ${profile.id === activeReviewerId ? 'active' : ''}" data-reviewer-id="${profile.id}">${profile.name}</button>
+          `).join('');
+
+          const reviewerText = getActiveReviewer()?.content || '';
+
+          workflowWorkspace.innerHTML = `
+            <header class="stage-head">
+              <h2>${step.title}</h2>
+              <p>${step.subtitle}</p>
+            </header>
+            <div class="stage-layout">
+              <section class="panel">
+                <div class="reviewer-toolbar">
+                  <strong>Reviewer Profiles</strong>
+                  <button id="addReviewerBtn" class="btn reviewer-add" aria-label="Add reviewer">+</button>
+                </div>
+                <div class="reviewer-list">${reviewerButtons}</div>
+                <div class="hint-card">请输入第一个 reviewer 的完整过程内容，可直接复制粘贴到这里（默认 Reviewer 1）。</div>
+                <textarea id="reviewerInput" class="reviewer-input" placeholder="Paste the full reviewer process for Reviewer 1 here...">${reviewerText}</textarea>
+              </section>
+              <div class="flow-arrow">→</div>
+              <section class="panel">
+                <h3 class="placeholder-title">Breakdown Preview (API Flow)</h3>
+                <p class="placeholder-body">这里是右侧流程占位区域：后续可通过 API 将左侧输入自动拆解为更细的分析模块。当前版本仅保留流程展示，不实现实际调用。</p>
+              </section>
+            </div>
+          `;
+          return;
+        }
+
+        workflowWorkspace.innerHTML = `
+          <header class="stage-head">
+            <h2>${step.title}</h2>
+            <p>${step.subtitle}</p>
+          </header>
+          <div class="stage-layout">
+            <section class="panel">
+              <h3 class="placeholder-title">Step ${currentStep} Workspace</h3>
+              <p class="placeholder-body">This stage is now displayed directly in the main page (not inside a popup) while the bottom bar only reflects step status.</p>
+            </section>
+            <div class="flow-arrow">→</div>
+            <section class="panel">
+              <h3 class="placeholder-title">Output / Processing Area</h3>
+              <p class="placeholder-body">Reserved for future features for this step.</p>
+            </section>
+          </div>
+        `;
+      }
+
+      function renderWorkflowActions() {
+        backBtn.disabled = currentStep === 1;
+        continueBtn.textContent = currentStep === 4 ? 'Finish Project' : 'Continue';
+      }
+
+      function renderWorkflow() {
+        renderStatusSteps();
+        renderStepWorkspace();
+        renderWorkflowActions();
+        workflowWorkspace.style.display = workflowActive ? 'grid' : 'none';
+      }
+
+      function resetWorkflowState() {
+        currentStep = 1;
+        completedSteps = new Set();
+        reviewerProfiles = [{ id: 1, name: 'Reviewer 1', content: '' }];
+        activeReviewerId = 1;
+      }
+
+      function openWorkflow() {
+        workflowActive = true;
+        resetWorkflowState();
+        emptyStateEl.style.display = 'none';
+        projectsEl.style.display = 'none';
+        workflowStatus.classList.add('show');
+        renderWorkflow();
+      }
+
+      function closeWorkflow() {
+        workflowActive = false;
+        workflowStatus.classList.remove('show');
+        workflowWorkspace.style.display = 'none';
+        resetWorkflowState();
+        renderProjects();
+      }
+
+      function handleContinue() {
+        completedSteps.add(currentStep);
+        if (currentStep === 4) {
+          closeWorkflow();
+          return;
+        }
+        currentStep += 1;
+        renderWorkflow();
+      }
+
+      function handleBack() {
+        if (currentStep > 1) {
+          currentStep -= 1;
+          renderWorkflow();
+        }
+      }
+
+      function addReviewer() {
+        const nextId = reviewerProfiles.length + 1;
+        reviewerProfiles.push({ id: nextId, name: `Reviewer ${nextId}`, content: '' });
+        activeReviewerId = nextId;
+        renderWorkflow();
+      }
+
+      function updateReviewerContent(value) {
+        const profile = getActiveReviewer();
+        if (profile) {
+          profile.content = value;
+        }
       }
 
       function isStepLocked(stepId) {
@@ -773,28 +682,32 @@
       });
 
       modalBackdrop.addEventListener('click', (event) => {
-        if (event.target === modalBackdrop) {
-          closeModal();
-        }
+        if (event.target === modalBackdrop) closeModal();
       });
 
       newBtn.addEventListener('click', openWorkflow);
+      continueBtn.addEventListener('click', handleContinue);
+      backBtn.addEventListener('click', handleBack);
+      closeWorkflowBtn.addEventListener('click', closeWorkflow);
 
-      workflowBackdrop.addEventListener('click', (event) => {
-        if (event.target === workflowBackdrop) {
-          closeWorkflow();
-        }
-      });
-
-      workflowClose.addEventListener('click', closeWorkflow);
-
-      stepList.addEventListener('click', (event) => {
-        const stepTrigger = event.target.closest('.step-trigger');
-        if (!stepTrigger) {
+      workflowWorkspace.addEventListener('click', (event) => {
+        const addButton = event.target.closest('#addReviewerBtn');
+        if (addButton) {
+          addReviewer();
           return;
         }
 
-        goToStep(Number(stepTrigger.dataset.step));
+        const reviewerButton = event.target.closest('.reviewer-pill');
+        if (reviewerButton) {
+          activeReviewerId = Number(reviewerButton.dataset.reviewerId);
+          renderWorkflow();
+        }
+      });
+
+      workflowWorkspace.addEventListener('input', (event) => {
+        if (event.target.id === 'reviewerInput') {
+          updateReviewerContent(event.target.value);
+        }
       });
 
       continueBtn.addEventListener('click', handleContinue);
