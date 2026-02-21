@@ -1,2 +1,4 @@
 node_modules/
-projects/
+projects/*
+!projects/TokenSeek/
+!projects/TokenSeek/**
