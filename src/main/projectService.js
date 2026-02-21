@@ -18,10 +18,11 @@ function createEmptyStage() {
   };
 }
 
-function createProjectDoc(projectName, autosaveIntervalSeconds) {
+function createProjectDoc(projectName, conference, autosaveIntervalSeconds) {
   const now = new Date().toISOString();
   const doc = {
     projectName,
+    conference,
     createdAt: now,
     updatedAt: now,
     autosaveIntervalSeconds,
@@ -77,6 +78,7 @@ async function listProjects() {
       }
       return {
         projectName: parsed.projectName || dir.name,
+        conference: parsed.conference || 'ICLR',
         folderName: dir.name,
         unavailable: false,
         error: null,
@@ -88,7 +90,7 @@ async function listProjects() {
   return projects.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
 }
 
-async function createProject(projectName, autosaveIntervalSeconds) {
+async function createProject(projectName, conference, autosaveIntervalSeconds) {
   await ensureProjectsRoot();
   const safeName = sanitizeProjectName(projectName);
   if (!safeName) {
@@ -105,7 +107,7 @@ async function createProject(projectName, autosaveIntervalSeconds) {
     }
   }
 
-  const doc = createProjectDoc(projectName, autosaveIntervalSeconds);
+  const doc = createProjectDoc(projectName, conference || 'ICLR', autosaveIntervalSeconds);
   await saveProjectDoc(safeName, doc);
 
   return {
@@ -120,6 +122,7 @@ async function loadProject(folderName) {
   if (parsed.__error) {
     throw new Error(`Could not load project.json: ${parsed.__error}`);
   }
+  if (!parsed.conference) parsed.conference = 'ICLR';
   return parsed;
 }
 
@@ -127,6 +130,7 @@ async function saveProject(folderName, projectDoc) {
   const now = new Date().toISOString();
   const nextDoc = {
     ...projectDoc,
+    conference: projectDoc.conference || 'ICLR',
     updatedAt: now,
   };
   await saveProjectDoc(folderName, nextDoc);

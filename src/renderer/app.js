@@ -1,3 +1,11 @@
+const STAGES = [
+  { key: 'stage1', label: 'Stage 1' },
+  { key: 'stage2', label: 'Stage 2' },
+  { key: 'stage3', label: 'Stage 3' },
+  { key: 'stage4', label: 'Stage 4' },
+  { key: 'stage5', label: 'Stage 5' },
+];
+
 const state = {
   appSettings: { defaultAutosaveIntervalSeconds: 60 },
   projects: [],
@@ -5,6 +13,7 @@ const state = {
   currentDoc: null,
   apiKeyMemoryOnly: '',
   pendingCreate: false,
+  selectedConference: 'ICLR',
 };
 
 const projectListEl = document.getElementById('projectList');
@@ -17,19 +26,79 @@ const reviewerInput = document.getElementById('reviewerInput');
 const breakdownOutput = document.getElementById('breakdownOutput');
 const autosaveInput = document.getElementById('autosaveInput');
 const settingsError = document.getElementById('settingsError');
+const projectSearchEl = document.getElementById('projectSearch');
+const stageDockEl = document.getElementById('stageDock');
+const stageRowEl = document.getElementById('stageRow');
 
 function fmtDate(value) {
   if (!value) return 'Unknown update time';
   return new Date(value).toLocaleString();
 }
 
+function stageIndexFromCurrent() {
+  if (!state.currentDoc?.currentStage) return 0;
+  const normalized = state.currentDoc.currentStage.toLowerCase();
+  return Math.max(0, STAGES.findIndex((stage) => stage.label.toLowerCase().replace(' ', '') === normalized));
+}
+
+function isStageComplete(stageKey) {
+  const content = state.currentDoc?.[stageKey]?.content || '';
+  return content.trim().length > 0;
+}
+
+function highestUnlockedStageIndex() {
+  if (!state.currentDoc) return 0;
+  let unlocked = 0;
+  for (let i = 1; i < STAGES.length; i += 1) {
+    const previousStageKey = STAGES[i - 1].key;
+    if (isStageComplete(previousStageKey)) {
+      unlocked = i;
+    } else {
+      break;
+    }
+  }
+  return unlocked;
+}
+
+function renderStageDock() {
+  const hasProject = Boolean(state.currentDoc);
+  stageDockEl.classList.toggle('hidden', !hasProject);
+  if (!hasProject) {
+    stageDockEl.classList.remove('visible');
+    stageRowEl.innerHTML = '';
+    return;
+  }
+
+  requestAnimationFrame(() => stageDockEl.classList.add('visible'));
+
+  const currentStageIndex = stageIndexFromCurrent();
+  const unlockedStageIndex = highestUnlockedStageIndex();
+
+  stageRowEl.innerHTML = STAGES.map((stage, idx) => {
+    const completed = isStageComplete(stage.key);
+    const locked = idx > unlockedStageIndex;
+    const isCurrent = idx === currentStageIndex;
+    const classes = ['stage-node'];
+    if (completed) classes.push('completed');
+    if (locked) classes.push('locked');
+    if (isCurrent) classes.push('current');
+
+    return `<button class="${classes.join(' ')}" data-stage="${stage.label}" ${locked ? 'disabled' : ''}>
+      <span class="stage-dot">${completed ? '✓' : idx + 1}</span>
+      <span class="stage-label">${stage.label}</span>
+    </button>`;
+  }).join('<span class="stage-connector" aria-hidden="true"></span>');
+}
+
 function renderProjectList() {
+  const search = projectSearchEl.value.trim().toLowerCase();
   projectListEl.innerHTML = state.projects
+    .filter((project) => (project.projectName || '').toLowerCase().includes(search))
     .map((project) => {
       if (project.unavailable) {
         return `<button class="project-item unavailable" disabled>Unavailable (${project.projectName})<span class="project-meta">${project.error}</span></button>`;
       }
-      return `<button class="project-item" data-folder="${project.folderName}">${project.projectName}<span class="project-meta">Updated: ${fmtDate(project.updatedAt)}</span></button>`;
+      return `<button class="project-item" data-folder="${project.folderName}">${project.projectName}<span class="project-meta">${project.conference || 'ICLR'} · Updated: ${fmtDate(project.updatedAt)}</span></button>`;
     })
     .join('');
 }
@@ -44,6 +113,8 @@ function renderWorkspace() {
     reviewerInput.value = state.currentDoc.stage1.content || '';
     breakdownOutput.value = state.currentDoc.stage2.content || '';
   }
+
+  renderStageDock();
 }
 
 async function loadProjects() {
@@ -69,6 +140,7 @@ async function createProjectFromPrompt() {
   try {
     const created = await window.studioApi.createProject({
       projectName: rawName,
+      conference: state.selectedConference,
       autosaveIntervalSeconds: state.appSettings.defaultAutosaveIntervalSeconds,
     });
     state.currentFolderName = created.folderName;
@@ -118,6 +190,24 @@ async function applySettings() {
 function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
+function beginProjectCreation() {
+  state.pendingCreate = true;
+  state.currentDoc = null;
+  state.selectedConference = 'ICLR';
+  document.querySelectorAll('.conference-chip').forEach((chip) => {
+    chip.classList.toggle('selected', chip.dataset.conference === 'ICLR');
+  });
+  renderWorkspace();
+  projectNameInput.focus();
+}
+
+function selectStage(stageLabel) {
+  if (!state.currentDoc) return;
+  state.currentDoc.currentStage = stageLabel;
+  queueStateSync();
+  renderStageDock();
+}
+
 async function init() {
   state.appSettings = await window.studioApi.getAppSettings();
   autosaveInput.value = state.appSettings.defaultAutosaveIntervalSeconds;
@@ -125,11 +215,15 @@ async function init() {
   renderWorkspace();
 }
 
-document.getElementById('newBtn').addEventListener('click', () => {
-  state.pendingCreate = true;
+document.getElementById('newBtn').addEventListener('click', beginProjectCreation);
+document.getElementById('brandBtn').addEventListener('click', () => {
+  state.pendingCreate = false;
   state.currentDoc = null;
   renderWorkspace();
-  projectNameInput.focus();
+});
+document.getElementById('cancelProjectBtn').addEventListener('click', () => {
+  state.pendingCreate = false;
+  renderWorkspace();
 });
 
 document.getElementById('confirmProjectBtn').addEventListener('click', createProjectFromPrompt);
@@ -137,11 +231,28 @@ projectNameInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') createProjectFromPrompt();
 });
 
+projectSearchEl.addEventListener('input', renderProjectList);
 projectListEl.addEventListener('click', (event) => {
   const btn = event.target.closest('[data-folder]');
   if (btn) {
     openProject(btn.dataset.folder);
   }
+});
+
+document.querySelectorAll('.conference-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    if (chip.disabled) return;
+    state.selectedConference = chip.dataset.conference;
+    document.querySelectorAll('.conference-chip').forEach((item) => {
+      item.classList.toggle('selected', item.dataset.conference === state.selectedConference);
+    });
+  });
+});
+
+stageRowEl.addEventListener('click', (event) => {
+  const stageButton = event.target.closest('[data-stage]');
+  if (!stageButton || stageButton.disabled) return;
+  selectStage(stageButton.dataset.stage);
 });
 
 reviewerInput.addEventListener('input', (event) => {
@@ -150,6 +261,7 @@ reviewerInput.addEventListener('input', (event) => {
   state.currentDoc.stage1.lastEditedAt = new Date().toISOString();
   state.currentDoc.stage1.history.push({ timestamp: state.currentDoc.stage1.lastEditedAt, content: event.target.value });
   queueStateSync();
+  renderStageDock();
 });
 
 breakdownOutput.addEventListener('input', (event) => {
@@ -158,6 +270,7 @@ breakdownOutput.addEventListener('input', (event) => {
   state.currentDoc.stage2.lastEditedAt = new Date().toISOString();
   state.currentDoc.stage2.history.push({ timestamp: state.currentDoc.stage2.lastEditedAt, content: event.target.value });
   queueStateSync();
+  renderStageDock();
 });
 
 document.getElementById('apiOpenBtn').addEventListener('click', () => openModal('apiModal'));
