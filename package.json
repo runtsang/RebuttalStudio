@@ -1,0 +1,12 @@
+{
+  "name": "rebuttal-studio",
+  "version": "1.0.0",
+  "description": "Local-first Electron app for rebuttal workflow projects",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^31.0.2"
+  }
+}
