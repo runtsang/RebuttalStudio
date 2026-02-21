@@ -841,6 +841,78 @@ select {
   color: var(--text);
 }
 
+/* ────────────────────── Reviewer Right-click Context Menu ────────────────────── */
+.context-menu {
+  position: fixed;
+  z-index: 300;
+  min-width: 140px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.context-menu.hidden {
+  display: none;
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.84rem;
+  font-family: 'IBM Plex Mono', monospace;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.context-menu-item:hover {
+  background: var(--hover);
+}
+
+/* ────────────────────── Reviewer Name Input Row (prefix + suffix) ────────────────────── */
+.reviewer-name-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--panel-muted);
+}
+
+.reviewer-name-prefix {
+  padding: 9px 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.reviewer-name-suffix {
+  border: none !important;
+  border-radius: 0 !important;
+  flex: 1;
+  min-width: 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+}
+
+.reviewer-name-suffix:focus {
+  outline: none;
+  border-color: transparent !important;
+}
+
 /* ────────────────────── Create Project Panel ────────────────────── */
 .create-form-group {
   display: flex;
@@ -980,14 +1052,25 @@ select {
 
 
 .model-input-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
+  display: flex;
   gap: 8px;
   align-items: center;
 }
 
+.model-input-row .text-input,
+.model-input-row .model-select {
+  flex: 1;
+  min-width: 0;
+}
+
 .model-input-row .btn {
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.model-select.hidden,
+.model-input-row .text-input.hidden {
+  display: none !important;
 }
 
 /* ────────────────────── Sidebar enter/exit animation ────────────────────── */

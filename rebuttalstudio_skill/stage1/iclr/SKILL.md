@@ -15,9 +15,14 @@ Process reviewer text into a strict structure for rebuttal planning.
 
 ## Mandatory extraction rules
 
-1. **Summary score only**
-   - Output only the numeric score `3` for summary score field.
-   - Do not infer any other summary rating scale.
+1. **Extract all five scores (numbers only)**
+   - Extract the numeric value for each of the five ICLR review scores:
+     - `rating` — the overall recommendation score.
+     - `confidence` — the reviewer's self-reported confidence.
+     - `soundness` — technical soundness score.
+     - `presentation` — writing/presentation score.
+     - `contribution` — significance/contribution score.
+   - Output only the number (e.g., `6`, `4`, `3`). Do not include scale descriptions.
 
 2. **Keep original text for unchanged fields**
    - Preserve `summary` and `strength` exactly as written.
@@ -59,8 +64,12 @@ Use this exact skeleton:
 ```markdown
 # Stage1 ICLR Breakdown
 
-## Meta
-- summary_score: 3
+## Scores
+- rating: <number>
+- confidence: <number>
+- soundness: <number>
+- presentation: <number>
+- contribution: <number>
 
 ## Preserved Sections
 - summary: |
@@ -97,7 +106,6 @@ Use this exact skeleton:
 
 Before finalizing, verify:
 
-- `summary_score` is exactly `3`.
 - `summary` and `strength` are unchanged.
 - Every weakness/question atomic issue appears once in `Atomic Issues`.
 - Every atomic issue is linked by exactly one response block.

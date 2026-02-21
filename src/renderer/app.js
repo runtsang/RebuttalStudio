@@ -51,7 +51,7 @@ const state = {
   selectedConference: 'ICLR',
   theme: 'dark',
   // Reviewer tabs
-  reviewers: [{ id: 0, content: '' }],
+  reviewers: [{ id: 0, name: '', content: '' }],
   activeReviewerIdx: 0,
   drawerOpen: false,
   // Breakdown data per reviewer
@@ -129,7 +129,7 @@ const apiInputEl = document.getElementById('apiInput');
 const apiSettingsErrorEl = document.getElementById('apiSettingsError');
 const apiBaseUrlHelpEl = document.getElementById('apiBaseUrlHelp');
 const apiModelHintEl = document.getElementById('apiModelHint');
-const apiModelListEl = document.getElementById('apiModelList');
+const apiModelSelectEl = document.getElementById('apiModelSelect');
 const detectModelsBtnEl = document.getElementById('detectModelsBtn');
 
 // Stage advance modal
@@ -235,7 +235,8 @@ function renderProjectList() {
 function renderReviewerTabs() {
   reviewerTabsEl.innerHTML = state.reviewers.map((r, idx) => {
     const active = idx === state.activeReviewerIdx ? ' active' : '';
-    return `<button class="reviewer-tab${active}" data-reviewer="${idx}">Reviewer ${idx + 1}</button>`;
+    const label = r.name ? `Reviewer ${r.name}` : `Reviewer ${idx + 1}`;
+    return `<button class="reviewer-tab${active}" data-reviewer="${idx}">${escapeHTML(label)}</button>`;
   }).join('');
 
   // Load active reviewer content
@@ -255,17 +256,122 @@ function switchReviewer(idx) {
   renderBreakdownPanel();
 }
 
+/* ── Reviewer Name Modal ── */
+const reviewerNameModalEl = document.getElementById('reviewerNameModal');
+const reviewerNameInputEl = document.getElementById('reviewerNameInput');
+const reviewerNameErrorEl = document.getElementById('reviewerNameError');
+const confirmReviewerNameBtnEl = document.getElementById('confirmReviewerNameBtn');
+const cancelReviewerNameBtnEl = document.getElementById('cancelReviewerNameBtn');
+
+let pendingReviewerCallback = null;
+
+function promptReviewerName(onConfirm, onCancel, prefill = '') {
+  reviewerNameInputEl.value = prefill;
+  reviewerNameErrorEl.textContent = '';
+  pendingReviewerCallback = { onConfirm, onCancel };
+  reviewerNameModalEl.classList.remove('hidden');
+  setTimeout(() => {
+    reviewerNameInputEl.focus();
+    reviewerNameInputEl.select();
+  }, 60);
+}
+
+function confirmReviewerName() {
+  const suffix = reviewerNameInputEl.value.trim();
+  if (!suffix) {
+    reviewerNameErrorEl.textContent = 'Reviewer identifier is required.';
+    return;
+  }
+  if (suffix.length !== 4) {
+    reviewerNameErrorEl.textContent = 'Please enter exactly 4 characters.';
+    return;
+  }
+  reviewerNameModalEl.classList.add('hidden');
+  if (pendingReviewerCallback?.onConfirm) {
+    pendingReviewerCallback.onConfirm(suffix);
+  }
+  pendingReviewerCallback = null;
+}
+
+function cancelReviewerName() {
+  reviewerNameModalEl.classList.add('hidden');
+  if (pendingReviewerCallback?.onCancel) {
+    pendingReviewerCallback.onCancel();
+  }
+  pendingReviewerCallback = null;
+}
+
+confirmReviewerNameBtnEl.addEventListener('click', confirmReviewerName);
+cancelReviewerNameBtnEl.addEventListener('click', cancelReviewerName);
+reviewerNameInputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') confirmReviewerName();
+  if (e.key === 'Escape') cancelReviewerName();
+});
+
+/* ── Reviewer Right-click Context Menu ── */
+const reviewerContextMenuEl = document.getElementById('reviewerContextMenu');
+let contextMenuReviewerIdx = null;
+
+function showReviewerContextMenu(e, idx) {
+  e.preventDefault();
+  contextMenuReviewerIdx = idx;
+  reviewerContextMenuEl.style.left = `${e.clientX}px`;
+  reviewerContextMenuEl.style.top = `${e.clientY}px`;
+  reviewerContextMenuEl.classList.remove('hidden');
+}
+
+function hideReviewerContextMenu() {
+  reviewerContextMenuEl.classList.add('hidden');
+  contextMenuReviewerIdx = null;
+}
+
+// Dismiss context menu on any click outside
+document.addEventListener('click', () => hideReviewerContextMenu());
+document.addEventListener('contextmenu', (e) => {
+  // Only keep open if right-clicking on a reviewer tab (handled separately)
+  if (!e.target.closest('.reviewer-tab')) {
+    hideReviewerContextMenu();
+  }
+});
+
+// Handle context menu actions
+reviewerContextMenuEl.addEventListener('click', (e) => {
+  const action = e.target.closest('[data-action]')?.dataset.action;
+  if (!action) return;
+  const idx = contextMenuReviewerIdx;
+  hideReviewerContextMenu();
+
+  if (action === 'rename' && idx !== null && state.reviewers[idx]) {
+    const currentSuffix = state.reviewers[idx].name || '';
+    promptReviewerName((newSuffix) => {
+      state.reviewers[idx].name = newSuffix;
+      renderReviewerTabs();
+      queueStateSync();
+    }, null, currentSuffix);
+  }
+});
+
+// Right-click on reviewer tabs
+reviewerTabsEl.addEventListener('contextmenu', (e) => {
+  const tab = e.target.closest('[data-reviewer]');
+  if (!tab) return;
+  showReviewerContextMenu(e, Number(tab.dataset.reviewer));
+});
+
 function addReviewer() {
   // Save current content first
   if (state.reviewers[state.activeReviewerIdx]) {
     state.reviewers[state.activeReviewerIdx].content = reviewerInput.innerHTML;
   }
-  const newIdx = state.reviewers.length;
-  state.reviewers.push({ id: newIdx, content: '' });
-  state.activeReviewerIdx = newIdx;
-  renderReviewerTabs();
-  renderBreakdownPanel();
-  reviewerInput.focus();
+  promptReviewerName((suffix) => {
+    const newIdx = state.reviewers.length;
+    state.reviewers.push({ id: newIdx, name: suffix, content: '' });
+    state.activeReviewerIdx = newIdx;
+    renderReviewerTabs();
+    renderBreakdownPanel();
+    reviewerInput.focus();
+    queueStateSync();
+  });
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -492,7 +598,7 @@ function renderWorkspace() {
     if (state.currentDoc.reviewers && state.currentDoc.reviewers.length > 0) {
       state.reviewers = state.currentDoc.reviewers;
     } else {
-      state.reviewers = [{ id: 0, content: state.currentDoc.stage1?.content || '' }];
+      state.reviewers = [{ id: 0, name: '', content: state.currentDoc.stage1?.content || '' }];
     }
     state.activeReviewerIdx = 0;
 
@@ -507,6 +613,20 @@ function renderWorkspace() {
     renderBreakdownPanel();
 
     enterProjectMode();
+
+    // If the first reviewer has no name yet, prompt for it
+    if (!state.reviewers[0].name) {
+      promptReviewerName((suffix) => {
+        state.reviewers[0].name = suffix;
+        renderReviewerTabs();
+        queueStateSync();
+      }, () => {
+        // User cancelled — assign a fallback 4-char ID
+        state.reviewers[0].name = 'R001';
+        renderReviewerTabs();
+        queueStateSync();
+      });
+    }
   } else {
     exitProjectMode();
   }
@@ -604,12 +724,36 @@ function renderApiForm(providerKey = state.apiSettings.activeApiProvider) {
   apiBaseUrlInputEl.value = profile.baseUrl || '';
   apiModelInputEl.value = profile.model || '';
   apiInputEl.value = profile.apiKey || '';
+  // Reset model selector to text input mode
+  apiModelSelectEl.classList.add('hidden');
+  apiModelInputEl.classList.remove('hidden');
   renderProviderGuide(providerKey);
 }
 
 
 function fillModelSuggestions(models = []) {
-  apiModelListEl.innerHTML = models.map((name) => `<option value="${name}"></option>`).join('');
+  if (models.length === 0) {
+    // No models — hide select, show text input
+    apiModelSelectEl.classList.add('hidden');
+    apiModelInputEl.classList.remove('hidden');
+    apiModelSelectEl.innerHTML = '<option value="">-- Select a model --</option>';
+    return;
+  }
+  // Build options
+  let opts = models.map((name) => `<option value="${name}">${name}</option>`).join('');
+  opts += '<option value="__custom__">Custom...</option>';
+  apiModelSelectEl.innerHTML = opts;
+  // Show select, hide text input
+  apiModelSelectEl.classList.remove('hidden');
+  apiModelInputEl.classList.add('hidden');
+  // Pre-select the current model if it matches, otherwise select first
+  const curModel = apiModelInputEl.value.trim();
+  if (curModel && models.includes(curModel)) {
+    apiModelSelectEl.value = curModel;
+  } else {
+    apiModelSelectEl.value = models[0];
+    apiModelInputEl.value = models[0];
+  }
 }
 
 function renderProviderGuide(providerKey) {
@@ -754,7 +898,7 @@ document.getElementById('brandBtn').addEventListener('click', () => {
   state.pendingCreate = false;
   state.currentDoc = null;
   state.currentFolderName = null;
-  state.reviewers = [{ id: 0, content: '' }];
+  state.reviewers = [{ id: 0, name: '', content: '' }];
   state.activeReviewerIdx = 0;
   state.breakdownData = {};
   renderWorkspace();
@@ -830,6 +974,18 @@ apiProviderSelectEl.addEventListener('change', (e) => {
   apiSettingsErrorEl.textContent = '';
   apiModelHintEl.textContent = '';
   fillModelSuggestions([]);
+});
+apiModelSelectEl.addEventListener('change', () => {
+  const val = apiModelSelectEl.value;
+  if (val === '__custom__') {
+    // Switch to manual input mode
+    apiModelSelectEl.classList.add('hidden');
+    apiModelInputEl.classList.remove('hidden');
+    apiModelInputEl.value = '';
+    apiModelInputEl.focus();
+  } else if (val) {
+    apiModelInputEl.value = val;
+  }
 });
 detectModelsBtnEl.addEventListener('click', detectProviderModels);
 

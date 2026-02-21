@@ -187,7 +187,7 @@
 ╚══════╝   ╚═╝    ╚═════╝ ╚═════╝ ╚═╝ ╚═════╝</pre>
             <div class="creator-box">
               <div class="creator-label">CREATOR</div>
-              <div class="creator-name">Run Zeng</div>
+              <div class="creator-name">Run</div>
               <div class="creator-email">run@mail.rit.edu</div>
             </div>
           </div>
@@ -221,8 +221,10 @@
       <div class="settings-group">
         <label for="apiModelInput">Model</label>
         <div class="model-input-row">
-          <input id="apiModelInput" class="text-input" list="apiModelList" placeholder="gpt-4o-mini" />
-          <datalist id="apiModelList"></datalist>
+          <select id="apiModelSelect" class="conference-select model-select hidden">
+            <option value="">-- Select a model --</option>
+          </select>
+          <input id="apiModelInput" class="text-input" placeholder="gpt-4o-mini" />
           <button id="detectModelsBtn" class="btn" type="button">Detect models</button>
         </div>
         <p id="apiModelHint" class="muted"></p>
@@ -280,6 +282,30 @@
         <button id="confirmAdvanceBtn" class="btn primary">Confirm</button>
       </div>
     </div>
+  </div>
+
+  <!-- Reviewer Name Modal -->
+  <div id="reviewerNameModal" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="reviewerNameTitle">
+      <h3 id="reviewerNameTitle">Reviewer Name</h3>
+      <div class="settings-group">
+        <label for="reviewerNameInput">Enter the reviewer's 4-character identifier</label>
+        <div class="reviewer-name-input-row">
+          <span class="reviewer-name-prefix">Reviewer</span>
+          <input id="reviewerNameInput" class="text-input reviewer-name-suffix" maxlength="4" placeholder="e.g. Ab1C" />
+        </div>
+      </div>
+      <p id="reviewerNameError" class="error"></p>
+      <div class="modal-actions">
+        <button id="cancelReviewerNameBtn" class="btn">Cancel</button>
+        <button id="confirmReviewerNameBtn" class="btn primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right-click context menu for reviewer tabs -->
+  <div id="reviewerContextMenu" class="context-menu hidden">
+    <button class="context-menu-item" data-action="rename">✏️ Rename</button>
   </div>
 
   <script src="./app.js"></script>
