@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Developer Dashboard</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --radius-sm: 10px;
+        --radius-md: 14px;
+        --radius-lg: 18px;
+        --space-1: 8px;
+        --space-2: 12px;
+        --space-3: 16px;
+        --space-4: 24px;
+        --space-5: 32px;
+        --shadow-soft: 0 4px 14px rgba(20, 20, 20, 0.06);
+        --shadow-raised: 0 8px 24px rgba(20, 20, 20, 0.12);
+        --trans: 180ms ease;
+      }
+
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f5f5f5;
+          --panel: #fbfbfb;
+          --panel-muted: #efefef;
+          --text: #202020;
+          --text-muted: #6a6a6a;
+          --border: #e2e2e2;
+          --hover: #e9e9e9;
+        }
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1f1f1f;
+          --panel: #262626;
+          --panel-muted: #2b2b2b;
+          --text: #e7e7e7;
+          --text-muted: #ababab;
+          --border: #3a3a3a;
+          --hover: #333333;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        border-right: 1px solid var(--border);
+        background: var(--panel);
+        padding: var(--space-4) var(--space-3);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .sidebar-title {
+        font-size: 0.95rem;
+        margin: 0 0 var(--space-3) 0;
+        color: var(--text-muted);
+        letter-spacing: 0.02em;
+      }
+
+      .project-nav {
+        display: grid;
+        gap: var(--space-1);
+      }
+
+      .project-item {
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        padding: 10px 12px;
+        color: var(--text);
+        text-decoration: none;
+        transition: background var(--trans), border-color var(--trans);
+      }
+
+      .project-item:hover {
+        background: var(--hover);
+        border-color: var(--border);
+      }
+
+      .settings-btn {
+        border: 1px solid var(--border);
+        background: var(--panel-muted);
+        color: var(--text-muted);
+        border-radius: 999px;
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+      }
+
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: color-mix(in srgb, var(--panel) 92%, transparent);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
+        padding: var(--space-3) var(--space-4);
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: var(--space-3);
+      }
+
+      button, input {
+        font: inherit;
+      }
+
+      .btn {
+        border: 1px solid var(--border);
+        background: var(--panel-muted);
+        color: var(--text);
+        border-radius: var(--radius-sm);
+        padding: 10px 14px;
+        cursor: pointer;
+        transition: all var(--trans);
+      }
+
+      .btn:hover {
+        background: var(--hover);
+      }
+
+      .btn.primary {
+        background: var(--text);
+        color: var(--panel);
+        border-color: transparent;
+        box-shadow: var(--shadow-soft);
+      }
+
+      .btn.primary:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-raised);
+      }
+
+      .search {
+        width: min(600px, 100%);
+        margin: 0 auto;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--panel-muted);
+        padding: 10px 16px;
+        color: var(--text);
+        outline: none;
+        transition: border-color var(--trans), box-shadow var(--trans), background var(--trans);
+      }
+
+      .search:focus,
+      .search:hover {
+        border-color: color-mix(in srgb, var(--text-muted) 45%, var(--border));
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-muted) 20%, transparent);
+      }
+
+      .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+
+      .icon-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--panel-muted);
+        color: var(--text);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+      }
+
+      .content {
+        flex: 1;
+        padding: var(--space-4);
+        display: grid;
+      }
+
+      .empty-state {
+        margin: auto;
+        text-align: center;
+        max-width: 460px;
+      }
+
+      .empty-state h1 {
+        margin: 0 0 var(--space-2);
+        font-size: clamp(1.5rem, 3vw, 2.2rem);
+      }
+
+      .empty-state p {
+        margin: 0 0 var(--space-4);
+        color: var(--text-muted);
+      }
+
+      .projects {
+        width: 100%;
+        display: none;
+        gap: var(--space-2);
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 220ms ease, transform 220ms ease;
+      }
+
+      .projects.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .projects.grid {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      }
+
+      .projects.list {
+        grid-template-columns: 1fr;
+      }
+
+      .project-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: var(--space-3);
+        box-shadow: var(--shadow-soft);
+        transition: transform var(--trans), background var(--trans);
+      }
+
+      .projects.grid .project-card:hover {
+        transform: translateY(-2px);
+      }
+
+      .projects.list .project-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        box-shadow: none;
+        background: transparent;
+        padding-inline: 0;
+      }
+
+      .project-meta {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin-top: var(--space-1);
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        display: none;
+        place-items: center;
+        background: color-mix(in srgb, #000 25%, transparent);
+        backdrop-filter: blur(5px);
+        z-index: 20;
+      }
+
+      .modal {
+        width: min(440px, calc(100% - 32px));
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-raised);
+        padding: var(--space-4);
+      }
+
+      .modal h2 {
+        margin-top: 0;
+      }
+
+      .api-input {
+        width: 100%;
+        margin-top: var(--space-2);
+        margin-bottom: var(--space-4);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 10px 12px;
+        background: var(--panel-muted);
+        color: var(--text);
+      }
+
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space-2);
+      }
+
+      .show {
+        display: grid !important;
+      }
+
+      @media (max-width: 900px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          position: static;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+        }
+
+        .topbar {
+          grid-template-columns: 1fr;
+        }
+
+        .search {
+          width: 100%;
+          margin: 0;
+        }
+
+        .topbar-actions {
+          justify-content: flex-end;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div>
+          <h2 class="sidebar-title">Your Projects</h2>
+          <nav class="project-nav" aria-label="Project navigation">
+            <a class="project-item" href="#">All Projects</a>
+            <a class="project-item" href="#">Hosted</a>
+            <a class="project-item" href="#">Archived</a>
+          </nav>
+        </div>
+        <button class="settings-btn" aria-label="Settings">⚙</button>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <button id="apiOpenBtn" class="btn">Enter API</button>
+          <input class="search" type="search" placeholder="Search projects…" />
+          <div class="topbar-actions">
+            <button id="viewToggle" class="icon-btn" aria-label="Toggle project view">☷</button>
+            <button id="newBtn" class="btn primary">+ New</button>
+          </div>
+        </header>
+
+        <section class="content">
+          <div id="emptyState" class="empty-state">
+            <h1>You don’t have any projects yet</h1>
+            <p>Start by creating a new hosted project</p>
+            <button class="btn primary">Start from Scratch</button>
+          </div>
+
+          <div id="projects" class="projects grid" aria-live="polite"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="apiTitle">
+      <div class="modal">
+        <h2 id="apiTitle">Enter Your API Key</h2>
+        <input id="apiInput" class="api-input" type="password" placeholder="sk-..." />
+        <div class="modal-actions">
+          <button id="cancelBtn" class="btn">Cancel</button>
+          <button id="saveBtn" class="btn primary">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const apiOpenBtn = document.getElementById('apiOpenBtn');
+      const modalBackdrop = document.getElementById('modalBackdrop');
+      const cancelBtn = document.getElementById('cancelBtn');
+      const saveBtn = document.getElementById('saveBtn');
+      const apiInput = document.getElementById('apiInput');
+      const newBtn = document.getElementById('newBtn');
+      const viewToggle = document.getElementById('viewToggle');
+      const projectsEl = document.getElementById('projects');
+      const emptyStateEl = document.getElementById('emptyState');
+
+      let isGrid = true;
+      const projects = [];
+
+      function openModal() {
+        modalBackdrop.classList.add('show');
+        apiInput.focus();
+      }
+
+      function closeModal() {
+        modalBackdrop.classList.remove('show');
+      }
+
+      function renderProjects() {
+        if (!projects.length) {
+          emptyStateEl.style.display = 'block';
+          projectsEl.style.display = 'none';
+          return;
+        }
+
+        emptyStateEl.style.display = 'none';
+        projectsEl.style.display = 'grid';
+        projectsEl.classList.add('visible');
+        projectsEl.classList.toggle('grid', isGrid);
+        projectsEl.classList.toggle('list', !isGrid);
+
+        projectsEl.innerHTML = projects
+          .map(
+            (project) => `
+            <article class="project-card">
+              <div>
+                <strong>${project.name}</strong>
+                <div class="project-meta">${project.description}</div>
+              </div>
+              ${!isGrid ? `<span class="project-meta">${project.updated}</span>` : ''}
+            </article>
+          `
+          )
+          .join('');
+      }
+
+      apiOpenBtn.addEventListener('click', openModal);
+      cancelBtn.addEventListener('click', closeModal);
+      saveBtn.addEventListener('click', () => {
+        console.log('API key saved (placeholder):', apiInput.value ? '••••••••' : '(empty)');
+        closeModal();
+      });
+
+      modalBackdrop.addEventListener('click', (event) => {
+        if (event.target === modalBackdrop) {
+          closeModal();
+        }
+      });
+
+      newBtn.addEventListener('click', () => {
+        console.log('Create new project (placeholder)');
+      });
+
+      viewToggle.addEventListener('click', () => {
+        isGrid = !isGrid;
+        viewToggle.textContent = isGrid ? '☷' : '☰';
+        renderProjects();
+      });
+
+      renderProjects();
+    </script>
+  </body>
+</html>
