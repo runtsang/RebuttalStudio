@@ -54,7 +54,7 @@
         </div>
         <div class="topbar-right">
           <button id="newBtn" class="btn">+ New</button>
-          <button id="apiOpenBtn" class="btn">Enter API</button>
+          <button id="apiOpenBtn" class="btn">API Settings</button>
         </div>
       </header>
 
@@ -198,9 +198,38 @@
 
   <!-- API Modal -->
   <div id="apiModal" class="modal-backdrop hidden">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="apiModalTitle">
-      <h3 id="apiModalTitle">Enter API Key</h3>
-      <input id="apiInput" type="password" class="text-input" placeholder="sk-..." />
+    <div class="modal api-modal" role="dialog" aria-modal="true" aria-labelledby="apiModalTitle">
+      <h3 id="apiModalTitle">API Settings</h3>
+
+      <div class="settings-group">
+        <label for="apiProviderSelect">Provider</label>
+        <select id="apiProviderSelect" class="conference-select">
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="azureOpenai">Azure OpenAI</option>
+        </select>
+      </div>
+
+      <div class="settings-group">
+        <label for="apiBaseUrlInput">Base URL</label>
+        <input id="apiBaseUrlInput" class="text-input" placeholder="https://api.openai.com/v1" />
+      </div>
+
+      <div class="settings-group">
+        <label for="apiModelInput">Model</label>
+        <input id="apiModelInput" class="text-input" placeholder="gpt-4o-mini" />
+      </div>
+
+      <div class="settings-group">
+        <label for="apiInput">API Key</label>
+        <input id="apiInput" type="password" class="text-input" placeholder="Paste API key" />
+      </div>
+
+      <p id="apiSettingsError" class="error"></p>
+      <p class="muted">Tip: Azure OpenAI usually requires a custom endpoint and deployment name in the model field.</p>
+
       <div class="modal-actions">
         <button id="cancelApiBtn" class="btn">Cancel</button>
         <button id="saveApiBtn" class="btn primary">Save</button>

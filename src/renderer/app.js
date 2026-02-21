@@ -46,7 +46,7 @@ const state = {
   projects: [],
   currentFolderName: null,
   currentDoc: null,
-  apiKeyMemoryOnly: '',
+  apiSettings: { activeApiProvider: 'openai', apiProfiles: {} },
   pendingCreate: false,
   selectedConference: 'ICLR',
   theme: 'dark',
@@ -90,6 +90,14 @@ const convertBtnEl = document.getElementById('convertBtn');
 const breakdownContentEl = document.getElementById('breakdownContent');
 
 const appEl = document.querySelector('.app');
+
+const API_PROVIDER_KEYS = ['openai', 'anthropic', 'gemini', 'deepseek', 'azureOpenai'];
+
+const apiProviderSelectEl = document.getElementById('apiProviderSelect');
+const apiBaseUrlInputEl = document.getElementById('apiBaseUrlInput');
+const apiModelInputEl = document.getElementById('apiModelInput');
+const apiInputEl = document.getElementById('apiInput');
+const apiSettingsErrorEl = document.getElementById('apiSettingsError');
 
 // Stage advance modal
 const stageAdvanceModalEl = document.getElementById('stageAdvanceModal');
@@ -551,6 +559,74 @@ async function applySettings() {
 
 function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function getActiveApiProfile(providerKey = state.apiSettings.activeApiProvider) {
+  if (!providerKey || !state.apiSettings.apiProfiles[providerKey]) return null;
+  return state.apiSettings.apiProfiles[providerKey];
+}
+
+function renderApiForm(providerKey = state.apiSettings.activeApiProvider) {
+  const profile = getActiveApiProfile(providerKey);
+  if (!profile) return;
+  apiProviderSelectEl.value = providerKey;
+  apiBaseUrlInputEl.value = profile.baseUrl || '';
+  apiModelInputEl.value = profile.model || '';
+  apiInputEl.value = profile.apiKey || '';
+}
+
+function validateApiSettingsInput(providerKey, profile) {
+  if (!API_PROVIDER_KEYS.includes(providerKey)) {
+    return 'Please choose a supported API provider.';
+  }
+  if (!profile.apiKey || !profile.apiKey.trim()) {
+    return 'API key is required.';
+  }
+  if (!profile.baseUrl || !profile.baseUrl.trim()) {
+    return 'Base URL is required.';
+  }
+  if (!profile.model || !profile.model.trim()) {
+    return 'Model / deployment is required.';
+  }
+  return '';
+}
+
+async function openApiSettingsModal() {
+  apiSettingsErrorEl.textContent = '';
+  const latest = await window.studioApi.getApiSettings();
+  state.apiSettings = latest;
+  renderApiForm();
+  openModal('apiModal');
+}
+
+async function saveApiSettings() {
+  apiSettingsErrorEl.textContent = '';
+  const providerKey = apiProviderSelectEl.value;
+  const currentProfile = getActiveApiProfile(providerKey) || {};
+  const nextProfile = {
+    ...currentProfile,
+    baseUrl: apiBaseUrlInputEl.value.trim(),
+    model: apiModelInputEl.value.trim(),
+    apiKey: apiInputEl.value.trim(),
+  };
+
+  const validationError = validateApiSettingsInput(providerKey, nextProfile);
+  if (validationError) {
+    apiSettingsErrorEl.textContent = validationError;
+    return;
+  }
+
+  const nextApiProfiles = {
+    ...state.apiSettings.apiProfiles,
+    [providerKey]: nextProfile,
+  };
+
+  const saved = await window.studioApi.updateApiSettings({
+    activeApiProvider: providerKey,
+    apiProfiles: nextApiProfiles,
+  });
+  state.apiSettings = saved;
+  closeModal('apiModal');
+}
+
 
 function beginProjectCreation() {
   state.pendingCreate = true;
@@ -575,6 +651,7 @@ function selectStage(label) {
 async function init() {
   loadTheme();
   state.appSettings = await window.studioApi.getAppSettings();
+  state.apiSettings = await window.studioApi.getApiSettings();
   autosaveInput.value = state.appSettings.defaultAutosaveIntervalSeconds;
   await loadProjects();
   renderWorkspace();
@@ -656,11 +733,11 @@ reviewerInput.addEventListener('input', (e) => {
   renderSidebarStages();
 });
 
-document.getElementById('apiOpenBtn').addEventListener('click', () => openModal('apiModal'));
+document.getElementById('apiOpenBtn').addEventListener('click', openApiSettingsModal);
 document.getElementById('cancelApiBtn').addEventListener('click', () => closeModal('apiModal'));
-document.getElementById('saveApiBtn').addEventListener('click', () => {
-  state.apiKeyMemoryOnly = document.getElementById('apiInput').value;
-  closeModal('apiModal');
+document.getElementById('saveApiBtn').addEventListener('click', saveApiSettings);
+apiProviderSelectEl.addEventListener('change', (e) => {
+  renderApiForm(e.target.value);
 });
 
 // Settings button — both modes

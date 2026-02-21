@@ -902,6 +902,11 @@ select {
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
 }
 
+
+.api-modal {
+  width: min(560px, 94vw);
+}
+
 .modal h3 {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.9rem;

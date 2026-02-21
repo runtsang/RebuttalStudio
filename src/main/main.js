@@ -99,7 +99,30 @@ ipcMain.handle('projects:list', async () => listProjects());
 ipcMain.handle('app:settings:get', async () => loadAppSettings());
 ipcMain.handle('app:settings:updateDefaultInterval', async (_event, seconds) => {
   const normalized = normalizeInterval(seconds);
-  return saveAppSettings({ defaultAutosaveIntervalSeconds: normalized });
+  const current = await loadAppSettings();
+  return saveAppSettings({ ...current, defaultAutosaveIntervalSeconds: normalized });
+});
+
+ipcMain.handle('app:api:getSettings', async () => {
+  const settings = await loadAppSettings();
+  return {
+    activeApiProvider: settings.activeApiProvider,
+    apiProfiles: settings.apiProfiles,
+  };
+});
+
+ipcMain.handle('app:api:updateSettings', async (_event, payload) => {
+  const current = await loadAppSettings();
+  const next = {
+    ...current,
+    activeApiProvider: payload?.activeApiProvider || current.activeApiProvider,
+    apiProfiles: payload?.apiProfiles || current.apiProfiles,
+  };
+  const saved = await saveAppSettings(next);
+  return {
+    activeApiProvider: saved.activeApiProvider,
+    apiProfiles: saved.apiProfiles,
+  };
 });
 
 ipcMain.handle('projects:create', async (_event, { projectName, conference, autosaveIntervalSeconds }) => {

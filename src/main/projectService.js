@@ -6,6 +6,70 @@ const APP_SETTINGS_FILE = path.join(PROJECTS_ROOT, '_appsettings.json');
 
 const STAGE_KEYS = ['stage1', 'stage2', 'stage3', 'stage4', 'stage5'];
 
+const DEFAULT_API_PROFILES = {
+  openai: {
+    label: 'OpenAI',
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o-mini',
+    apiKey: '',
+  },
+  anthropic: {
+    label: 'Anthropic',
+    baseUrl: 'https://api.anthropic.com/v1',
+    model: 'claude-3-5-sonnet-latest',
+    apiKey: '',
+  },
+  gemini: {
+    label: 'Google Gemini',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    model: 'gemini-1.5-pro',
+    apiKey: '',
+  },
+  deepseek: {
+    label: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com/v1',
+    model: 'deepseek-chat',
+    apiKey: '',
+  },
+  azureOpenai: {
+    label: 'Azure OpenAI',
+    baseUrl: '',
+    model: 'gpt-4o',
+    apiKey: '',
+  },
+};
+
+function createDefaultAppSettings() {
+  return {
+    defaultAutosaveIntervalSeconds: 60,
+    activeApiProvider: 'openai',
+    apiProfiles: { ...DEFAULT_API_PROFILES },
+  };
+}
+
+function normalizeAppSettings(raw = {}) {
+  const defaults = createDefaultAppSettings();
+  const apiProfiles = { ...defaults.apiProfiles };
+  const rawProfiles = raw.apiProfiles || {};
+
+  Object.keys(apiProfiles).forEach((providerKey) => {
+    if (!rawProfiles[providerKey]) return;
+    apiProfiles[providerKey] = {
+      ...apiProfiles[providerKey],
+      ...rawProfiles[providerKey],
+      apiKey: typeof rawProfiles[providerKey].apiKey === 'string' ? rawProfiles[providerKey].apiKey : '',
+    };
+  });
+
+  const activeApiProvider = apiProfiles[raw.activeApiProvider] ? raw.activeApiProvider : defaults.activeApiProvider;
+
+  return {
+    defaultAutosaveIntervalSeconds: Number(raw.defaultAutosaveIntervalSeconds) || defaults.defaultAutosaveIntervalSeconds,
+    activeApiProvider,
+    apiProfiles,
+  };
+}
+
 function sanitizeProjectName(name) {
   return name.replace(/[<>:"/\\|?*\x00-\x1F]/g, '').trim();
 }
@@ -141,18 +205,17 @@ async function loadAppSettings() {
   await ensureProjectsRoot();
   const parsed = await readJsonSafe(APP_SETTINGS_FILE);
   if (parsed.__error) {
-    return { defaultAutosaveIntervalSeconds: 60 };
+    return createDefaultAppSettings();
   }
 
-  return {
-    defaultAutosaveIntervalSeconds: Number(parsed.defaultAutosaveIntervalSeconds) || 60,
-  };
+  return normalizeAppSettings(parsed);
 }
 
 async function saveAppSettings(settings) {
   await ensureProjectsRoot();
-  await fs.writeFile(APP_SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
-  return settings;
+  const normalized = normalizeAppSettings(settings);
+  await fs.writeFile(APP_SETTINGS_FILE, JSON.stringify(normalized, null, 2), 'utf8');
+  return normalized;
 }
 
 module.exports = {
