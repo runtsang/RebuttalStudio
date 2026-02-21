@@ -200,14 +200,14 @@ function renderReviewerTabs() {
   // Load active reviewer content
   const activeReviewer = state.reviewers[state.activeReviewerIdx];
   if (activeReviewer) {
-    reviewerInput.value = activeReviewer.content || '';
+    reviewerInput.innerHTML = activeReviewer.content || '';
   }
 }
 
 function switchReviewer(idx) {
   // Save current content
   if (state.reviewers[state.activeReviewerIdx]) {
-    state.reviewers[state.activeReviewerIdx].content = reviewerInput.value;
+    state.reviewers[state.activeReviewerIdx].content = reviewerInput.innerHTML;
   }
   state.activeReviewerIdx = idx;
   renderReviewerTabs();
@@ -217,7 +217,7 @@ function switchReviewer(idx) {
 function addReviewer() {
   // Save current content first
   if (state.reviewers[state.activeReviewerIdx]) {
-    state.reviewers[state.activeReviewerIdx].content = reviewerInput.value;
+    state.reviewers[state.activeReviewerIdx].content = reviewerInput.innerHTML;
   }
   const newIdx = state.reviewers.length;
   state.reviewers.push({ id: newIdx, content: '' });
@@ -270,7 +270,7 @@ function renderBreakdownPanel() {
     if (i > 0) scoresHTML += '<span class="score-divider">|</span>';
     const val = data.scores[s.key] || s.default;
     scoresHTML += `<div class="score-item">
-      <span class="score-label">${s.label.toUpperCase()}</span>
+      <span class="score-label">${s.label}</span>
       <span class="score-value">${val}</span>
     </div>`;
   });
@@ -282,7 +282,7 @@ function renderBreakdownPanel() {
     if (i > 0) scoresHTML += '<span class="score-divider">|</span>';
     const val = data.scores[s.key] || s.default;
     scoresHTML += `<div class="score-item">
-      <span class="score-label">${s.label.toUpperCase()}</span>
+      <span class="score-label">${s.label}</span>
       <span class="score-value">${val}</span>
     </div>`;
   });
@@ -320,7 +320,7 @@ function escapeHTML(str) {
    Convert Button — parse reviewer input to breakdown
    ──────────────────────────────────────────────────────────── */
 function performBreakdown() {
-  const rawText = reviewerInput.value.trim();
+  const rawText = reviewerInput.innerText.trim();
   if (!rawText) return;
 
   const tpl = getConferenceTemplate();
@@ -647,10 +647,11 @@ cancelAdvanceBtnEl.addEventListener('click', cancelAdvance);
 // Reviewer input
 reviewerInput.addEventListener('input', (e) => {
   if (!state.currentDoc) return;
-  state.reviewers[state.activeReviewerIdx].content = e.target.value;
+  const content = reviewerInput.innerHTML;
+  state.reviewers[state.activeReviewerIdx].content = content;
   state.currentDoc.stage1.content = state.reviewers[0]?.content || '';
   state.currentDoc.stage1.lastEditedAt = new Date().toISOString();
-  state.currentDoc.stage1.history.push({ timestamp: state.currentDoc.stage1.lastEditedAt, content: e.target.value });
+  state.currentDoc.stage1.history.push({ timestamp: state.currentDoc.stage1.lastEditedAt, content: content });
   queueStateSync();
   renderSidebarStages();
 });

@@ -322,21 +322,25 @@ select {
   top: 50%;
   left: 0;
   transform: translateY(-50%);
-  width: 20px;
-  height: 60px;
+  width: 24px;
+  height: 72px;
   border: 1px solid var(--border);
   border-left: none;
   border-radius: 0 6px 6px 0;
   background: var(--panel);
-  color: var(--text-muted);
+  color: #ffffff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.7rem;
+  font-size: 1.1rem;
   transition: background 0.15s, width 0.15s;
   z-index: 101;
   padding: 0;
+}
+
+[data-theme="light"] .drawer-toggle {
+  color: #000000;
 }
 
 .drawer-toggle:hover {
@@ -627,8 +631,7 @@ select {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.85rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   margin: 0 0 var(--space-3);
   color: var(--text-muted);
 }
@@ -645,10 +648,7 @@ select {
   flex-direction: column;
   gap: 8px;
   align-items: center;
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--panel-muted);
+  padding: var(--space-3) 0;
 }
 
 .scores-row {
@@ -667,11 +667,10 @@ select {
 
 .score-label {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.6rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: #c25454;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .score-value {
@@ -712,8 +711,7 @@ select {
   font-weight: 600;
   color: var(--text);
   margin: 0 0 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .breakdown-section-body {
@@ -749,9 +747,17 @@ select {
 
 .reviewer-input {
   min-height: 360px;
-  resize: vertical;
   max-width: 100%;
   flex: 1;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.reviewer-input:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  pointer-events: none;
 }
 
 .row {
@@ -783,7 +789,7 @@ select {
 .reviewer-tabs {
   display: flex;
   gap: 0;
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .reviewer-tab {
