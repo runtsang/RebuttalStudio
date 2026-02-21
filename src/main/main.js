@@ -157,6 +157,133 @@ async function listProviderModels(providerKey, profile = {}) {
   }
 }
 
+function buildStage1IclrPrompt(content) {
+  return `You are executing the rebuttalstudio_skill -> stage1/iclr/SKILL.md workflow.
+
+Follow these requirements exactly:
+1) Extract scores: rating, confidence, soundness, presentation, contribution (numbers only where found; empty string if missing).
+2) Preserve summary and strength text as verbatim as possible.
+3) Split weakness and question/questions into atomic issues.
+4) Build responses Response1..N with fields title, source, source_id, quoted_issue.
+5) quoted_issue must be verbatim.
+
+Return JSON ONLY (no markdown fences) with this schema:
+{
+  "scores": {"rating":"","confidence":"","soundness":"","presentation":"","contribution":""},
+  "sections": {"summary":"","strength":"","weakness":"","questions":""},
+  "atomicIssues": [
+    {"id":"weakness1","source":"weakness","text":"..."},
+    {"id":"question1","source":"question","text":"..."}
+  ],
+  "responses": [
+    {"id":"Response1","title":"...","source":"weakness","source_id":"weakness1","quoted_issue":"..."}
+  ]
+}
+
+Reviewer content:
+${content}`;
+}
+
+async function runGeminiStage1Breakdown(profile = {}, content = '') {
+  const apiKey = (profile.apiKey || '').trim();
+  const baseUrl = (profile.baseUrl || '').trim().replace(/\/$/, '') || 'https://generativelanguage.googleapis.com/v1beta';
+  const model = (profile.model || '').trim() || 'gemini-3-flash-preview';
+  if (!apiKey) {
+    throw new Error('Gemini API key is required.');
+  }
+  if (!content.trim()) {
+    throw new Error('Reviewer content is empty.');
+  }
+
+  const endpoint = `${baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body = {
+    generationConfig: {
+      temperature: 0.1,
+      responseMimeType: 'application/json',
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: buildStage1IclrPrompt(content) }],
+      },
+    ],
+  };
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Gemini stage1 breakdown failed (${res.status}): ${detail.slice(0, 240)}`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text || '').join('')?.trim();
+  if (!text) {
+    throw new Error('Gemini returned empty content for stage1 breakdown.');
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/, '').trim();
+    parsed = JSON.parse(cleaned);
+  }
+
+  return normalizeStage1Breakdown(parsed);
+}
+
+function normalizeStage1Breakdown(payload = {}) {
+  const scoresIn = payload.scores || {};
+  const sectionsIn = payload.sections || {};
+  const atomicIssuesIn = Array.isArray(payload.atomicIssues) ? payload.atomicIssues : [];
+  const responsesIn = Array.isArray(payload.responses) ? payload.responses : [];
+
+  const scoreKeys = ['rating', 'confidence', 'soundness', 'presentation', 'contribution'];
+  const scores = {};
+  for (const key of scoreKeys) {
+    scores[key] = `${scoresIn[key] ?? ''}`.trim();
+  }
+
+  const sections = {
+    summary: `${sectionsIn.summary ?? ''}`.trim(),
+    strength: `${sectionsIn.strength ?? ''}`.trim(),
+    weakness: `${sectionsIn.weakness ?? ''}`.trim(),
+    questions: `${sectionsIn.questions ?? sectionsIn.question ?? ''}`.trim(),
+  };
+
+  const atomicIssues = atomicIssuesIn
+    .map((item, idx) => ({
+      id: `${item?.id ?? ''}`.trim() || `issue${idx + 1}`,
+      source: `${item?.source ?? ''}`.trim() || 'weakness',
+      text: `${item?.text ?? item?.quoted_issue ?? ''}`.trim(),
+    }))
+    .filter((item) => item.text);
+
+  const responses = responsesIn
+    .map((item, idx) => ({
+      id: `${item?.id ?? ''}`.trim() || `Response${idx + 1}`,
+      title: `${item?.title ?? ''}`.trim() || `Regarding issue ${idx + 1}`,
+      source: `${item?.source ?? ''}`.trim() || 'weakness',
+      source_id: `${item?.source_id ?? ''}`.trim(),
+      quoted_issue: `${item?.quoted_issue ?? ''}`.trim(),
+    }))
+    .filter((item) => item.quoted_issue || item.source_id);
+
+  return {
+    scores,
+    sections,
+    atomicIssues,
+    responses,
+    raw: payload,
+  };
+}
+
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -207,6 +334,19 @@ ipcMain.handle('app:api:updateSettings', async (_event, payload) => {
   };
 });
 
+
+
+ipcMain.handle('app:stage1:breakdown', async (_event, payload) => {
+  const providerKey = payload?.providerKey;
+  const profile = payload?.profile || {};
+  const content = `${payload?.content || ''}`;
+
+  if (providerKey !== 'gemini') {
+    throw new Error('Stage1 breakdown currently requires Gemini provider.');
+  }
+
+  return runGeminiStage1Breakdown(profile, content);
+});
 
 ipcMain.handle('app:api:listModels', async (_event, payload) => {
   const providerKey = payload?.providerKey;
