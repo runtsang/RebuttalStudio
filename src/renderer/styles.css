@@ -978,6 +978,18 @@ select {
   background: var(--hover);
 }
 
+
+.model-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.model-input-row .btn {
+  white-space: nowrap;
+}
+
 /* ────────────────────── Sidebar enter/exit animation ────────────────────── */
 @keyframes sidebarSlideIn {
   from {

@@ -215,11 +215,17 @@
       <div class="settings-group">
         <label for="apiBaseUrlInput">Base URL</label>
         <input id="apiBaseUrlInput" class="text-input" placeholder="https://api.openai.com/v1" />
+        <p id="apiBaseUrlHelp" class="muted"></p>
       </div>
 
       <div class="settings-group">
         <label for="apiModelInput">Model</label>
-        <input id="apiModelInput" class="text-input" placeholder="gpt-4o-mini" />
+        <div class="model-input-row">
+          <input id="apiModelInput" class="text-input" list="apiModelList" placeholder="gpt-4o-mini" />
+          <datalist id="apiModelList"></datalist>
+          <button id="detectModelsBtn" class="btn" type="button">Detect models</button>
+        </div>
+        <p id="apiModelHint" class="muted"></p>
       </div>
 
       <div class="settings-group">
@@ -228,7 +234,7 @@
       </div>
 
       <p id="apiSettingsError" class="error"></p>
-      <p class="muted">Tip: Azure OpenAI usually requires a custom endpoint and deployment name in the model field.</p>
+      <p class="muted">Tip: Google Gemini from AI Studio can use API key only; URL/model can be auto-filled.</p>
 
       <div class="modal-actions">
         <button id="cancelApiBtn" class="btn">Cancel</button>

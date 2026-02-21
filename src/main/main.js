@@ -75,6 +75,88 @@ function normalizeInterval(seconds) {
   return Math.floor(n);
 }
 
+
+
+async function listProviderModels(providerKey, profile = {}) {
+  const apiKey = (profile.apiKey || '').trim();
+  const baseUrl = (profile.baseUrl || '').trim();
+  if (!apiKey) {
+    throw new Error('API key is required before fetching models.');
+  }
+  if (!baseUrl) {
+    throw new Error('Base URL is required before fetching models.');
+  }
+
+  const timeoutMs = 10000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    if (providerKey === 'gemini') {
+      const url = `${baseUrl.replace(/\/$/, '')}/models?key=${encodeURIComponent(apiKey)}`;
+      const res = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(`Failed to list Gemini models (${res.status}): ${detail.slice(0, 180)}`);
+      }
+      const data = await res.json();
+      const names = (data.models || [])
+        .map((m) => (m.name || '').replace(/^models\//, ''))
+        .filter(Boolean)
+        .sort();
+      return { models: names, hint: 'Gemini models are loaded from Google AI Studio ListModels API.' };
+    }
+
+    const openaiCompatible = ['openai', 'deepseek', 'azureOpenai'];
+    if (openaiCompatible.includes(providerKey)) {
+      if (providerKey === 'azureOpenai') {
+        return {
+          models: [],
+          hint: 'Azure OpenAI uses deployment names. Enter your deployment name in the model field.',
+        };
+      }
+      const url = `${baseUrl.replace(/\/$/, '')}/models`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(`Failed to list models (${res.status}): ${detail.slice(0, 180)}`);
+      }
+      const data = await res.json();
+      const names = (data.data || []).map((m) => m.id).filter(Boolean).sort();
+      return { models: names, hint: 'Models are listed from the provider models endpoint.' };
+    }
+
+    if (providerKey === 'anthropic') {
+      return {
+        models: [
+          'claude-3-5-haiku-latest',
+          'claude-3-5-sonnet-latest',
+          'claude-3-7-sonnet-latest',
+        ],
+        hint: 'Anthropic does not provide a public list endpoint in this app yet. Showing common model IDs.',
+      };
+    }
+
+    return { models: [], hint: 'Model listing is not supported for this provider yet.' };
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('Request timed out while fetching models. Please check your network and Base URL.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -123,6 +205,13 @@ ipcMain.handle('app:api:updateSettings', async (_event, payload) => {
     activeApiProvider: saved.activeApiProvider,
     apiProfiles: saved.apiProfiles,
   };
+});
+
+
+ipcMain.handle('app:api:listModels', async (_event, payload) => {
+  const providerKey = payload?.providerKey;
+  const profile = payload?.profile || {};
+  return listProviderModels(providerKey, profile);
 });
 
 ipcMain.handle('projects:create', async (_event, { projectName, conference, autosaveIntervalSeconds }) => {
