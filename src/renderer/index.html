@@ -1,19 +1,47 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Rebuttal Studio</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
+
 <body>
   <div class="app">
-    <aside class="sidebar">
-      <div>
-        <h2 class="sidebar-title">Your Projects</h2>
-        <div id="projectList" class="project-nav"></div>
+    <!-- ── Project Switcher Pull-tab (visible when inside a project) ── -->
+    <div id="projectDrawer" class="project-drawer hidden">
+      <button id="drawerToggle" class="drawer-toggle" aria-label="Toggle project list">
+        <span class="drawer-toggle-icon">◂</span>
+      </button>
+      <div class="drawer-panel">
+        <h2 class="sidebar-title">Projects</h2>
+        <div id="drawerProjectList" class="project-nav"></div>
       </div>
-      <button id="settingsBtn" class="settings-btn" aria-label="Open settings">⚙</button>
+    </div>
+
+    <aside id="sidebar" class="sidebar">
+      <!-- Default mode: project list -->
+      <div id="sidebarProjects" class="sidebar-projects-mode">
+        <div>
+          <h2 class="sidebar-title">Projects</h2>
+          <div id="projectList" class="project-nav"></div>
+        </div>
+        <button id="settingsBtn" class="settings-btn" aria-label="Open settings">⚙</button>
+      </div>
+
+      <!-- Stage breakdown mode (shown when inside a project) -->
+      <div id="sidebarStages" class="sidebar-stages-mode hidden">
+        <div class="stages-header">
+          <h2 class="sidebar-title">Stages</h2>
+        </div>
+        <div id="sidebarStageList" class="sidebar-stage-list"></div>
+        <div class="sidebar-bottom-row">
+          <button id="nextStageBtn" class="btn next-stage-btn">Next Stage →</button>
+          <button id="settingsBtnStage" class="settings-btn" aria-label="Open settings">⚙</button>
+        </div>
+      </div>
     </aside>
 
     <main class="main">
@@ -25,10 +53,6 @@
           <input id="projectSearch" class="search-input" placeholder="Search projects" aria-label="Search projects" />
         </div>
         <div class="topbar-right">
-          <div class="view-toggle" role="group" aria-label="Layout mode">
-            <button id="listViewBtn" class="btn icon-btn" aria-label="List view">☰</button>
-            <button id="gridViewBtn" class="btn icon-btn" aria-label="Grid view">▦</button>
-          </div>
           <button id="newBtn" class="btn">+ New</button>
           <button id="apiOpenBtn" class="btn">Enter API</button>
         </div>
@@ -37,15 +61,15 @@
       <section class="content">
         <div id="namingPanel" class="panel hidden">
           <h3>Create New Project</h3>
-          <div class="row stacked-on-mobile">
-            <input id="projectNameInput" class="text-input" placeholder="Project name" />
+          <div class="create-form-group">
+            <label for="projectNameInput">Project Name</label>
+            <input id="projectNameInput" class="text-input" placeholder="e.g. My Paper Rebuttal" />
           </div>
-          <div class="conference-picker" role="radiogroup" aria-label="Conference">
-            <button class="conference-chip selected" data-conference="ICLR" aria-checked="true" role="radio">ICLR</button>
-            <button class="conference-chip" data-conference="NeurIPS" disabled title="Coming soon">NeurIPS</button>
-            <button class="conference-chip" data-conference="ICML" disabled title="Coming soon">ICML</button>
-            <button class="conference-chip" data-conference="ACL" disabled title="Coming soon">ACL</button>
-            <button class="conference-chip" data-conference="EMNLP" disabled title="Coming soon">EMNLP</button>
+          <div class="create-form-group">
+            <label for="conferenceSelect">Conference</label>
+            <select id="conferenceSelect" class="conference-select">
+              <option value="ICLR" selected>ICLR</option>
+            </select>
           </div>
           <div class="row">
             <button id="cancelProjectBtn" class="btn">Cancel</button>
@@ -55,30 +79,123 @@
         </div>
 
         <div id="workspace" class="workspace-layout hidden">
-          <section class="panel">
-            <h3>Reviewer Input</h3>
-            <textarea id="reviewerInput" class="reviewer-input" placeholder="Paste reviewer feedback here"></textarea>
+          <!-- Left panel: Reviewer Input -->
+          <section class="panel workspace-panel">
+            <div class="reviewer-tabs-row">
+              <div id="reviewerTabs" class="reviewer-tabs">
+                <button class="reviewer-tab active" data-reviewer="0">Reviewer 1</button>
+              </div>
+              <button id="addReviewerBtn" class="add-reviewer-btn" aria-label="Add reviewer">+</button>
+            </div>
+            <textarea id="reviewerInput" class="reviewer-input"
+              placeholder="Paste the complete reviewer feedback here. Include all sections: summary, strengths, weaknesses, questions, rating, confidence, and any additional comments from the reviewer."></textarea>
           </section>
 
-          <div class="arrow-column" aria-hidden="true">→</div>
+          <!-- Center: Convert button -->
+          <div class="convert-column">
+            <button id="convertBtn" class="convert-btn" aria-label="Convert reviewer input to structured breakdown"
+              title="Convert to structured breakdown">
+              <span class="convert-icon">→</span>
+              <span class="convert-label">Break down</span>
+            </button>
+          </div>
 
-          <section class="panel">
-            <h3>Structured Breakdown</h3>
-            <textarea id="breakdownOutput" class="reviewer-input" placeholder="API-assisted breakdown placeholder"></textarea>
+          <!-- Right panel: Structured Breakdown (ICLR format) -->
+          <section class="panel workspace-panel breakdown-panel">
+            <h3 class="breakdown-heading">Structured Breakdown</h3>
+            <div id="breakdownContent" class="breakdown-content">
+              <!-- Scores row -->
+              <div class="scores-header">
+                <div class="scores-row">
+                  <div class="score-item">
+                    <span class="score-label">RATING</span>
+                    <span class="score-value" id="scoreRating">A</span>
+                  </div>
+                  <span class="score-divider">|</span>
+                  <div class="score-item">
+                    <span class="score-label">CONFIDENCE</span>
+                    <span class="score-value" id="scoreConfidence">B</span>
+                  </div>
+                </div>
+                <div class="scores-row">
+                  <div class="score-item">
+                    <span class="score-label">SOUNDNESS</span>
+                    <span class="score-value" id="scoreSoundness">C</span>
+                  </div>
+                  <span class="score-divider">|</span>
+                  <div class="score-item">
+                    <span class="score-label">PRESENTATION</span>
+                    <span class="score-value" id="scorePresentation">D</span>
+                  </div>
+                  <span class="score-divider">|</span>
+                  <div class="score-item">
+                    <span class="score-label">CONTRIBUTION</span>
+                    <span class="score-value" id="scoreContribution">E</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Block: Summary & Strength -->
+              <div class="breakdown-block">
+                <div class="breakdown-section">
+                  <h4 class="breakdown-section-title">Summary</h4>
+                  <div class="breakdown-section-body" id="sectionSummary">
+                    <p class="breakdown-placeholder">This is the summary.</p>
+                  </div>
+                </div>
+                <div class="breakdown-section">
+                  <h4 class="breakdown-section-title">Strength</h4>
+                  <div class="breakdown-section-body" id="sectionStrength">
+                    <p class="breakdown-placeholder">This is the strength.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Block: Weakness & Questions -->
+              <div class="breakdown-block">
+                <div class="breakdown-section">
+                  <h4 class="breakdown-section-title">Weakness</h4>
+                  <div class="breakdown-section-body" id="sectionWeakness">
+                    <p class="breakdown-placeholder">This is the weakness.</p>
+                  </div>
+                </div>
+                <div class="breakdown-section">
+                  <h4 class="breakdown-section-title">Questions</h4>
+                  <div class="breakdown-section-body" id="sectionQuestions">
+                    <p class="breakdown-placeholder">This is the questions.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </section>
         </div>
 
-        <div id="emptyState" class="panel empty-state">
-          <h3>Create or open a project to begin.</h3>
+        <div id="emptyState" class="empty-state">
+          <div class="home-landing">
+            <pre class="ascii-art ascii-red">██████╗ ███████╗██████╗ ██╗   ██╗████████╗████████╗ █████╗ ██╗     
+██╔══██╗██╔════╝██╔══██╗██║   ██║╚══██╔══╝╚══██╔══╝██╔══██╗██║     
+██████╔╝█████╗  ██████╔╝██║   ██║   ██║      ██║   ███████║██║     
+██╔══██╗██╔══╝  ██╔══██╗██║   ██║   ██║      ██║   ██╔══██║██║     
+██║  ██║███████╗██████╔╝╚██████╔╝   ██║      ██║   ██║  ██║███████╗
+╚═╝  ╚═╝╚══════╝╚═════╝  ╚═════╝    ╚═╝      ╚═╝   ╚═╝  ╚═╝╚══════╝</pre>
+            <pre class="ascii-art ascii-blue">███████╗████████╗██╗   ██╗██████╗ ██╗ ██████╗
+██╔════╝╚══██╔══╝██║   ██║██╔══██╗██║██╔═══██╗
+███████╗   ██║   ██║   ██║██║  ██║██║██║   ██║
+╚════██║   ██║   ██║   ██║██║  ██║██║██║   ██║
+███████║   ██║   ╚██████╔╝██████╔╝██║╚██████╔╝
+╚══════╝   ╚═╝    ╚═════╝ ╚═════╝ ╚═╝ ╚═════╝</pre>
+            <div class="creator-box">
+              <div class="creator-label">CREATOR</div>
+              <div class="creator-name">Run Zeng</div>
+              <div class="creator-email">run@mail.rit.edu</div>
+            </div>
+          </div>
         </div>
       </section>
-
-      <div id="stageDock" class="stage-dock hidden" aria-label="Stage navigation">
-        <div id="stageRow" class="stage-row"></div>
-      </div>
     </main>
   </div>
 
+  <!-- API Modal -->
   <div id="apiModal" class="modal-backdrop hidden">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="apiModalTitle">
       <h3 id="apiModalTitle">Enter API Key</h3>
@@ -90,12 +207,25 @@
     </div>
   </div>
 
+  <!-- Settings Modal -->
   <div id="settingsModal" class="modal-backdrop hidden">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
       <h3 id="settingsTitle">Settings</h3>
-      <label>Autosave interval (seconds)</label>
-      <input id="autosaveInput" class="text-input" type="number" min="10" max="1800" />
-      <p class="muted">Minimum 10 seconds, maximum 1800 seconds (30 minutes).</p>
+
+      <div class="settings-group">
+        <label>Theme</label>
+        <div class="theme-toggle-row">
+          <button id="themeDarkBtn" class="theme-toggle-btn active" data-theme-value="dark">Dark</button>
+          <button id="themeLightBtn" class="theme-toggle-btn" data-theme-value="light">Light</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <label for="autosaveInput">Autosave interval (seconds)</label>
+        <input id="autosaveInput" class="text-input" type="number" min="10" max="1800" />
+        <p class="muted">Minimum 10 s, maximum 1800 s.</p>
+      </div>
+
       <p id="settingsError" class="error"></p>
       <div class="modal-actions">
         <button id="saveNowBtn" class="btn">Save now</button>
@@ -104,6 +234,19 @@
     </div>
   </div>
 
+  <!-- Stage Advance Confirmation Modal -->
+  <div id="stageAdvanceModal" class="modal-backdrop hidden">
+    <div class="modal stage-advance-modal" role="dialog" aria-modal="true" aria-labelledby="stageAdvanceTitle">
+      <h3 id="stageAdvanceTitle">Advance to Next Stage</h3>
+      <p id="stageAdvanceMsg" class="stage-advance-msg">Are you sure you want to proceed to the next stage?</p>
+      <div class="modal-actions">
+        <button id="cancelAdvanceBtn" class="btn">Cancel</button>
+        <button id="confirmAdvanceBtn" class="btn primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <script src="./app.js"></script>
 </body>
+
 </html>
