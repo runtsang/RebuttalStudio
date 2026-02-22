@@ -851,6 +851,57 @@ select {
   gap: var(--space-2);
 }
 
+.stage2-left-panel {
+  flex: 1;
+  overflow-y: auto;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0;
+}
+
+.stage2-left-panel .breakdown-heading {
+  margin-bottom: 0;
+}
+
+/* Stage2 Outline cards (left panel) */
+.stage2-outline-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-muted);
+  padding: 12px;
+}
+
+/* Stage2 Draft cards (right panel) */
+.stage2-draft-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-muted);
+  padding: 12px;
+}
+
+.stage2-draft-placeholder {
+  padding: 16px;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+.draft-textarea {
+  background: var(--panel) !important;
+  cursor: default;
+}
+
+.outline-textarea {
+  background: var(--panel) !important;
+}
+
 .error {
   color: #b34040;
   min-height: 1.2rem;
@@ -1344,11 +1395,13 @@ select {
 /* ────────────────────── Stage2 Reply cards ────────────────────── */
 .responses-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 14px;
 }
 
-.stage2-response-card {
+.stage2-response-card,
+.stage2-outline-card,
+.stage2-draft-card {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--panel-muted);
@@ -1384,12 +1437,34 @@ select {
   min-height: 108px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fff;
-  color: #111;
+  background: var(--panel);
+  color: var(--text);
   padding: 8px 10px;
   line-height: 1.5;
   margin: 4px 0 8px;
   resize: vertical;
+}
+
+.response-textarea.bg-red {
+  background: rgba(194, 84, 84, 0.08);
+  /* same as block-red */
+  border-color: rgba(194, 84, 84, 0.25);
+}
+
+.response-textarea.bg-blue {
+  background: rgba(74, 125, 170, 0.08);
+  /* same as block-blue */
+  border-color: rgba(74, 125, 170, 0.25);
+}
+
+[data-theme="light"] .response-textarea.bg-red {
+  background: rgba(194, 84, 84, 0.06);
+  border-color: rgba(194, 84, 84, 0.2);
+}
+
+[data-theme="light"] .response-textarea.bg-blue {
+  background: rgba(74, 125, 170, 0.06);
+  border-color: rgba(74, 125, 170, 0.2);
 }
 
 .stage2-outline-tip {

@@ -439,7 +439,7 @@ function renderBreakdownPanel() {
   const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
 
   if (stageKey === 'stage2') {
-    breakdownContentEl.innerHTML = renderStage2Panel(data);
+    renderStage2Panels(data);
     return;
   }
 
@@ -506,13 +506,38 @@ function renderBreakdownPanel() {
   }, 10);
 }
 
-function renderStage2Panel(data) {
+/* ── Stage 2: Split into left (Outline) and right (Refined Draft) panels ── */
+function renderStage2Panels(data) {
   const responses = Array.isArray(data.responses) ? data.responses : [];
   const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+  const stage2LeftEl = document.getElementById('stage2LeftPanel');
+
   if (!responses.length) {
-    return `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Replied</h4><p class="breakdown-placeholder">No responses found in Stage1. Please run Breakdown first.</p></div></div>`;
+    stage2LeftEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Outline</h4><p class="breakdown-placeholder">No responses found. Please run Breakdown in Stage 1 first.</p></div></div>`;
+    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Refined Draft</h4><p class="breakdown-placeholder">No responses found. Please run Breakdown in Stage 1 first.</p></div></div>`;
+    return;
   }
 
+  // ── Left panel: Outline cards ──
+  const outlineCards = responses.map((resp, idx) => {
+    const item = stage2Map[resp.id] || { outline: '', draft: '', assets: [] };
+    const sourceIdx = Number((`${resp.source_id || ''}`.match(/(\d+)$/) || [])[1] || idx + 1);
+    const sourceLabel = resp.source === 'question' ? 'Question' : 'Weakness';
+    const headerTitle = `${sourceLabel} ${sourceIdx}: ${resp.title || 'Untitled'}`;
+    return `<div class="response-card stage2-outline-card" data-response-id="${escapeHTML(resp.id)}">
+      <div class="response-header">Response ${idx + 1}</div>
+      <div class="fixed-issue-meta">
+        <h5 class="stage2-issue-title">${escapeHTML(headerTitle)}</h5>
+        <div class="fixed-issue-quote">&gt; ${escapeHTML(resp.quoted_issue || '')}</div>
+      </div>
+      <textarea class="response-textarea outline-textarea" data-stage2-field="outline" data-response-id="${escapeHTML(resp.id)}" placeholder="Input a response outline for this issue (key points, evidence, and writing strategy).">${escapeHTML(item.outline || '')}</textarea>
+      <div class="stage2-outline-tip">Right click in outline box: Insert Table / Formula / Code</div>
+    </div>`;
+  }).join('');
+
+  stage2LeftEl.innerHTML = `<h3 class="breakdown-heading">Outline</h3><div class="responses-grid">${outlineCards}</div>`;
+
+  // ── Right panel: Refined Draft cards ──
   const progressTotal = stage2RefineProgress?.total || 0;
   const progressCurrent = stage2RefineProgress?.current || 0;
   const progressPercent = progressTotal > 0 ? Math.min(100, Math.round((progressCurrent / progressTotal) * 100)) : 0;
@@ -523,25 +548,23 @@ function renderStage2Panel(data) {
     </div>`
     : '';
 
-  const cards = responses.map((resp, idx) => {
+  const draftCards = responses.map((resp, idx) => {
     const item = stage2Map[resp.id] || { outline: '', draft: '', assets: [] };
+    const hasDraft = (item.draft || '').trim().length > 0;
     const sourceIdx = Number((`${resp.source_id || ''}`.match(/(\d+)$/) || [])[1] || idx + 1);
-    const headerTitle = `Weakness for Question${sourceIdx}: ${resp.title || 'Untitled'}`;
-    return `<div class="response-card stage2-response-card" data-response-id="${escapeHTML(resp.id)}">
-      <div class="response-header">Response${idx + 1}</div>
-      <div class="fixed-issue-meta">
-        <h5 class="stage2-issue-title">${escapeHTML(headerTitle)}</h5>
-        <div class="fixed-issue-quote">&gt; ${escapeHTML(resp.quoted_issue || '')}</div>
-      </div>
-      <label>Outline</label>
-      <textarea class="response-textarea" data-stage2-field="outline" data-response-id="${escapeHTML(resp.id)}" placeholder="Input a response outline for this issue (key points, evidence, and writing strategy).">${escapeHTML(item.outline || '')}</textarea>
-      <div class="stage2-outline-tip">Right click in outline box: Insert Table / Formula / Code</div>
-      <label>Refined Draft</label>
-      <textarea class="response-textarea" data-stage2-field="draft" data-response-id="${escapeHTML(resp.id)}" placeholder="Refined academic reply will appear here.">${escapeHTML(item.draft || '')}</textarea>
+    const sourceLabel = resp.source === 'question' ? 'Question' : 'Weakness';
+    const headerTitle = `${sourceLabel} ${sourceIdx}: ${resp.title || 'Untitled'}`;
+    return `<div class="response-card stage2-draft-card" data-response-id="${escapeHTML(resp.id)}">
+      <div class="response-header">Response ${idx + 1}</div>
+      <h5 class="stage2-issue-title">${escapeHTML(headerTitle)}</h5>
+      ${hasDraft
+        ? `<textarea class="response-textarea draft-textarea" data-stage2-field="draft" data-response-id="${escapeHTML(resp.id)}" readonly placeholder="Refined academic reply will appear here.">${escapeHTML(item.draft)}</textarea>`
+        : `<div class="stage2-draft-placeholder">Click <strong>Refine</strong> to generate academic reply for this response.</div>`
+      }
     </div>`;
   }).join('');
 
-  return `<div class="breakdown-block breakdown-output-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Replied</h4>${progressHtml}<div class="responses-grid">${cards}</div></div></div>`;
+  breakdownContentEl.innerHTML = `${progressHtml}<div class="responses-grid">${draftCards}</div>`;
 }
 
 function ensureStage2ContextMenu() {
@@ -1186,7 +1209,19 @@ function syncStageUi() {
   convertBtnEl.querySelector('.convert-icon').textContent = isStage2 ? '⇢' : '→';
   const heading = document.querySelector('.breakdown-heading');
   if (heading) {
-    heading.textContent = isStage2 ? 'Replied' : 'Structured Breakdown';
+    heading.textContent = isStage2 ? 'Refined Draft' : 'Structured Breakdown';
+  }
+
+  // Toggle left panel: reviewer input vs outline panel
+  const stage2LeftEl = document.getElementById('stage2LeftPanel');
+  if (isStage2) {
+    reviewerInput.classList.add('hidden');
+    document.querySelector('.reviewer-tabs-row')?.classList.add('hidden');
+    stage2LeftEl.classList.remove('hidden');
+  } else {
+    reviewerInput.classList.remove('hidden');
+    document.querySelector('.reviewer-tabs-row')?.classList.remove('hidden');
+    stage2LeftEl.classList.add('hidden');
   }
   reviewerInput.setAttribute('contenteditable', isStage2 ? 'false' : 'true');
   reviewerInput.classList.toggle('readonly', isStage2);
@@ -1357,6 +1392,34 @@ breakdownContentEl.addEventListener('change', (e) => {
   queueStateSync();
 });
 
+
+// Stage2 left panel input handler (outline text in stage2)
+const stage2LeftPanelEl = document.getElementById('stage2LeftPanel');
+stage2LeftPanelEl.addEventListener('input', (e) => {
+  const stage2Field = e.target?.dataset?.stage2Field;
+  const stage2ResponseId = e.target?.dataset?.responseId;
+  if (stage2Field && stage2ResponseId) {
+    const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+    if (!stage2Map[stage2ResponseId]) {
+      stage2Map[stage2ResponseId] = { outline: '', draft: '', assets: [] };
+    }
+    stage2Map[stage2ResponseId][stage2Field] = e.target.value;
+    state.stage2Replies[state.activeReviewerIdx] = stage2Map;
+    queueStateSync();
+  }
+});
+
+// Right-click context menu on stage2 left panel outline textareas
+stage2LeftPanelEl.addEventListener('contextmenu', (e) => {
+  if (e.target.dataset?.stage2Field !== 'outline') return;
+  e.preventDefault();
+  const responseId = e.target.dataset.responseId;
+  stage2OutlineContext = { responseId, x: e.clientX, y: e.clientY };
+  const menu = ensureStage2ContextMenu();
+  menu.style.left = `${e.clientX}px`;
+  menu.style.top = `${e.clientY}px`;
+  menu.classList.remove('hidden');
+});
 
 breakdownContentEl.addEventListener('click', (e) => {
   const tableFor = e.target?.dataset?.stage2InsertTable;
