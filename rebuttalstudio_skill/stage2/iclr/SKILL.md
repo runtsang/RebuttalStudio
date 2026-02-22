@@ -38,6 +38,7 @@ Return strict JSON:
 4. **No fabrication**: never invent experiments, numbers, citations, or implementation details.
 5. **Constructive tone**: avoid defensive language; prefer collaborative phrasing.
 6. **Concise precision**: short, information-dense paragraphs; avoid repetitive restatement.
+7. **Paragraph Preservation**: aggressively separate distinct semantic points into individual paragraphs. If the provided `draft` or `outline` is split into multiple paragraphs or list items, ensure your generated `draft` has at least the same number of separate paragraphs. Do not merge separate points into a single wall of text.
 
 ## Courtesy opening phrase bank
 When refining, choose **one** opener that best matches the reviewer comment and prepend it naturally.

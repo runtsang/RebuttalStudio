@@ -141,6 +141,7 @@ const addReviewerBtnEl = document.getElementById('addReviewerBtn');
 
 const convertBtnEl = document.getElementById('convertBtn');
 const stage3AdjustStyleBtn = document.getElementById('stage3AdjustStyleBtn');
+const stage2AutoFitBtn = document.getElementById('stage2AutoFitBtn');
 const breakdownContentEl = document.getElementById('breakdownContent');
 
 const appEl = document.querySelector('.app');
@@ -704,7 +705,7 @@ function renderBreakdownPanel() {
 
   // Auto-resize textareas to fit content
   setTimeout(() => {
-    document.querySelectorAll('.response-quoted-issue').forEach(el => {
+    document.querySelectorAll('.response-quoted-issue, .response-textarea').forEach(el => {
       el.style.height = 'auto';
       if (el.scrollHeight > 0) el.style.height = el.scrollHeight + 'px';
     });
@@ -763,7 +764,7 @@ function renderStage2Panels(data) {
       <div class="response-header response-header-blue">Response ${idx + 1}</div>
       <h5 class="stage2-issue-title">${escapeHTML(headerTitle)}</h5>
       ${hasDraft
-        ? `<textarea class="response-textarea draft-textarea" data-stage2-field="draft" data-response-id="${escapeHTML(resp.id)}" readonly placeholder="Refined academic reply will appear here.">${escapeHTML(item.draft)}</textarea>`
+        ? `<textarea class="response-textarea draft-textarea" data-stage2-field="draft" data-response-id="${escapeHTML(resp.id)}" placeholder="Refined academic reply will appear here.">${escapeHTML(item.draft)}</textarea>`
         : `<div class="stage2-draft-placeholder">Click <strong>Refine</strong> to generate academic reply for this response.</div>`
       }
     </div>`;
@@ -1163,6 +1164,11 @@ async function runStage2RefineForResponses() {
       if (!`${draftCell.outline || ''}`.trim()) {
         continue;
       }
+      // Skip if draft is already present
+      if (`${draftCell.draft || ''}`.trim()) {
+        continue;
+      }
+
       const refined = await window.studioApi.runStage2Refine({
         providerKey,
         profile,
@@ -1243,6 +1249,38 @@ function showStageAdvanceModal() {
   if (!state.currentDoc) return;
   const curIdx = stageIndexFromCurrent();
   if (curIdx >= STAGES.length - 1) return; // already at last stage
+
+  // If advancing from Stage 2 to Stage 3
+  if (curIdx === 1) {
+    let missingRefine = false;
+    for (let rIdx = 0; rIdx < state.reviewers.length; rIdx++) {
+      const bData = state.breakdownData[rIdx] || {};
+      const responses = bData.responses || [];
+      const stage2Map = state.stage2Replies[rIdx] || {};
+      for (const resp of responses) {
+        if (!`${stage2Map[resp.id]?.draft || ''}`.trim()) {
+          missingRefine = true;
+          break;
+        }
+      }
+      if (missingRefine) break;
+    }
+
+    if (missingRefine) {
+      alert("Missing Refined Answers: Please ensure all responses have a generated or manually entered Refined Draft before proceeding.");
+      return;
+    }
+
+    // Replace the text with a checkmark and auto-advance
+    nextStageBtnEl.innerHTML = '✓ Done';
+    setTimeout(() => {
+      state.currentDoc.currentStage = 'stage3';
+      queueStateSync();
+      renderSidebarStages();
+      nextStageBtnEl.innerHTML = 'Next Stage →';
+    }, 600);
+    return;
+  }
 
   const nextStage = STAGES[curIdx + 1];
   pendingAdvanceTarget = nextStage.label;
@@ -1636,6 +1674,10 @@ function syncStageUi() {
   if (stage3AdjustStyleBtn) {
     stage3AdjustStyleBtn.classList.toggle('hidden', !isStage3);
   }
+
+  if (stage2AutoFitBtn) {
+    stage2AutoFitBtn.classList.toggle('hidden', !isStage2);
+  }
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -1766,7 +1808,7 @@ breakdownContentEl.addEventListener('click', (e) => {
 });
 
 breakdownContentEl.addEventListener('input', (e) => {
-  if (e.target.classList.contains('response-quoted-issue')) {
+  if (e.target.classList.contains('response-quoted-issue') || e.target.classList.contains('response-textarea')) {
     e.target.style.height = 'auto';
     e.target.style.height = e.target.scrollHeight + 'px';
   }
@@ -1828,6 +1870,11 @@ breakdownContentEl.addEventListener('change', (e) => {
 // Stage2 left panel input handler (outline text in stage2)
 const stage2LeftPanelEl = document.getElementById('stage2LeftPanel');
 stage2LeftPanelEl.addEventListener('input', (e) => {
+  if (e.target.classList.contains('response-textarea')) {
+    e.target.style.height = 'auto';
+    e.target.style.height = e.target.scrollHeight + 'px';
+  }
+
   const stage2Field = e.target?.dataset?.stage2Field;
   const stage2ResponseId = e.target?.dataset?.responseId;
   const stage3Field = e.target?.dataset?.stage3Field;
@@ -2109,6 +2156,15 @@ if (stage3StyleSelectEl) {
 
 if (stage3AdjustStyleBtn) {
   stage3AdjustStyleBtn.addEventListener('click', openStage3StyleModal);
+}
+
+if (stage2AutoFitBtn) {
+  stage2AutoFitBtn.addEventListener('click', () => {
+    document.querySelectorAll('.response-quoted-issue, .response-textarea').forEach(el => {
+      el.style.height = 'auto';
+      if (el.scrollHeight > 0) el.style.height = el.scrollHeight + 'px';
+    });
+  });
 }
 
 init();
