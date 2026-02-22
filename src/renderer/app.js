@@ -838,12 +838,23 @@ function stage3IssueCode(resp) {
   return resp.source === 'question' ? `Q${(resp.source_id || '').replace(/\D/g, '') || '1'}` : `W${(resp.source_id || '').replace(/\D/g, '') || '1'}`;
 }
 
-function renderStage3Palette() {
+function renderStage3Palette(tempColor) {
   if (!stage3PresetColorsEl) return;
-  const activeColor = state.stage3Settings.color || '#f26921';
-  const buttons = STAGE3_PRESET_COLORS.map((color) => `<button class="stage3-color-dot ${color.toLowerCase() === activeColor.toLowerCase() ? 'active' : ''}" data-stage3-color="${color}" style="--dot:${color}" title="${color}"></button>`).join('');
-  stage3PresetColorsEl.innerHTML = `${buttons}<button class="stage3-color-custom" data-stage3-color="custom">Custom</button>`;
-  stage3CustomHexInputEl.value = activeColor;
+  const activeColor = (tempColor && tempColor !== 'custom') ? tempColor : (state.stage3Settings.color || '#f26921');
+  let isCustom = true;
+  const buttons = STAGE3_PRESET_COLORS.map((color) => {
+    const isActive = tempColor !== 'custom' && color.toLowerCase() === activeColor.toLowerCase();
+    if (isActive) isCustom = false;
+    return `<button class="stage3-color-dot ${isActive ? 'active' : ''}" data-stage3-color="${color}" style="--dot:${color}" title="${color}"></button>`;
+  }).join('');
+
+  if (tempColor === 'custom') isCustom = true;
+
+  stage3PresetColorsEl.innerHTML = `${buttons}<button class="stage3-color-custom ${isCustom ? 'active' : ''}" data-stage3-color="custom">Custom</button>`;
+
+  if (tempColor !== 'custom') {
+    stage3CustomHexInputEl.value = activeColor;
+  }
 }
 
 function renderStage3StyleOptions() {
@@ -974,7 +985,25 @@ function applyStage3StyleSettings() {
     }
     color = maybeHex;
   }
+
+  const oldColor = state.stage3Settings.color || '#f26921';
   state.stage3Settings = { style, color };
+
+  if (oldColor.toLowerCase() !== color.toLowerCase()) {
+    const safeOldColor = oldColor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const colorRe = new RegExp(safeOldColor, 'gi');
+    for (const rIdx in state.stage3Drafts) {
+      const drafts = state.stage3Drafts[rIdx];
+      if (drafts) {
+        for (const rId in drafts) {
+          if (drafts[rId] && typeof drafts[rId].markdownSource === 'string') {
+            drafts[rId].markdownSource = drafts[rId].markdownSource.replace(colorRe, color);
+          }
+        }
+      }
+    }
+  }
+
   stage3StyleModalEl.classList.add('hidden');
   queueStateSync();
   showStage3ThemeNotice('Theme updated successfully. Please re-preview.');
@@ -2208,10 +2237,28 @@ if (stage3StyleSelectEl) {
     if (!btn) return;
     const color = btn.dataset.stage3Color;
     if (color && color !== 'custom') {
-      stage3CustomHexInputEl.value = color;
-      renderStage3Palette();
+      renderStage3Palette(color);
     } else {
+      renderStage3Palette('custom');
       stage3CustomHexInputEl.focus();
+    }
+  });
+
+  stage3CustomHexInputEl.addEventListener('input', (e) => {
+    const val = e.target.value.trim();
+    let isCustom = true;
+    document.querySelectorAll('.stage3-color-dot').forEach(btn => {
+      if (normalizeHexColor(btn.dataset.stage3Color) === normalizeHexColor(val) && normalizeHexColor(val) !== '') {
+        btn.classList.add('active');
+        isCustom = false;
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    const customBtn = stage3PresetColorsEl.querySelector('.stage3-color-custom');
+    if (customBtn) {
+      if (isCustom) customBtn.classList.add('active');
+      else customBtn.classList.remove('active');
     }
   });
   stage3StyleConfirmBtnEl.addEventListener('click', applyStage3StyleSettings);

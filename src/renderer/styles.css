@@ -1779,7 +1779,7 @@ select {
 }
 
 .stage3-color-dot.active {
-  box-shadow: 0 0 0 2px var(--text);
+  box-shadow: 0 0 0 2px #000;
 }
 
 .stage3-color-custom {
@@ -1789,6 +1789,13 @@ select {
   padding: 0 10px;
   color: var(--text-muted);
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.stage3-color-custom.active {
+  border: 1px solid #000;
+  box-shadow: 0 0 0 1px #000;
+  color: var(--text);
 }
 
 .stage3-custom-color-row {
