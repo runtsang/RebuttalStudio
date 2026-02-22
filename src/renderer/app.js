@@ -140,7 +140,7 @@ const reviewerTabsEl = document.getElementById('reviewerTabs');
 const addReviewerBtnEl = document.getElementById('addReviewerBtn');
 
 const convertBtnEl = document.getElementById('convertBtn');
-
+const stage3AdjustStyleBtn = document.getElementById('stage3AdjustStyleBtn');
 const breakdownContentEl = document.getElementById('breakdownContent');
 
 const appEl = document.querySelector('.app');
@@ -1524,7 +1524,16 @@ function syncStageUi() {
   const isStage2 = stageKey === 'stage2';
   const isStage3 = stageKey === 'stage3';
   convertBtnEl.querySelector('.convert-label').textContent = isStage2 ? 'Refine' : (isStage3 ? 'Preview' : 'Break down');
-  convertBtnEl.querySelector('.convert-icon').textContent = isStage2 ? '⇢' : (isStage3 ? '👁' : '→');
+
+  const iconEl = convertBtnEl.querySelector('.convert-icon');
+  if (isStage2) {
+    iconEl.textContent = '⇢';
+  } else if (isStage3) {
+    iconEl.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:4px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  } else {
+    iconEl.textContent = '→';
+  }
+
   const heading = document.querySelector('.breakdown-panel > .breakdown-heading');
   if (heading) {
     heading.textContent = isStage2 ? 'Refined Draft' : (isStage3 ? 'Preview' : 'Structured Breakdown');
@@ -1544,9 +1553,8 @@ function syncStageUi() {
   reviewerInput.setAttribute('contenteditable', (isStage2 || isStage3) ? 'false' : 'true');
   reviewerInput.classList.toggle('readonly', (isStage2 || isStage3));
 
-  if (isStage3) {
-    openStage3StyleModal();
-    renderStage3Panels();
+  if (stage3AdjustStyleBtn) {
+    stage3AdjustStyleBtn.classList.toggle('hidden', !isStage3);
   }
 }
 
@@ -2011,6 +2019,10 @@ if (stage3StyleSelectEl) {
     queueStateSync();
     renderStage3Panels();
   });
+}
+
+if (stage3AdjustStyleBtn) {
+  stage3AdjustStyleBtn.addEventListener('click', openStage3StyleModal);
 }
 
 init();

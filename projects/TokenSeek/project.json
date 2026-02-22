@@ -2,18 +2,18 @@
   "projectName": "TokenSeek",
   "conference": "ICLR",
   "createdAt": "2026-02-22T01:38:14.264Z",
-  "updatedAt": "2026-02-22T03:32:07.903Z",
+  "updatedAt": "2026-02-22T05:41:54.094Z",
   "autosaveIntervalSeconds": 60,
-  "currentStage": "First Round",
+  "currentStage": "Breakdown",
   "stage2Replies": {
     "0": {
       "Response1": {
-        "outline": "",
+        "outline": "motivation difference: engineering perspective → reduce memory via partial gradients / data-agnostic selection → ineffective and unstable across tasks; unequal token contribution observation → data-driven, instance-aware design → effective and stable.\n\nexperiment setting difference: memory reduction validation under various settings → demonstrate memory saving effectiveness; memory + performance evaluation → add stability + interpretability + optimization analysis → reveal token-level contribution in efficient training.\n\nnovelty in meft: prior methods rarely use token-level, instance-aware selection → introduce instance-aware token selection for activation-memory–efficient training → core novelty distinguishing tokenseek from tokentune.",
         "draft": "",
         "assets": []
       },
       "Response2": {
-        "outline": "",
+        "outline": "memory reduction: data-driven salient token identification → discard substantially more activations → maintain or even improve performance under the same setting → achieve significantly lower memory at equal accuracy.\n\ngeneralizability: rely only on inherent pretrained signals (attention + gradients) → no auxiliary model, no extra training, no architectural modification → compatible with any transformer-based model and peft method → unlike customized designs (e.g., reversible networks), remain universally plug-and-play across architectures and domains.",
         "draft": "",
         "assets": []
       },

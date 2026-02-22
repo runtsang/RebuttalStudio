@@ -95,12 +95,19 @@
           </section>
 
           <!-- Center: Convert button -->
-          <div class="convert-column">
+          <div class="convert-column" style="gap: 15px;">
             <button id="convertBtn" class="convert-btn" aria-label="Convert reviewer input to structured breakdown"
               title="Convert to structured breakdown">
               <span class="convert-icon">→</span>
               <span class="convert-label">Break down</span>
               <div class="loading-dots"><span></span><span></span><span></span></div>
+            </button>
+            <button id="stage3AdjustStyleBtn" class="convert-btn hidden" aria-label="Adjust Style"
+              title="Adjust Style">
+              <span class="convert-icon" style="display:flex; justify-content:center; align-items:center;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+              </span>
+              <span class="convert-label">Style</span>
             </button>
           </div>
 
