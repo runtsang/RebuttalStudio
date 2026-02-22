@@ -2,9 +2,9 @@
   "projectName": "TokenSeek",
   "conference": "ICLR",
   "createdAt": "2026-02-22T01:38:14.264Z",
-  "updatedAt": "2026-02-22T06:47:12.444Z",
+  "updatedAt": "2026-02-22T15:26:16.291Z",
   "autosaveIntervalSeconds": 60,
-  "currentStage": "Reply",
+  "currentStage": "First Round",
   "stage2Replies": {
     "0": {
       "Response1": {
@@ -232,6 +232,6 @@
     }
   },
   "stage3Selection": {
-    "0": "Response7"
+    "0": "Response1"
   }
 }
