@@ -142,6 +142,7 @@ const addReviewerBtnEl = document.getElementById('addReviewerBtn');
 const convertBtnEl = document.getElementById('convertBtn');
 const stage3AdjustStyleBtn = document.getElementById('stage3AdjustStyleBtn');
 const stage2AutoFitBtn = document.getElementById('stage2AutoFitBtn');
+const stage3ThemeNoticeEl = document.getElementById('stage3ThemeNotice');
 const breakdownContentEl = document.getElementById('breakdownContent');
 
 const appEl = document.querySelector('.app');
@@ -814,9 +815,14 @@ function stage3ResponsesForActiveReviewer() {
 function getStage3DraftForResponse(responseId) {
   if (!state.stage3Drafts[state.activeReviewerIdx]) state.stage3Drafts[state.activeReviewerIdx] = {};
   if (!state.stage3Drafts[state.activeReviewerIdx][responseId]) {
-    state.stage3Drafts[state.activeReviewerIdx][responseId] = { planTask: '' };
+    state.stage3Drafts[state.activeReviewerIdx][responseId] = { markdownSource: '', planTask: '', renderedHtml: '', renderedThemeColor: '' };
   }
-  return state.stage3Drafts[state.activeReviewerIdx][responseId];
+  const draft = state.stage3Drafts[state.activeReviewerIdx][responseId];
+  if (typeof draft.markdownSource !== 'string') draft.markdownSource = '';
+  if (typeof draft.renderedHtml !== 'string') draft.renderedHtml = '';
+  if (typeof draft.renderedThemeColor !== 'string') draft.renderedThemeColor = '';
+  if (typeof draft.planTask !== 'string') draft.planTask = '';
+  return draft;
 }
 
 function ensureStage3Selection() {
@@ -863,6 +869,100 @@ function normalizeHexColor(value) {
   return text.toLowerCase();
 }
 
+function showStage3ThemeNotice(message) {
+  if (!stage3ThemeNoticeEl) return;
+  if (!message) {
+    stage3ThemeNoticeEl.textContent = '';
+    stage3ThemeNoticeEl.classList.add('hidden');
+    return;
+  }
+  stage3ThemeNoticeEl.textContent = message;
+  stage3ThemeNoticeEl.classList.remove('hidden');
+}
+
+function buildStage3DefaultMarkdown(selectedResp, responses, refined, color) {
+  const issueLabel = selectedResp.source === 'question' ? 'Question' : 'Weakness';
+  const issueIndex = (selectedResp.source_id || '').replace(/\D/g, '') || '1';
+  return `### <span style="color:${color};">R${responses.findIndex((r) => r.id === selectedResp.id) + 1}: ${escapeHTML(selectedResp.title || 'Untitled')}</span>
+
+> <span style="color:${color};">${issueLabel}-${issueIndex}:</span> "${escapeHTML(selectedResp.quoted_issue || '')}"
+
+<span style="color:${color};">Response ${stage3IssueCode(selectedResp)}:</span>
+
+${refined || '(No refined answer yet)'}`;
+}
+
+function parseAndSanitizeStage3Markdown(markdownSource, themeColor) {
+  if (!window.marked || !window.DOMPurify) return '';
+  const rawHtml = window.marked.parse(markdownSource || '', {
+    gfm: true,
+    breaks: true,
+    headerIds: false,
+    mangle: false,
+  });
+  const safeHtml = window.DOMPurify.sanitize(rawHtml, {
+    USE_PROFILES: { html: true },
+  });
+  return `<div class="stage3-openreview-preview" style="--stage3-theme-color:${themeColor};">${safeHtml}</div>`;
+}
+
+function renderStage3Panels() {
+  const stage2LeftEl = document.getElementById('stage2LeftPanel');
+  const responses = stage3ResponsesForActiveReviewer();
+  const selectedId = ensureStage3Selection();
+
+  if (!responses.length) {
+    stage2LeftEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Markdown Source</h4><p class="breakdown-placeholder">No responses found. Please complete Stage 1 and Stage 2 first.</p></div></div>`;
+    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Rendered Preview</h4><p class="breakdown-placeholder">Nothing to preview yet.</p></div></div>`;
+    return;
+  }
+
+  const reviewerName = state.reviewers[state.activeReviewerIdx]?.name || `${state.activeReviewerIdx + 1}`;
+  const chips = responses.map((resp, idx) => `<button class="stage3-issue-pill ${resp.id === selectedId ? 'active' : ''}" data-stage3-response="${escapeHTML(resp.id)}">${idx + 1}</button>`).join('');
+  const selectedResp = responses.find((r) => r.id === selectedId) || responses[0];
+  const draft = getStage3DraftForResponse(selectedResp.id);
+  const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+  const refined = stage2Map[selectedResp.id]?.draft || '';
+  const color = state.stage3Settings.color || '#f26921';
+
+  if (!draft.markdownSource) {
+    draft.markdownSource = buildStage3DefaultMarkdown(selectedResp, responses, refined, color);
+    queueStateSync();
+  }
+
+  stage2LeftEl.innerHTML = `
+    <div class="stage3-left-wrap">
+      <div class="stage3-reviewer-label">Reviewer ${escapeHTML(reviewerName)}</div>
+      <div class="stage3-issues-row">${chips}</div>
+      <div class="stage3-plan-head">Editable Raw Source (Markdown)</div>
+      <textarea class="response-textarea outline-textarea stage3-source-editor" data-stage3-field="markdownSource" data-response-id="${escapeHTML(selectedResp.id)}" placeholder="Write raw markdown source here...">${escapeHTML(draft.markdownSource)}</textarea>
+    </div>`;
+
+  const previewBody = draft.renderedHtml
+    ? `<div class="stage3-preview-host">${draft.renderedHtml}</div>`
+    : '<p class="breakdown-placeholder">Click Preview to render the current Markdown source.</p>';
+
+  breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Rendered Preview (Read-only)</h4>${previewBody}</div></div>`;
+}
+
+function renderStage3Preview() {
+  const responses = stage3ResponsesForActiveReviewer();
+  const selectedId = ensureStage3Selection();
+  const selectedResp = responses.find((r) => r.id === selectedId);
+  if (!selectedResp) {
+    renderStage3Panels();
+    return;
+  }
+
+  const draft = getStage3DraftForResponse(selectedResp.id);
+  const color = state.stage3Settings.color || '#f26921';
+  draft.renderedHtml = parseAndSanitizeStage3Markdown(draft.markdownSource, color);
+  draft.renderedThemeColor = color;
+  queueStateSync();
+  showStage3ThemeNotice('');
+  renderStage3Panels();
+}
+
 function applyStage3StyleSettings() {
   const style = stage3StyleSelectEl.value || 'standard';
   let color = state.stage3Settings.color || '#f26921';
@@ -877,40 +977,8 @@ function applyStage3StyleSettings() {
   state.stage3Settings = { style, color };
   stage3StyleModalEl.classList.add('hidden');
   queueStateSync();
+  showStage3ThemeNotice('Theme updated successfully. Please re-preview.');
   if (currentStageKey() === 'stage3') renderStage3Panels();
-}
-
-function renderStage3Panels() {
-  const stage2LeftEl = document.getElementById('stage2LeftPanel');
-  const responses = stage3ResponsesForActiveReviewer();
-  const selectedId = ensureStage3Selection();
-
-  if (!responses.length) {
-    stage2LeftEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Reviewer</h4><p class="breakdown-placeholder">No responses found. Please complete Stage 1 and Stage 2 first.</p></div></div>`;
-    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Preview</h4><p class="breakdown-placeholder">Nothing to preview yet.</p></div></div>`;
-    return;
-  }
-
-  const reviewerName = state.reviewers[state.activeReviewerIdx]?.name || `${state.activeReviewerIdx + 1}`;
-  const chips = responses.map((resp, idx) => `<button class="stage3-issue-pill ${resp.id === selectedId ? 'active' : ''}" data-stage3-response="${escapeHTML(resp.id)}">${idx + 1}</button>`).join('');
-  const selectedResp = responses.find((r) => r.id === selectedId) || responses[0];
-  const draft = getStage3DraftForResponse(selectedResp.id);
-
-  stage2LeftEl.innerHTML = `
-    <div class="stage3-left-wrap">
-      <div class="stage3-reviewer-label">Reviewer ${escapeHTML(reviewerName)}</div>
-      <div class="stage3-issues-row">${chips}</div>
-      <div class="stage3-plan-head">Plan Task</div>
-      <textarea class="response-textarea outline-textarea" data-stage3-field="planTask" data-response-id="${escapeHTML(selectedResp.id)}" placeholder="Edit plan task for this response...">${escapeHTML(draft.planTask || '')}</textarea>
-    </div>`;
-
-  const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
-  const refined = stage2Map[selectedResp.id]?.draft || '';
-  const color = state.stage3Settings.color || '#f26921';
-  const issueLabel = selectedResp.source === 'question' ? 'Question' : 'Weakness';
-  const issueIndex = (selectedResp.source_id || '').replace(/\D/g, '') || '1';
-  const preview = `### <span style="color:${color};">R${responses.findIndex((r) => r.id === selectedResp.id) + 1}: ${escapeHTML(selectedResp.title || 'Untitled')}</span>\n\n> <span style="color:${color};">${issueLabel}-${issueIndex}:</span> "${escapeHTML(selectedResp.quoted_issue || '')}"\n\n<span style="color:${color};">Response ${stage3IssueCode(selectedResp)}:</span>\n\n${escapeHTML(refined || '(No refined answer yet)')}`;
-  breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Preview</h4><div class="stage3-preview-markdown">${preview}</div></div></div>`;
 }
 
 function escapeHTML(str) {
@@ -1674,6 +1742,9 @@ function syncStageUi() {
   if (stage3AdjustStyleBtn) {
     stage3AdjustStyleBtn.classList.toggle('hidden', !isStage3);
   }
+  if (stage3ThemeNoticeEl && !isStage3) {
+    showStage3ThemeNotice('');
+  }
 
   if (stage2AutoFitBtn) {
     stage2AutoFitBtn.classList.toggle('hidden', !isStage2);
@@ -1767,7 +1838,7 @@ convertBtnEl.addEventListener('click', () => {
     return;
   }
   if (currentStageKey() === 'stage3') {
-    renderStage3Panels();
+    renderStage3Preview();
     return;
   }
   performBreakdown();
