@@ -2,9 +2,9 @@
   "projectName": "TokenSeek",
   "conference": "ICLR",
   "createdAt": "2026-02-22T01:38:14.264Z",
-  "updatedAt": "2026-02-22T02:56:54.677Z",
+  "updatedAt": "2026-02-22T03:32:07.903Z",
   "autosaveIntervalSeconds": 60,
-  "currentStage": "Conclusion",
+  "currentStage": "First Round",
   "stage2Replies": {
     "0": {
       "Response1": {
@@ -184,5 +184,34 @@
         }
       ]
     }
+  },
+  "stage3Settings": {
+    "style": "standard",
+    "color": "#f26921"
+  },
+  "stage3Drafts": {
+    "0": {
+      "Response1": {
+        "planTask": ""
+      },
+      "Response2": {
+        "planTask": ""
+      },
+      "Response3": {
+        "planTask": ""
+      },
+      "Response4": {
+        "planTask": ""
+      },
+      "Response5": {
+        "planTask": ""
+      },
+      "Response6": {
+        "planTask": ""
+      }
+    }
+  },
+  "stage3Selection": {
+    "0": "Response1"
   }
 }
