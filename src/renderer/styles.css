@@ -1840,3 +1840,84 @@ select {
   line-height: 1.6;
   font-size: 0.88rem;
 }
+
+.stage3-theme-notice {
+  max-width: 92px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0;
+}
+
+.stage3-source-editor {
+  min-height: 420px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  white-space: pre;
+  overflow: auto;
+}
+
+.stage3-preview-host {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-muted);
+  padding: 16px;
+}
+
+.stage3-openreview-preview {
+  --stage3-theme-color: #f26921;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.stage3-openreview-preview h1,
+.stage3-openreview-preview h2,
+.stage3-openreview-preview h3,
+.stage3-openreview-preview h4,
+.stage3-openreview-preview h5,
+.stage3-openreview-preview h6 {
+  margin: 1.1em 0 0.55em;
+  color: var(--stage3-theme-color);
+  font-weight: 600;
+}
+
+.stage3-openreview-preview p,
+.stage3-openreview-preview ul,
+.stage3-openreview-preview ol,
+.stage3-openreview-preview pre,
+.stage3-openreview-preview table,
+.stage3-openreview-preview blockquote {
+  margin: 0.7em 0;
+}
+
+.stage3-openreview-preview a {
+  color: var(--stage3-theme-color);
+  text-decoration: underline;
+}
+
+.stage3-openreview-preview blockquote {
+  border-left: 3px solid var(--stage3-theme-color);
+  padding: 0.2em 0 0.2em 0.9em;
+  color: var(--text-muted);
+}
+
+.stage3-openreview-preview code {
+  font-family: 'IBM Plex Mono', monospace;
+  background: rgba(0, 0, 0, 0.08);
+  padding: 0.1em 0.28em;
+  border-radius: 4px;
+}
+
+[data-theme="dark"] .stage3-openreview-preview code {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.stage3-openreview-preview mark,
+.stage3-openreview-preview .accent {
+  background: color-mix(in srgb, var(--stage3-theme-color) 16%, transparent);
+  color: inherit;
+}
