@@ -68,8 +68,20 @@ npm start
 ```
 
 <p align="center">
-  📺 Step-by-step video guide:&nbsp;&nbsp;
-  <a href="#">Bilibili</a>&nbsp; | &nbsp;<a href="#">YouTube</a>
+  <h3>📺 Step-by-step video guide</h3>
+</p>
+<p align="center">
+  <a href="https://www.bilibili.com/video/BV1vzfPBEEjU/">
+    <img src="https://img.youtube.com/vi/4YLA7Hzz-q8/maxresdefault.jpg" alt="Bilibili Video Guide" width="48%">
+  </a>
+  <a href="https://youtu.be/4YLA7Hzz-q8">
+    <img src="https://img.youtube.com/vi/4YLA7Hzz-q8/maxresdefault.jpg" alt="YouTube Video Guide" width="48%">
+  </a>
+</p>
+<p align="center">
+  <a href="https://www.bilibili.com/video/BV1vzfPBEEjU/"><b>▶️ Watch on Bilibili</b></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://youtu.be/4YLA7Hzz-q8"><b>▶️ Watch on YouTube</b></a>
 </p>
 
 ---
