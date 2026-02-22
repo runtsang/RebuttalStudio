@@ -284,6 +284,91 @@ function normalizeStage1Breakdown(payload = {}) {
 }
 
 
+
+function buildStage2IclrPrompt(payload = {}) {
+  return `You are executing the rebuttalstudio_skill -> stage2/iclr/SKILL.md workflow.
+
+Task:
+- Expand a user outline into a concise, academic rebuttal draft.
+- Keep it faithful to the quoted issue.
+- Preserve factual claims from the outline; do not invent numbers or experiments.
+- Return JSON only.
+
+JSON schema:
+{
+  "draft": "..."
+}
+
+Context:
+Response ID: ${payload.responseId || ''}
+Title: ${payload.title || ''}
+Source: ${payload.source || ''}
+Source ID: ${payload.sourceId || ''}
+Quoted Issue:
+${payload.quotedIssue || ''}
+
+User Outline:
+${payload.outline || ''}`;
+}
+
+async function runGeminiStage2Refine(profile = {}, payload = {}) {
+  const apiKey = (profile.apiKey || '').trim();
+  const baseUrl = (profile.baseUrl || '').trim().replace(/\/$/, '') || 'https://generativelanguage.googleapis.com/v1beta';
+  const model = (profile.model || '').trim() || 'gemini-3-flash-preview';
+  if (!apiKey) {
+    throw new Error('Gemini API key is required.');
+  }
+  if (!`${payload?.outline || ''}`.trim()) {
+    throw new Error('Response outline is empty.');
+  }
+
+  const endpoint = `${baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body = {
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: 'application/json',
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: buildStage2IclrPrompt(payload) }],
+      },
+    ],
+  };
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Gemini stage2 refine failed (${res.status}): ${detail.slice(0, 240)}`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text || '').join('')?.trim();
+  if (!text) {
+    throw new Error('Gemini returned empty content for stage2 refine.');
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/, '').trim();
+    parsed = JSON.parse(cleaned);
+  }
+
+  const draft = `${parsed?.draft ?? parsed?.response ?? ''}`.trim();
+  if (!draft) {
+    throw new Error('Stage2 refine did not return a valid draft field.');
+  }
+
+  return { draft, raw: parsed };
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -346,6 +431,24 @@ ipcMain.handle('app:stage1:breakdown', async (_event, payload) => {
   }
 
   return runGeminiStage1Breakdown(profile, content);
+});
+
+ipcMain.handle('app:stage2:refine', async (_event, payload) => {
+  const providerKey = payload?.providerKey;
+  const profile = payload?.profile || {};
+
+  if (providerKey !== 'gemini') {
+    throw new Error('Stage2 refine currently requires Gemini provider.');
+  }
+
+  return runGeminiStage2Refine(profile, {
+    responseId: `${payload?.responseId || ''}`,
+    title: `${payload?.title || ''}`,
+    source: `${payload?.source || ''}`,
+    sourceId: `${payload?.sourceId || ''}`,
+    quotedIssue: `${payload?.quotedIssue || ''}`,
+    outline: `${payload?.outline || ''}`,
+  });
 });
 
 ipcMain.handle('app:api:listModels', async (_event, payload) => {

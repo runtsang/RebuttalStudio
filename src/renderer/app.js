@@ -56,6 +56,7 @@ const state = {
   drawerOpen: false,
   // Breakdown data per reviewer
   breakdownData: {},
+  stage2Replies: {},
 };
 
 /* ────────────────────────────────────────────────────────────
@@ -404,10 +405,42 @@ function getBreakdownDataForReviewer(reviewerIdx) {
   return state.breakdownData[reviewerIdx];
 }
 
+function getStage2ResponsesForReviewer(reviewerIdx) {
+  const breakdown = getBreakdownDataForReviewer(reviewerIdx);
+  if (!state.stage2Replies[reviewerIdx]) {
+    state.stage2Replies[reviewerIdx] = {};
+  }
+  const container = state.stage2Replies[reviewerIdx];
+  const responses = Array.isArray(breakdown.responses) ? breakdown.responses : [];
+
+  responses.forEach((resp) => {
+    if (!container[resp.id]) {
+      container[resp.id] = {
+        outline: '',
+        draft: '',
+        assets: [],
+      };
+    }
+  });
+
+  return container;
+}
+
+function currentStageKey() {
+  const idx = stageIndexFromCurrent();
+  return STAGES[idx]?.key || 'stage1';
+}
+
 function renderBreakdownPanel() {
-  const tpl = getConferenceTemplate();
+  const stageKey = currentStageKey();
   const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
 
+  if (stageKey === 'stage2') {
+    breakdownContentEl.innerHTML = renderStage2Panel(data);
+    return;
+  }
+
+  const tpl = getConferenceTemplate();
   let scoresHTML = '<div class="scores-header">';
 
   scoresHTML += '<div class="scores-row">';
@@ -459,7 +492,36 @@ function renderBreakdownPanel() {
   breakdownContentEl.innerHTML = scoresHTML + blocksHTML;
 }
 
+function renderStage2Panel(data) {
+  const responses = Array.isArray(data.responses) ? data.responses : [];
+  const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+  if (!responses.length) {
+    return `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Replied</h4><p class="breakdown-placeholder">No responses found in Stage1. Please run Breakdown first.</p></div></div>`;
+  }
 
+  const cards = responses.map((resp, idx) => {
+    const item = stage2Map[resp.id] || { outline: '', draft: '', assets: [] };
+    const assets = (item.assets || []).map((asset, assetIdx) => `<div class="response-asset-item"><span>${escapeHTML(asset.type.toUpperCase())} ${assetIdx + 1}</span><button class="asset-insert-btn" data-asset-insert="${escapeHTML(resp.id)}" data-asset-index="${assetIdx}">Insert</button></div>`).join('');
+    return `<div class="response-card stage2-response-card" data-response-id="${escapeHTML(resp.id)}">
+      <div class="response-header">Response${idx + 1}</div>
+      <div class="fixed-issue-meta">
+        <div><strong>${escapeHTML(resp.source_id || `weakness${idx + 1}`)}</strong> · ${escapeHTML(resp.title || '')}</div>
+        <div class="fixed-issue-quote">${escapeHTML(resp.quoted_issue || '')}</div>
+      </div>
+      <label>Outline</label>
+      <textarea class="response-textarea" data-stage2-field="outline" data-response-id="${escapeHTML(resp.id)}" placeholder="Input a response outline for this issue (key points, evidence, and writing strategy).">${escapeHTML(item.outline || '')}</textarea>
+      <div class="stage2-tools-row">
+        <button class="btn mini" data-stage2-insert-table="${escapeHTML(resp.id)}">Insert Table</button>
+        <button class="btn mini" data-stage2-insert-formula="${escapeHTML(resp.id)}">Insert Formula</button>
+      </div>
+      <div class="stage2-assets">${assets || '<span class="muted">No snippet inserted yet.</span>'}</div>
+      <label>Refined Draft</label>
+      <textarea class="response-textarea" data-stage2-field="draft" data-response-id="${escapeHTML(resp.id)}" placeholder="Refined academic reply will appear here.">${escapeHTML(item.draft || '')}</textarea>
+    </div>`;
+  }).join('');
+
+  return `<div class="breakdown-block breakdown-output-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Replied</h4><div class="responses-grid">${cards}</div></div></div>`;
+}
 function escapeHTML(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -513,6 +575,56 @@ async function runStage1ApiBreakdown(rawText) {
     profile,
     content: rawText,
   });
+}
+
+async function runStage2RefineForResponses() {
+  const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
+  const responses = Array.isArray(data.responses) ? data.responses : [];
+  if (!responses.length) {
+    alert('No Stage1 responses found.');
+    return;
+  }
+
+  const providerKey = state.apiSettings.activeApiProvider;
+  const profile = getActiveApiProfile(providerKey);
+  if (!profile || !profile.apiKey) {
+    alert('Please configure API Settings first.');
+    return;
+  }
+
+  const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+  convertBtnEl.disabled = true;
+  convertBtnEl.classList.add('loading');
+
+  try {
+    for (const resp of responses) {
+      const draftCell = stage2Map[resp.id] || { outline: '', draft: '', assets: [] };
+      if (!`${draftCell.outline || ''}`.trim()) {
+        continue;
+      }
+      const refined = await window.studioApi.runStage2Refine({
+        providerKey,
+        profile,
+        responseId: resp.id,
+        title: resp.title || '',
+        source: resp.source || '',
+        sourceId: resp.source_id || '',
+        quotedIssue: resp.quoted_issue || '',
+        outline: draftCell.outline || '',
+      });
+      draftCell.draft = refined?.draft || draftCell.draft;
+      stage2Map[resp.id] = draftCell;
+    }
+    state.stage2Replies[state.activeReviewerIdx] = stage2Map;
+    queueStateSync();
+    renderBreakdownPanel();
+  } catch (error) {
+    console.error(error);
+    alert(error.message || 'Failed to run Stage2 refine API.');
+  } finally {
+    convertBtnEl.disabled = false;
+    convertBtnEl.classList.remove('loading');
+  }
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -642,8 +754,11 @@ function renderWorkspace() {
       state.breakdownData = {};
     }
 
+    state.stage2Replies = state.currentDoc.stage2Replies || {};
+
     renderReviewerTabs();
     renderBreakdownPanel();
+    syncStageUi();
 
     enterProjectMode();
 
@@ -662,6 +777,7 @@ function renderWorkspace() {
     }
   } else {
     exitProjectMode();
+    syncStageUi();
   }
 }
 
@@ -677,6 +793,7 @@ function queueStateSync() {
   if (!state.currentDoc || !state.currentFolderName) return;
   state.currentDoc.reviewers = state.reviewers;
   state.currentDoc.breakdownData = state.breakdownData;
+  state.currentDoc.stage2Replies = state.stage2Replies;
   window.studioApi.updateProjectState({
     folderName: state.currentFolderName,
     doc: state.currentDoc,
@@ -909,6 +1026,21 @@ function selectStage(label) {
   state.currentDoc.currentStage = label;
   queueStateSync();
   renderSidebarStages();
+  renderBreakdownPanel();
+  syncStageUi();
+}
+
+function syncStageUi() {
+  const stageKey = currentStageKey();
+  const isStage2 = stageKey === 'stage2';
+  convertBtnEl.querySelector('.convert-label').textContent = isStage2 ? 'Refine' : 'Break down';
+  convertBtnEl.querySelector('.convert-icon').textContent = isStage2 ? '⇢' : '→';
+  const heading = document.querySelector('.breakdown-heading');
+  if (heading) {
+    heading.textContent = isStage2 ? 'Replied' : 'Structured Breakdown';
+  }
+  reviewerInput.setAttribute('contenteditable', isStage2 ? 'false' : 'true');
+  reviewerInput.classList.toggle('readonly', isStage2);
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -921,6 +1053,7 @@ async function init() {
   autosaveInput.value = state.appSettings.defaultAutosaveIntervalSeconds;
   await loadProjects();
   renderWorkspace();
+  syncStageUi();
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -934,11 +1067,14 @@ document.getElementById('brandBtn').addEventListener('click', () => {
   state.reviewers = [{ id: 0, name: '', content: '' }];
   state.activeReviewerIdx = 0;
   state.breakdownData = {};
+  state.stage2Replies = {};
   renderWorkspace();
+  syncStageUi();
 });
 document.getElementById('cancelProjectBtn').addEventListener('click', () => {
   state.pendingCreate = false;
   renderWorkspace();
+  syncStageUi();
 });
 
 document.getElementById('confirmProjectBtn').addEventListener('click', createProjectFromPrompt);
@@ -978,7 +1114,13 @@ reviewerTabsEl.addEventListener('click', (e) => {
 addReviewerBtnEl.addEventListener('click', addReviewer);
 
 // Convert button
-convertBtnEl.addEventListener('click', performBreakdown);
+convertBtnEl.addEventListener('click', () => {
+  if (currentStageKey() === 'stage2') {
+    runStage2RefineForResponses();
+    return;
+  }
+  performBreakdown();
+});
 
 // Next Stage button
 nextStageBtnEl.addEventListener('click', showStageAdvanceModal);
@@ -1002,6 +1144,19 @@ reviewerInput.addEventListener('input', (e) => {
 
 breakdownContentEl.addEventListener('input', (e) => {
   const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
+
+  const stage2Field = e.target?.dataset?.stage2Field;
+  const stage2ResponseId = e.target?.dataset?.responseId;
+  if (stage2Field && stage2ResponseId) {
+    const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+    if (!stage2Map[stage2ResponseId]) {
+      stage2Map[stage2ResponseId] = { outline: '', draft: '', assets: [] };
+    }
+    stage2Map[stage2ResponseId][stage2Field] = e.target.value;
+    state.stage2Replies[state.activeReviewerIdx] = stage2Map;
+    queueStateSync();
+    return;
+  }
   const scoreKey = e.target?.dataset?.scoreEdit;
   if (scoreKey) {
     data.scores[scoreKey] = e.target.innerText.trim();
@@ -1039,6 +1194,53 @@ breakdownContentEl.addEventListener('change', (e) => {
   response[field] = e.target.value.trim();
   state.breakdownData[state.activeReviewerIdx] = data;
   queueStateSync();
+});
+
+
+breakdownContentEl.addEventListener('click', (e) => {
+  const tableFor = e.target?.dataset?.stage2InsertTable;
+  if (tableFor) {
+    const rows = Number(prompt('Rows?', '3') || 3);
+    const cols = Number(prompt('Columns?', '3') || 3);
+    if (!rows || !cols) return;
+    const header = `| ${Array.from({ length: cols }).map((_, i) => `H${i + 1}`).join(' | ')} |`;
+    const divider = `| ${Array.from({ length: cols }).map(() => '---').join(' | ')} |`;
+    const body = Array.from({ length: rows - 1 })
+      .map(() => `| ${Array.from({ length: cols }).map(() => ' ').join(' | ')} |`)
+      .join('\n');
+    const tableMd = `${header}\n${divider}${body ? `\n${body}` : ''}`;
+    const map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+    map[tableFor].assets.push({ type: 'table', content: tableMd });
+    state.stage2Replies[state.activeReviewerIdx] = map;
+    queueStateSync();
+    renderBreakdownPanel();
+    return;
+  }
+
+  const formulaFor = e.target?.dataset?.stage2InsertFormula;
+  if (formulaFor) {
+    const formula = prompt('Paste OpenReview formula (LaTeX), e.g. $$E=mc^2$$', '$$E=mc^2$$');
+    if (!formula) return;
+    const map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+    map[formulaFor].assets.push({ type: 'formula', content: formula });
+    state.stage2Replies[state.activeReviewerIdx] = map;
+    queueStateSync();
+    renderBreakdownPanel();
+    return;
+  }
+
+  const assetInsert = e.target?.dataset?.assetInsert;
+  const assetIndex = Number(e.target?.dataset?.assetIndex);
+  if (assetInsert && Number.isInteger(assetIndex)) {
+    const map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+    const asset = map[assetInsert]?.assets?.[assetIndex];
+    if (!asset) return;
+    const cur = map[assetInsert].outline || '';
+    map[assetInsert].outline = `${cur}${cur ? '\n\n' : ''}${asset.content}`;
+    state.stage2Replies[state.activeReviewerIdx] = map;
+    queueStateSync();
+    renderBreakdownPanel();
+  }
 });
 
 document.getElementById('apiOpenBtn').addEventListener('click', openApiSettingsModal);
