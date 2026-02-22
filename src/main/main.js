@@ -371,12 +371,19 @@ async function runGeminiStage2Refine(profile = {}, payload = {}) {
 
 
 function buildTemplateRephrasePrompt(content) {
-  return `Please rephrase the following rebuttal message.
-Requirements:
-- Keep meaning unchanged.
-- Keep it polite, concise, and professional.
-- Keep placeholders such as X unchanged if present.
-Return JSON only with schema: {"text":"..."}.
+  return `You are executing the rebuttalstudio_skill -> polish/SKILL.md workflow.
+
+Rephrase the following rebuttal-related message for clarity and naturalness.
+
+Rules (follow strictly):
+1. Preserve the EXACT same structure: paragraph order, greeting, sign-off, and line breaks.
+2. Preserve the SAME tone — semi-formal academic. Do NOT make it overly stiff or corporate-sounding.
+3. Preserve ALL placeholders verbatim (e.g. {{reviewerId}}, {{submissionId}}, X).
+4. Keep meaning unchanged — do not add, remove, or alter substantive content.
+5. Light touch only: fix grammar, reduce redundancy, improve word choice. Do NOT rewrite from scratch.
+6. Do NOT make it sound "written by AI" or overly formal.
+
+Return JSON only (no markdown fences) with schema: {"text":"...polished text..."}.
 
 Text:
 ${content}`;

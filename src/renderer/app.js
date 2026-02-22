@@ -39,60 +39,21 @@ const STAGES = [
 ];
 
 
-const TEMPLATE_LIBRARY = {
-  reviewer: {
-    label: 'Reviewer',
-    types: [
-      {
-        key: 'nudge_reply',
-        label: '催回复',
-        title: 'Looking forward to the discussion',
-        body: `Looking forward to the discussion
+/* TEMPLATE_LIBRARY is loaded asynchronously from templates/templates.json */
+let TEMPLATE_LIBRARY = {};
 
-Dear Reviewer {{reviewerId}},
-
-We deeply appreciate the time and effort you’ve taken to review our work, especially given your busy schedule. As the authors-reviewer discussion phase draws to a close, we would be grateful for the opportunity to engage in dialogue with you. Our goal is to ensure we've adequately addressed your concerns and welcome any additional questions or points of discussion you'd like to raise.
-
-Thank you for your thoughtful consideration.
-
-Best regards,
-
-The Authors of Submission {{submissionId}}`,
-      },
-      {
-        key: 'nudge_discussion',
-        label: '催讨论 / Follow up',
-        title: 'Follow-up on remaining concerns',
-        body: `Dear Reviewer {{reviewerId}},
-
-We deeply appreciate the time and effort you’ve taken to review our work, especially given your busy schedule. As the authors-reviewer discussion phase draws to a close, we would be grateful to know whether we have adequately addressed your follow-up concerns and welcome any additional questions or points of discussion you'd like to raise.
-
-Thank you for your thoughtful consideration.
-
-Best regards,
-
-The Authors of Submission {{submissionId}}`,
-      },
-    ],
-  },
-  areaChair: {
-    label: 'Area Chair',
-    types: [
-      {
-        key: 'status_update',
-        label: '状态更新',
-        title: 'Status update request',
-        body: `Dear Area Chair,
-
-Thank you for overseeing our submission {{submissionId}}. We would appreciate your guidance on whether any additional clarification is needed from our side before the discussion phase ends.
-
-Best regards,
-
-The Authors`,
-      },
-    ],
-  },
-};
+async function loadTemplateLibrary() {
+  try {
+    const resp = await fetch('../../templates/templates.json');
+    if (resp.ok) {
+      TEMPLATE_LIBRARY = await resp.json();
+    } else {
+      console.error('Failed to load templates.json:', resp.status);
+    }
+  } catch (err) {
+    console.error('Error loading templates.json:', err);
+  }
+}
 
 /* ────────────────────────────────────────────────────────────
    State
@@ -401,6 +362,11 @@ async function runTemplatePolish() {
   }
   const raw = renderTemplateText();
   if (!raw) return;
+
+  const polishBtn = document.getElementById('templateAiPolishBtn');
+  polishBtn.disabled = true;
+  polishBtn.classList.add('loading');
+
   try {
     const result = await window.studioApi.runTemplateRephrase({ providerKey, profile, content: raw });
     const polished = `${result?.text || ''}`.trim();
@@ -408,6 +374,9 @@ async function runTemplatePolish() {
     await copyText(templateRenderedOutputEl.value);
   } catch (error) {
     templateErrorEl.textContent = error.message || 'AI polish failed.';
+  } finally {
+    polishBtn.disabled = false;
+    polishBtn.classList.remove('loading');
   }
 }
 
@@ -729,7 +698,7 @@ function renderStage2Panels(data) {
     const sourceLabel = resp.source === 'question' ? 'Question' : 'Weakness';
     const headerTitle = `${sourceLabel} ${sourceIdx}: ${resp.title || 'Untitled'}`;
     return `<div class="response-card stage2-outline-card" data-response-id="${escapeHTML(resp.id)}">
-      <div class="response-header">Response ${idx + 1}</div>
+      <div class="response-header response-header-red">Response ${idx + 1}</div>
       <div class="fixed-issue-meta">
         <h5 class="stage2-issue-title">${escapeHTML(headerTitle)}</h5>
         <div class="fixed-issue-quote">&gt; ${escapeHTML(resp.quoted_issue || '')}</div>
@@ -739,7 +708,7 @@ function renderStage2Panels(data) {
     </div>`;
   }).join('');
 
-  stage2LeftEl.innerHTML = `<h3 class="breakdown-heading">Outline</h3><div class="responses-grid">${outlineCards}</div>`;
+  stage2LeftEl.innerHTML = `<h3 class="breakdown-heading">My Reply</h3><div class="responses-grid">${outlineCards}</div>`;
 
   // ── Right panel: Refined Draft cards ──
   const progressTotal = stage2RefineProgress?.total || 0;
@@ -759,7 +728,7 @@ function renderStage2Panels(data) {
     const sourceLabel = resp.source === 'question' ? 'Question' : 'Weakness';
     const headerTitle = `${sourceLabel} ${sourceIdx}: ${resp.title || 'Untitled'}`;
     return `<div class="response-card stage2-draft-card" data-response-id="${escapeHTML(resp.id)}">
-      <div class="response-header">Response ${idx + 1}</div>
+      <div class="response-header response-header-blue">Response ${idx + 1}</div>
       <h5 class="stage2-issue-title">${escapeHTML(headerTitle)}</h5>
       ${hasDraft
         ? `<textarea class="response-textarea draft-textarea" data-stage2-field="draft" data-response-id="${escapeHTML(resp.id)}" readonly placeholder="Refined academic reply will appear here.">${escapeHTML(item.draft)}</textarea>`
@@ -1410,7 +1379,7 @@ function syncStageUi() {
   const isStage2 = stageKey === 'stage2';
   convertBtnEl.querySelector('.convert-label').textContent = isStage2 ? 'Refine' : 'Break down';
   convertBtnEl.querySelector('.convert-icon').textContent = isStage2 ? '⇢' : '→';
-  const heading = document.querySelector('.breakdown-heading');
+  const heading = document.querySelector('.breakdown-panel > .breakdown-heading');
   if (heading) {
     heading.textContent = isStage2 ? 'Refined Draft' : 'Structured Breakdown';
   }
@@ -1435,6 +1404,7 @@ function syncStageUi() {
    ──────────────────────────────────────────────────────────── */
 async function init() {
   loadTheme();
+  await loadTemplateLibrary();
   state.appSettings = await window.studioApi.getAppSettings();
   state.apiSettings = await window.studioApi.getApiSettings();
   autosaveInput.value = state.appSettings.defaultAutosaveIntervalSeconds;

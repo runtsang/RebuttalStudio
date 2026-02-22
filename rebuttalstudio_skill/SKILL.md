@@ -15,4 +15,8 @@ Follow this dispatcher structure:
 
 - `stage1/iclr/SKILL.md`: Convert raw reviewer feedback into a structured breakdown for rebuttal drafting.
 
+## Available utility workflows
+
+- `polish/SKILL.md`: Polish (rephrase) a rebuttal message template for clarity and professionalism while preserving the original structure, tone, and intent.
+
 If a requested stage/conference does not exist, stop and ask for missing spec before inventing format.

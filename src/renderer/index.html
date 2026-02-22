@@ -375,7 +375,8 @@
       </div>
       <div class="settings-group">
         <label for="stage2CodeContentInput">Code</label>
-        <textarea id="stage2CodeContentInput" class="text-input stage2-code-input" placeholder="Paste your code here..."></textarea>
+        <textarea id="stage2CodeContentInput" class="text-input stage2-code-input"
+          placeholder="Paste your code here..."></textarea>
       </div>
       <p id="stage2CodeError" class="error"></p>
       <div class="modal-actions">
@@ -399,7 +400,10 @@
             <h4 id="templatePreviewTitle">Template</h4>
             <div class="template-actions">
               <button id="templateRenderCopyBtn" class="btn" title="Render and copy">↗ Render+Copy</button>
-              <button id="templateAiPolishBtn" class="btn" title="AI rephrase">✨ Polish</button>
+              <button id="templateAiPolishBtn" class="btn" title="AI rephrase">
+                <span class="polish-btn-label">✨ Polish</span>
+                <div class="loading-dots"><span></span><span></span><span></span></div>
+              </button>
             </div>
           </div>
           <div id="templateFields" class="template-fields"></div>

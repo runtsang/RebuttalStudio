@@ -1696,3 +1696,39 @@ select {
   font-family: 'IBM Plex Mono', monospace;
   line-height: 1.45;
 }
+
+/* ────────────────────── Stage2 Response Header Colors ────────────────────── */
+.response-header-red {
+  color: #c25454 !important;
+}
+
+.response-header-blue {
+  color: #4a7daa !important;
+}
+
+/* ────────────────────── Polish Button Loading ────────────────────── */
+#templateAiPolishBtn {
+  position: relative;
+  transition: opacity 0.2s;
+}
+
+#templateAiPolishBtn.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+#templateAiPolishBtn.loading .polish-btn-label {
+  display: none;
+}
+
+#templateAiPolishBtn .loading-dots {
+  display: none;
+}
+
+#templateAiPolishBtn.loading .loading-dots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+

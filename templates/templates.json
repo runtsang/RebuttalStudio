@@ -1,0 +1,30 @@
+{
+    "reviewer": {
+        "label": "Reviewer",
+        "types": [
+            {
+                "key": "nudge_reply",
+                "label": "Nudge Reply",
+                "title": "Looking forward to the discussion",
+                "body": "Dear Reviewer {{reviewerId}},\n\nWe deeply appreciate the time and effort you've taken to review our work, especially given your busy schedule. As the authors-reviewer discussion phase draws to a close, we would be grateful for the opportunity to engage in dialogue with you. Our goal is to ensure we've adequately addressed your concerns and welcome any additional questions or points of discussion you'd like to raise.\n\nThank you for your thoughtful consideration.\n\nBest regards,\n\nThe Authors of Submission {{submissionId}}"
+            },
+            {
+                "key": "nudge_discussion",
+                "label": "Follow-up Discussion",
+                "title": "Follow-up on remaining concerns",
+                "body": "Dear Reviewer {{reviewerId}},\n\nWe deeply appreciate the time and effort you've taken to review our work, especially given your busy schedule. As the authors-reviewer discussion phase draws to a close, we would be grateful to know whether we have adequately addressed your follow-up concerns and welcome any additional questions or points of discussion you'd like to raise.\n\nThank you for your thoughtful consideration.\n\nBest regards,\n\nThe Authors of Submission {{submissionId}}"
+            }
+        ]
+    },
+    "areaChair": {
+        "label": "Area Chair",
+        "types": [
+            {
+                "key": "status_update",
+                "label": "Status Update",
+                "title": "Status update request",
+                "body": "Dear Area Chair,\n\nThank you for overseeing our submission {{submissionId}}. We would appreciate your guidance on whether any additional clarification is needed from our side before the discussion phase ends.\n\nBest regards,\n\nThe Authors"
+            }
+        ]
+    }
+}
