@@ -2,3 +2,4 @@ node_modules/
 projects/*
 !projects/TokenSeek/
 !projects/TokenSeek/**
+.DS_Store
