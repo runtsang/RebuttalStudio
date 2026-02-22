@@ -1588,6 +1588,7 @@ select {
     grid-template-columns: 1fr;
   }
 }
+
 .sidebar-template-trigger {
   margin-top: 10px;
   width: 100%;
