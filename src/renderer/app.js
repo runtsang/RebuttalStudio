@@ -101,6 +101,7 @@ const state = {
 
 let stage2RefineProgress = null;
 let stage2OutlineContext = { responseId: null, x: 0, y: 0 };
+let stage3SourceContext = { responseId: null, x: 0, y: 0, start: 0, end: 0 };
 let stage2ModalTargetResponseId = null;
 let stage2TableRows = 3;
 let stage2TableCols = 3;
@@ -260,8 +261,46 @@ function stageIndexFromCurrent() {
   return Math.max(0, STAGES.findIndex((s) => s.label.toLowerCase().replace(/\s+/g, '') === normalized));
 }
 
+function hasAnyStage1Responses() {
+  return state.reviewers.some((_, reviewerIdx) => {
+    const bData = state.breakdownData[reviewerIdx] || {};
+    return Array.isArray(bData.responses) && bData.responses.length > 0;
+  });
+}
+
+function isStage2FullyRefined() {
+  for (let reviewerIdx = 0; reviewerIdx < state.reviewers.length; reviewerIdx += 1) {
+    const bData = state.breakdownData[reviewerIdx] || {};
+    const responses = Array.isArray(bData.responses) ? bData.responses : [];
+    if (!responses.length) continue;
+    const stage2Map = state.stage2Replies[reviewerIdx] || {};
+    const missing = responses.some((resp) => !`${stage2Map[resp.id]?.draft || ''}`.trim());
+    if (missing) return false;
+  }
+  return true;
+}
+
+function syncStage2CompletionState() {
+  if (!state.currentDoc?.stage2) return;
+  const completed = isStage2FullyRefined();
+  state.currentDoc.stage2.content = completed ? 'completed' : '';
+  state.currentDoc.stage2.lastEditedAt = new Date().toISOString();
+}
+
 function isStageComplete(stageKey) {
-  return (state.currentDoc?.[stageKey]?.content || '').trim().length > 0;
+  if (!state.currentDoc) return false;
+
+  const stageIdx = STAGES.findIndex((s) => s.key === stageKey);
+  const curIdx = stageIndexFromCurrent();
+  if (stageIdx >= 0 && stageIdx < curIdx) return true;
+
+  if (stageKey === 'stage1') {
+    return `${state.currentDoc?.stage1?.content || ''}`.trim().length > 0 || hasAnyStage1Responses();
+  }
+  if (stageKey === 'stage2') {
+    return isStage2FullyRefined();
+  }
+  return `${state.currentDoc?.[stageKey]?.content || ''}`.trim().length > 0;
 }
 
 /* All stages are now accessible (no locking) */
@@ -761,9 +800,13 @@ function renderStage2Panels(data) {
     const sourceIdx = Number((`${resp.source_id || ''}`.match(/(\d+)$/) || [])[1] || idx + 1);
     const sourceLabel = resp.source === 'question' ? 'Question' : 'Weakness';
     const headerTitle = `${sourceLabel} ${sourceIdx}: ${resp.title || 'Untitled'}`;
+    const isRefining = stage2RefineProgress?.responseId === resp.id;
     return `<div class="response-card stage2-draft-card" data-response-id="${escapeHTML(resp.id)}">
       <div class="response-header response-header-blue">Response ${idx + 1}</div>
-      <h5 class="stage2-issue-title">${escapeHTML(headerTitle)}</h5>
+      <div class="stage2-draft-head-row">
+        <h5 class="stage2-issue-title">${escapeHTML(headerTitle)}</h5>
+        <button class="stage2-refine-one-btn ${isRefining ? 'loading' : ''}" data-stage2-refine-one="${escapeHTML(resp.id)}" title="Refine this response only" aria-label="Refine this response only">${isRefining ? '…' : '↗'}</button>
+      </div>
       ${hasDraft
         ? `<textarea class="response-textarea draft-textarea" data-stage2-field="draft" data-response-id="${escapeHTML(resp.id)}" placeholder="Refined academic reply will appear here.">${escapeHTML(item.draft)}</textarea>`
         : `<div class="stage2-draft-placeholder">Click <strong>Refine</strong> to generate academic reply for this response.</div>`
@@ -792,6 +835,101 @@ function hideStage2ContextMenu() {
   const menu = document.getElementById('stage2OutlineMenu');
   if (!menu) return;
   menu.classList.add('hidden');
+}
+
+function ensureStage3SourceMenu() {
+  let menu = document.getElementById('stage3SourceMenu');
+  if (menu) return menu;
+  menu = document.createElement('div');
+  menu.id = 'stage3SourceMenu';
+  menu.className = 'stage2-outline-menu hidden';
+  menu.innerHTML = `
+    <button class="stage2-outline-menu-item" data-stage3-format="bold">Bold</button>
+    <button class="stage2-outline-menu-item" data-stage3-format="italic">Italic</button>
+    <button class="stage2-outline-menu-item" data-stage3-format="underline">Underline</button>
+    <button class="stage2-outline-menu-item" data-stage3-format="color">Color</button>
+    <button class="stage2-outline-menu-item" data-stage3-format="h1">Large Heading</button>
+    <button class="stage2-outline-menu-item" data-stage3-format="h2">Small Heading</button>
+  `;
+  document.body.appendChild(menu);
+  return menu;
+}
+
+function hideStage3SourceMenu() {
+  const menu = document.getElementById('stage3SourceMenu');
+  if (!menu) return;
+  menu.classList.add('hidden');
+}
+
+function stage3SelectionTouchesStrictLines(text, start, end) {
+  const source = `${text || ''}`;
+  const safeStart = Math.max(0, Math.min(start, end));
+  const safeEnd = Math.min(source.length, Math.max(start, end));
+  const lines = source.split('\n');
+  let acc = 0;
+  for (const line of lines) {
+    const lineStart = acc;
+    const lineEnd = acc + line.length;
+    acc = lineEnd + 1;
+    if (safeEnd < lineStart || safeStart > lineEnd) continue;
+    const trimmed = line.trim();
+    if (
+      STAGE3_STRICT_RE.titleLine.test(trimmed)
+      || STAGE3_STRICT_RE.quoteLabelLine.test(trimmed)
+      || STAGE3_STRICT_RE.responseLabelLine.test(trimmed)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function applyStage3HeadingPrefix(text, prefix) {
+  return text.split('\n').map((line) => {
+    if (!line.trim()) return line;
+    return `${prefix} ${line.replace(/^#{1,6}\s+/, '')}`;
+  }).join('\n');
+}
+
+function applyStage3SourceFormat(formatType) {
+  const editor = document.querySelector('textarea.stage3-source-editor');
+  if (!editor) return;
+
+  const source = editor.value || '';
+  let start = editor.selectionStart;
+  let end = editor.selectionEnd;
+  if (start === end && typeof stage3SourceContext.start === 'number' && typeof stage3SourceContext.end === 'number') {
+    start = stage3SourceContext.start;
+    end = stage3SourceContext.end;
+  }
+  if (start === end) return;
+
+  if (stage3SelectionTouchesStrictLines(source, start, end)) {
+    alert('Formatting on strict Stage 3 title/label lines is blocked to preserve immutable syntax.');
+    return;
+  }
+
+  const selected = source.slice(start, end);
+  let replacement = selected;
+  if (formatType === 'bold') replacement = `**${selected}**`;
+  if (formatType === 'italic') replacement = `*${selected}*`;
+  if (formatType === 'underline') replacement = `<u>${selected}</u>`;
+  if (formatType === 'color') {
+    const picked = prompt('Hex color (e.g. #ff0000):', state.stage3Settings.color || '#ff0000');
+    if (picked === null) return;
+    const hex = normalizeHexColor(picked);
+    if (!hex) {
+      alert('Invalid hex color. Please use #RRGGBB.');
+      return;
+    }
+    replacement = `\${\\color{${hex}}\\text{${selected}}}$`;
+  }
+  if (formatType === 'h1') replacement = applyStage3HeadingPrefix(selected, '#');
+  if (formatType === 'h2') replacement = applyStage3HeadingPrefix(selected, '##');
+
+  editor.setRangeText(replacement, start, end, 'select');
+  editor.dispatchEvent(new Event('input', { bubbles: true }));
+  editor.focus();
 }
 
 function insertStage2Asset(responseId, type, content) {
@@ -891,30 +1029,264 @@ function showStage3ThemeNotice(message) {
   stage3ThemeNoticeEl.classList.remove('hidden');
 }
 
-function buildStage3DefaultMarkdown(selectedResp, responses, refined, color) {
+const STAGE3_STRICT_RE = {
+  titleLine: /^### \*\*\$\{\\color\{#[0-9a-fA-F]{6}\}\\text\{([^{}]+)\}\}\$\*\*$/,
+  quoteLabelLine: /^> \$\{\\color\{#[0-9a-fA-F]{6}\}\\text\{([^{}]+)\}\}\$$/,
+  responseLabelLine: /^\$\{\\color\{#[0-9a-fA-F]{6}\}\\text\{([^{}]+)\}\}\$$/,
+  latexColorToken: /\$\{\\color\{(#[0-9a-fA-F]{6})\}\\text\{([^{}]+)\}\}\$/g,
+  legacyTitleSpan: /^###\s*<span[^>]*color\s*:\s*(#[0-9a-fA-F]{6})[^>]*>(.*?)<\/span>\s*$/gim,
+  legacyQuoteSpan: /^>\s*<span[^>]*color\s*:\s*(#[0-9a-fA-F]{6})[^>]*>(.*?)<\/span>\s*(.*)$/gim,
+  legacyResponseSpan: /^<span[^>]*color\s*:\s*(#[0-9a-fA-F]{6})[^>]*>(.*?)<\/span>\s*$/gim,
+};
+
+function sanitizeStage3LabelText(text, fallback) {
+  const cleaned = `${text || ''}`
+    .replace(/\r?\n/g, ' ')
+    .replace(/[{}]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned || fallback;
+}
+
+function stage3LatexColorToken(color, text, fallbackText = '') {
+  const safeColor = normalizeHexColor(color) || '#f26921';
+  const safeText = sanitizeStage3LabelText(text, fallbackText);
+  return `\${\\color{${safeColor}}\\text{${safeText}}}$`;
+}
+
+function stage3DefaultTitleLabel(selectedResp, responses) {
+  const idx = responses.findIndex((r) => r.id === selectedResp.id) + 1;
+  if (idx === 1) return 'R1: Regarding the Novelty Clarification.';
+  const raw = sanitizeStage3LabelText(selectedResp.title || `Response ${idx}`, `Response ${idx}`);
+  return `R${idx}: ${raw}`;
+}
+
+function stage3DefaultQuoteLabel(selectedResp) {
   const issueLabel = selectedResp.source === 'question' ? 'Question' : 'Weakness';
   const issueIndex = (selectedResp.source_id || '').replace(/\D/g, '') || '1';
-  return `### <span style="color:${color};">R${responses.findIndex((r) => r.id === selectedResp.id) + 1}: ${escapeHTML(selectedResp.title || 'Untitled')}</span>
+  return `${issueLabel}-${issueIndex}:`;
+}
 
-> <span style="color:${color};">${issueLabel}-${issueIndex}:</span> "${escapeHTML(selectedResp.quoted_issue || '')}"
+function stage3DefaultResponseLabel(selectedResp) {
+  return `Response ${stage3IssueCode(selectedResp)}:`;
+}
 
-<span style="color:${color};">Response ${stage3IssueCode(selectedResp)}:</span>
+function stripTags(value) {
+  return `${value || ''}`.replace(/<[^>]*>/g, '').trim();
+}
 
-${refined || '(No refined answer yet)'}`;
+function migrateLegacyStage3Source(markdownSource, fallbackColor) {
+  const safeColor = normalizeHexColor(fallbackColor) || '#f26921';
+  let src = `${markdownSource || ''}`;
+
+  src = src.replace(STAGE3_STRICT_RE.legacyTitleSpan, (_m, hex, text) => {
+    const color = normalizeHexColor(hex) || safeColor;
+    return `### **${stage3LatexColorToken(color, stripTags(text), 'R1: Regarding the Novelty Clarification.')}**`;
+  });
+
+  src = src.replace(STAGE3_STRICT_RE.legacyQuoteSpan, (_m, hex, text, rest) => {
+    const color = normalizeHexColor(hex) || safeColor;
+    const label = `> ${stage3LatexColorToken(color, stripTags(text), 'Weakness-1:')}`;
+    const trailing = `${rest || ''}`.trim();
+    if (!trailing) return label;
+    return `${label}\n> ${trailing}`;
+  });
+
+  src = src.replace(STAGE3_STRICT_RE.legacyResponseSpan, (_m, hex, text) => {
+    const color = normalizeHexColor(hex) || safeColor;
+    return stage3LatexColorToken(color, stripTags(text), 'Response W1:');
+  });
+
+  return src;
+}
+
+function extractStage3LineText(markdownSource, re, fallback) {
+  const lines = `${markdownSource || ''}`.split('\n');
+  for (const line of lines) {
+    const m = line.trim().match(re);
+    if (m?.[1]) return sanitizeStage3LabelText(m[1], fallback);
+  }
+  return fallback;
+}
+
+function extractStage3QuoteContent(lines, quoteIdx, responseIdx, fallback) {
+  if (quoteIdx < 0) return fallback || '';
+  const end = responseIdx >= 0 ? responseIdx : lines.length;
+  const quoteLines = [];
+  for (let i = quoteIdx + 1; i < end; i += 1) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (quoteLines.length) break;
+      continue;
+    }
+    if (!trimmed.startsWith('>')) break;
+    quoteLines.push(line.replace(/^>\s?/, ''));
+  }
+  if (quoteLines.length) return quoteLines.join('\n').trim();
+  return `${fallback || ''}`.trim();
+}
+
+function extractStage3ResponseBody(lines, responseIdx, fallback) {
+  if (responseIdx < 0) return `${fallback || ''}`.trim();
+  const tail = lines.slice(responseIdx + 1);
+  while (tail.length && !tail[0].trim()) tail.shift();
+  return tail.join('\n').trim() || `${fallback || ''}`.trim();
+}
+
+function enforceStrictStage3Source(markdownSource, selectedResp, responses, refined, color) {
+  const safeColor = normalizeHexColor(color) || '#f26921';
+  const migrated = migrateLegacyStage3Source(markdownSource, safeColor);
+  const lines = migrated.split('\n');
+  const responseOrdinal = responses.findIndex((r) => r.id === selectedResp.id) + 1;
+
+  const defaultTitle = stage3DefaultTitleLabel(selectedResp, responses);
+  const defaultQuoteLabel = stage3DefaultQuoteLabel(selectedResp);
+  const defaultResponseLabel = stage3DefaultResponseLabel(selectedResp);
+
+  let titleLabel = extractStage3LineText(migrated, STAGE3_STRICT_RE.titleLine, defaultTitle);
+  if (responseOrdinal === 1) {
+    titleLabel = 'R1: Regarding the Novelty Clarification.';
+  }
+  const quoteLabel = extractStage3LineText(migrated, STAGE3_STRICT_RE.quoteLabelLine, defaultQuoteLabel);
+  const responseLabel = extractStage3LineText(migrated, STAGE3_STRICT_RE.responseLabelLine, defaultResponseLabel);
+
+  const quoteIdx = lines.findIndex((line) => STAGE3_STRICT_RE.quoteLabelLine.test(line.trim()));
+  const responseIdx = lines.findIndex((line) => STAGE3_STRICT_RE.responseLabelLine.test(line.trim()));
+
+  const quoteContent = extractStage3QuoteContent(lines, quoteIdx, responseIdx, selectedResp.quoted_issue || '');
+  const responseBody = extractStage3ResponseBody(lines, responseIdx, refined || '(No refined answer yet)');
+
+  const strictLines = [
+    `### **${stage3LatexColorToken(safeColor, titleLabel, defaultTitle)}**`,
+    '',
+    `> ${stage3LatexColorToken(safeColor, quoteLabel, defaultQuoteLabel)}`,
+  ];
+
+  if (quoteContent) {
+    quoteContent.split('\n').forEach((line) => {
+      strictLines.push(`> ${line}`);
+    });
+  }
+
+  strictLines.push('');
+  strictLines.push(stage3LatexColorToken(safeColor, responseLabel, defaultResponseLabel));
+  strictLines.push('');
+  strictLines.push(responseBody || '(No refined answer yet)');
+  return strictLines.join('\n');
+}
+
+function buildStage3DefaultMarkdown(selectedResp, responses, refined, color) {
+  return enforceStrictStage3Source('', selectedResp, responses, refined, color);
+}
+
+function tokenizeStage3LatexColor(markdownSource) {
+  const tokens = [];
+  const text = `${markdownSource || ''}`;
+  const markedSource = text.replace(STAGE3_STRICT_RE.latexColorToken, (_m, hex, labelText) => {
+    const idx = tokens.length;
+    const safeColor = normalizeHexColor(hex) || '#f26921';
+    tokens.push({ color: safeColor, text: labelText });
+    return `@@STAGE3_LATEX_COLOR_${idx}@@`;
+  });
+  return { markedSource, tokens };
+}
+
+function renderStage3InlineFallback(text) {
+  const escaped = escapeHTML(text || '');
+  return escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+function renderStage3MarkdownFallback(markdownSource) {
+  const lines = `${markdownSource || ''}`.replace(/\r\n/g, '\n').split('\n');
+  const html = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) {
+      i += 1;
+      continue;
+    }
+
+    const h3 = line.match(/^###\s+(.+)$/);
+    if (h3) {
+      html.push(`<h3>${renderStage3InlineFallback(h3[1])}</h3>`);
+      i += 1;
+      continue;
+    }
+
+    if (/^>\s?/.test(line)) {
+      const parts = [];
+      while (i < lines.length && /^>\s?/.test(lines[i])) {
+        parts.push(lines[i].replace(/^>\s?/, ''));
+        i += 1;
+      }
+      html.push(`<blockquote><p>${parts.map((p) => renderStage3InlineFallback(p)).join('<br>')}</p></blockquote>`);
+      continue;
+    }
+
+    const para = [];
+    while (i < lines.length && lines[i].trim() && !/^###\s+/.test(lines[i]) && !/^>\s?/.test(lines[i])) {
+      para.push(lines[i]);
+      i += 1;
+    }
+    html.push(`<p>${para.map((p) => renderStage3InlineFallback(p)).join('<br>')}</p>`);
+  }
+
+  return html.join('');
+}
+
+function markedParseApi() {
+  if (!window.marked) return null;
+  if (typeof window.marked.parse === 'function') return window.marked.parse.bind(window.marked);
+  if (typeof window.marked === 'function') return window.marked.bind(window);
+  return null;
+}
+
+function renderStage3Markdown(markdownSource) {
+  const parse = markedParseApi();
+  if (!parse) return renderStage3MarkdownFallback(markdownSource);
+  try {
+    return parse(markdownSource || '', {
+      gfm: true,
+      breaks: true,
+      headerIds: false,
+      mangle: false,
+    });
+  } catch (err) {
+    console.error('Stage3 markdown parse failed, fallback renderer used:', err);
+    return renderStage3MarkdownFallback(markdownSource);
+  }
+}
+
+function injectStage3LatexTokens(htmlSource, tokens) {
+  let out = `${htmlSource || ''}`;
+  tokens.forEach((token, idx) => {
+    const marker = `@@STAGE3_LATEX_COLOR_${idx}@@`;
+    const replacement = `<span class="stage3-latex-token" style="color:${token.color};">${escapeHTML(token.text)}</span>`;
+    out = out.split(marker).join(replacement);
+  });
+  return out;
+}
+
+function sanitizeStage3Html(htmlSource) {
+  if (window.DOMPurify?.sanitize) {
+    return window.DOMPurify.sanitize(htmlSource || '', {
+      USE_PROFILES: { html: true },
+      ADD_ATTR: ['style', 'class'],
+    });
+  }
+  return htmlSource || '';
 }
 
 function parseAndSanitizeStage3Markdown(markdownSource, themeColor) {
-  if (!window.marked || !window.DOMPurify) return '';
-  const rawHtml = window.marked.parse(markdownSource || '', {
-    gfm: true,
-    breaks: true,
-    headerIds: false,
-    mangle: false,
-  });
-  const safeHtml = window.DOMPurify.sanitize(rawHtml, {
-    USE_PROFILES: { html: true },
-  });
-  return `<div class="stage3-openreview-preview" style="--stage3-theme-color:${themeColor};">${safeHtml}</div>`;
+  const normalized = `${markdownSource || ''}`.replace(/\r\n/g, '\n');
+  const { markedSource, tokens } = tokenizeStage3LatexColor(normalized);
+  const rawHtml = renderStage3Markdown(markedSource);
+  const htmlWithColorTokens = injectStage3LatexTokens(rawHtml, tokens);
+  const safeHtml = sanitizeStage3Html(htmlWithColorTokens);
+  return `<div class="stage3-openreview-preview" style="--stage3-theme-color:${themeColor};">${safeHtml || '<p class="breakdown-placeholder">Nothing to preview yet.</p>'}</div>`;
 }
 
 function renderStage3Panels() {
@@ -966,7 +1338,14 @@ function renderStage3Preview() {
   }
 
   const draft = getStage3DraftForResponse(selectedResp.id);
+  const liveEditor = document.querySelector('textarea.stage3-source-editor');
+  if (liveEditor && typeof liveEditor.value === 'string') {
+    draft.markdownSource = liveEditor.value;
+  }
+  const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+  const refined = stage2Map[selectedResp.id]?.draft || '';
   const color = state.stage3Settings.color || '#f26921';
+  draft.markdownSource = enforceStrictStage3Source(draft.markdownSource, selectedResp, responses, refined, color);
   draft.renderedHtml = parseAndSanitizeStage3Markdown(draft.markdownSource, color);
   draft.renderedThemeColor = color;
   queueStateSync();
@@ -986,21 +1365,19 @@ function applyStage3StyleSettings() {
     color = maybeHex;
   }
 
-  const oldColor = state.stage3Settings.color || '#f26921';
   state.stage3Settings = { style, color };
 
-  if (oldColor.toLowerCase() !== color.toLowerCase()) {
-    const safeOldColor = oldColor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const colorRe = new RegExp(safeOldColor, 'gi');
-    for (const rIdx in state.stage3Drafts) {
-      const drafts = state.stage3Drafts[rIdx];
-      if (drafts) {
-        for (const rId in drafts) {
-          if (drafts[rId] && typeof drafts[rId].markdownSource === 'string') {
-            drafts[rId].markdownSource = drafts[rId].markdownSource.replace(colorRe, color);
-          }
-        }
-      }
+  const latexColorRe = /(\\color\{)#[0-9a-fA-F]{6}(\})/g;
+  const legacySpanColorRe = /(style\s*=\s*["'][^"']*color\s*:\s*)#[0-9a-fA-F]{6}/gi;
+  for (const rIdx in state.stage3Drafts) {
+    const drafts = state.stage3Drafts[rIdx];
+    if (!drafts) continue;
+    for (const rId in drafts) {
+      const source = drafts[rId]?.markdownSource;
+      if (typeof source !== 'string') continue;
+      drafts[rId].markdownSource = source
+        .replace(latexColorRe, `$1${color}$2`)
+        .replace(legacySpanColorRe, `$1${color}`);
     }
   }
 
@@ -1231,7 +1608,63 @@ async function runStage1ApiBreakdown(rawText) {
   });
 }
 
+async function runStage2RefineOneResponse(responseId) {
+  if (convertBtnEl.disabled) return;
+  const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
+  const responses = Array.isArray(data.responses) ? data.responses : [];
+  const resp = responses.find((r) => r.id === responseId);
+  if (!resp) return;
+
+  const providerKey = state.apiSettings.activeApiProvider;
+  const profile = getActiveApiProfile(providerKey);
+  if (!profile || !profile.apiKey) {
+    alert('Please configure API Settings first.');
+    return;
+  }
+
+  const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+  const draftCell = stage2Map[resp.id] || { outline: '', draft: '', assets: [] };
+  if (!`${draftCell.outline || ''}`.trim()) {
+    alert('This response has no outline yet. Please write an outline first.');
+    return;
+  }
+
+  convertBtnEl.disabled = true;
+  convertBtnEl.classList.add('loading');
+  stage2RefineProgress = { total: 1, current: 1, responseId: resp.id };
+  renderBreakdownPanel();
+
+  try {
+    const refined = await window.studioApi.runStage2Refine({
+      providerKey,
+      profile,
+      responseId: resp.id,
+      title: resp.title || '',
+      source: resp.source || '',
+      sourceId: resp.source_id || '',
+      quotedIssue: resp.quoted_issue || '',
+      outline: draftCell.outline || '',
+    });
+    draftCell.draft = refined?.draft || draftCell.draft;
+    stage2Map[resp.id] = draftCell;
+    state.stage2Replies[state.activeReviewerIdx] = stage2Map;
+    syncStage2CompletionState();
+    queueStateSync();
+    renderBreakdownPanel();
+    renderSidebarStages();
+  } catch (error) {
+    console.error(error);
+    alert(error.message || 'Failed to run Stage2 refine API.');
+  } finally {
+    stage2RefineProgress = null;
+    convertBtnEl.disabled = false;
+    convertBtnEl.classList.remove('loading');
+    renderBreakdownPanel();
+  }
+}
+
 async function runStage2RefineForResponses() {
+  if (convertBtnEl.disabled) return;
   const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
   const responses = Array.isArray(data.responses) ? data.responses : [];
   if (!responses.length) {
@@ -1280,8 +1713,10 @@ async function runStage2RefineForResponses() {
       stage2Map[resp.id] = draftCell;
     }
     state.stage2Replies[state.activeReviewerIdx] = stage2Map;
+    syncStage2CompletionState();
     queueStateSync();
     renderBreakdownPanel();
+    renderSidebarStages();
   } catch (error) {
     console.error(error);
     alert(error.message || 'Failed to run Stage2 refine API.');
@@ -1349,34 +1784,10 @@ function showStageAdvanceModal() {
 
   // If advancing from Stage 2 to Stage 3
   if (curIdx === 1) {
-    let missingRefine = false;
-    for (let rIdx = 0; rIdx < state.reviewers.length; rIdx++) {
-      const bData = state.breakdownData[rIdx] || {};
-      const responses = bData.responses || [];
-      const stage2Map = state.stage2Replies[rIdx] || {};
-      for (const resp of responses) {
-        if (!`${stage2Map[resp.id]?.draft || ''}`.trim()) {
-          missingRefine = true;
-          break;
-        }
-      }
-      if (missingRefine) break;
-    }
-
-    if (missingRefine) {
+    if (!isStage2FullyRefined()) {
       alert("Missing Refined Answers: Please ensure all responses have a generated or manually entered Refined Draft before proceeding.");
       return;
     }
-
-    // Replace the text with a checkmark and auto-advance
-    nextStageBtnEl.innerHTML = '✓ Done';
-    setTimeout(() => {
-      state.currentDoc.currentStage = 'stage3';
-      queueStateSync();
-      renderSidebarStages();
-      nextStageBtnEl.innerHTML = 'Next Stage →';
-    }, 600);
-    return;
   }
 
   const nextStage = STAGES[curIdx + 1];
@@ -1387,11 +1798,18 @@ function showStageAdvanceModal() {
 
 function confirmAdvance() {
   if (!state.currentDoc || !pendingAdvanceTarget) return;
+  const nextIdx = STAGES.findIndex((s) => s.label === pendingAdvanceTarget);
+  const prevStage = nextIdx > 0 ? STAGES[nextIdx - 1] : null;
+  if (prevStage?.key === 'stage2') {
+    syncStage2CompletionState();
+  }
   state.currentDoc.currentStage = pendingAdvanceTarget;
   pendingAdvanceTarget = null;
   stageAdvanceModalEl.classList.add('hidden');
   queueStateSync();
   renderSidebarStages();
+  renderBreakdownPanel();
+  syncStageUi();
 }
 
 function cancelAdvance() {
@@ -1895,6 +2313,12 @@ reviewerInput.addEventListener('input', (e) => {
 
 
 breakdownContentEl.addEventListener('click', (e) => {
+  const refineOneBtn = e.target.closest('[data-stage2-refine-one]');
+  if (refineOneBtn) {
+    runStage2RefineOneResponse(refineOneBtn.dataset.stage2RefineOne);
+    return;
+  }
+
   const insertBtn = e.target.closest('.insert-response-btn');
   if (insertBtn) {
     promptAddResponse(Number(insertBtn.dataset.insertIndex));
@@ -1924,7 +2348,9 @@ breakdownContentEl.addEventListener('input', (e) => {
     }
     stage2Map[stage2ResponseId][stage2Field] = e.target.value;
     state.stage2Replies[state.activeReviewerIdx] = stage2Map;
+    syncStage2CompletionState();
     queueStateSync();
+    if (stage2Field === 'draft') renderSidebarStages();
     return;
   }
   const scoreKey = e.target?.dataset?.scoreEdit;
@@ -1992,20 +2418,45 @@ stage2LeftPanelEl.addEventListener('input', (e) => {
     }
     stage2Map[stage2ResponseId][stage2Field] = e.target.value;
     state.stage2Replies[state.activeReviewerIdx] = stage2Map;
+    syncStage2CompletionState();
     queueStateSync();
+    if (stage2Field === 'draft') {
+      renderSidebarStages();
+    }
   }
 });
 
 // Right-click context menu on stage2 left panel outline textareas
 stage2LeftPanelEl.addEventListener('contextmenu', (e) => {
-  if (e.target.dataset?.stage2Field !== 'outline') return;
-  e.preventDefault();
-  const responseId = e.target.dataset.responseId;
-  stage2OutlineContext = { responseId, x: e.clientX, y: e.clientY };
-  const menu = ensureStage2ContextMenu();
-  menu.style.left = `${e.clientX}px`;
-  menu.style.top = `${e.clientY}px`;
-  menu.classList.remove('hidden');
+  const target = e.target;
+  if (target?.dataset?.stage2Field === 'outline') {
+    e.preventDefault();
+    const responseId = target.dataset.responseId;
+    stage2OutlineContext = { responseId, x: e.clientX, y: e.clientY };
+    const menu = ensureStage2ContextMenu();
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top = `${e.clientY}px`;
+    menu.classList.remove('hidden');
+    hideStage3SourceMenu();
+    return;
+  }
+
+  if (target?.dataset?.stage3Field === 'markdownSource') {
+    e.preventDefault();
+    const responseId = target.dataset.responseId;
+    stage3SourceContext = {
+      responseId,
+      x: e.clientX,
+      y: e.clientY,
+      start: target.selectionStart || 0,
+      end: target.selectionEnd || 0,
+    };
+    const menu = ensureStage3SourceMenu();
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top = `${e.clientY}px`;
+    menu.classList.remove('hidden');
+    hideStage2ContextMenu();
+  }
 });
 
 breakdownContentEl.addEventListener('contextmenu', (e) => {
@@ -2024,9 +2475,19 @@ breakdownContentEl.addEventListener('contextmenu', (e) => {
 });
 
 document.addEventListener('click', (e) => {
+  const stage3Fmt = e.target.closest('[data-stage3-format]');
+  if (stage3Fmt) {
+    const action = stage3Fmt.dataset.stage3Format;
+    hideStage3SourceMenu();
+    if (action) applyStage3SourceFormat(action);
+    hideStage2ContextMenu();
+    return;
+  }
+
   const option = e.target.closest('[data-outline-insert]');
   if (!option) {
     hideStage2ContextMenu();
+    hideStage3SourceMenu();
     return;
   }
   const responseId = stage2OutlineContext.responseId;
@@ -2041,6 +2502,13 @@ document.addEventListener('click', (e) => {
 
   if (action === 'code') {
     openStage2CodeModal(responseId);
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    hideStage2ContextMenu();
+    hideStage3SourceMenu();
   }
 });
 

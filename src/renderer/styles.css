@@ -1510,6 +1510,38 @@ select {
   font-size: 0.9rem;
 }
 
+.stage2-draft-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.stage2-refine-one-btn {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+  font-size: 0.78rem;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.stage2-refine-one-btn:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+  background: var(--hover);
+}
+
+.stage2-refine-one-btn.loading {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .fixed-issue-quote {
   border-left: 2px solid var(--border);
   padding-left: 8px;
@@ -1862,8 +1894,11 @@ select {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.84rem;
   line-height: 1.55;
-  white-space: pre;
-  overflow: auto;
+  white-space: pre-wrap;
+  overflow-x: hidden;
+  overflow-y: auto;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .stage3-preview-host {
