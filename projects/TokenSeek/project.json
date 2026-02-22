@@ -2,9 +2,9 @@
   "projectName": "TokenSeek",
   "conference": "ICLR",
   "createdAt": "2026-02-22T01:38:14.264Z",
-  "updatedAt": "2026-02-22T05:41:54.094Z",
+  "updatedAt": "2026-02-22T06:11:36.277Z",
   "autosaveIntervalSeconds": 60,
-  "currentStage": "Breakdown",
+  "currentStage": "Reply",
   "stage2Replies": {
     "0": {
       "Response1": {
@@ -18,22 +18,27 @@
         "assets": []
       },
       "Response3": {
-        "outline": "",
+        "outline": "baseline clarification: training speed advantage of lora → memory efficiency and stability advantage of tokenseek → emphasize trade-off beyond speed.\n\nempirical comparison under qwen setting: lower memory usage (19.2% vs. 81.2%) → higher accuracy (48.45 vs. 48.06) → demonstrate simultaneous memory and performance gains.\n\ndegradation evidence: tokentune shows clear performance drop (46.34 vs. 48.06) → highlight robustness advantage of tokenseek → revise manuscript to clarify these distinctions.",
         "draft": "",
         "assets": []
       },
       "Response4": {
-        "outline": "",
+        "outline": "acknowledge suggestion → agree on need for more diverse and comprehensive baselines → update related work to include additional references.\n\n[1] Scaling Sparse Fine-Tuning to Large Language Models. arxiv 2024.\n[2] Sparse Matrix in Large Language Model Fine-tuning. arxiv 2024.\n[3] The Lottery Ticket Hypothesis: Finding Sparse, Trainable Neural Networks. ICLR 2019.\n[4] RandLora: Full-rank parameter-efficient fine-tuning of large models. ICLR 2025.\n\nprior baseline coverage → included boft as representative sparsity-based peft method → following suggestion, add ranlora experiments under qwen2.5 (0.5b) setting → expand empirical comparison.\n\n| Method                | Ave. Mem. | Max. Mem. | ARC   | HellaSwag | MMLU  | TruthfulQA | WinoGrande | Average Score |\n| --------------------- | --------- | --------- | ----- | --------- | ----- | ---------- | ---------- | ------------- |\n| BOFT                  | 145.1%    | 100.6%    | 34.64 | 51.70     | 58.18 | 39.57      | 56.43      | 48.10         |\n| RanLoRA               | 95.4%     | 86.7%     | 29.18 | 50.10     | 58.33 | 45.21      | 57.22      | 48.01         |\n| QLoRA                 | 51.7%     | 45.6%     | 34.64 | 50.10     | 58.05 | 40.41      | 55.09      | 47.66         |\n| - w/ TokenSeek (Ours) | 19.2%     | 13.4%     | 34.56 | 50.09     | 57.52 | 41.51      | 58.56      | **48.45**     |\n\nimpact of revision → improve comprehensiveness of evaluation → further demonstrate effectiveness under requested setting → update manuscript with new results and discussion.",
         "draft": "",
         "assets": []
       },
       "Response5": {
-        "outline": "",
+        "outline": "appreciate the reviewer’s careful reading and feedback.\nrevise the manuscript to improve clarity and precision accordingly.",
         "draft": "",
         "assets": []
       },
       "Response6": {
-        "outline": "",
+        "outline": "acknowledge constructive suggestion → agree on importance of coding task evaluation → conduct preliminary experiments under llama3.2 (1b) setting.\n\n| Method                  | Ave. Mem. | Max. Mem. | ARC   | HellaSwag | MMLU  | TruthfulQA | WinoGrande | Humaneval | Average Score |\n| ----------------------- | --------- | --------- | ----- | --------- | ----- | ---------- | ---------- | --------- | ------------- |\n| **LoHa**                | 92.3%     | 99.4%     | 39.25 | 65.93     | 57.60 | 37.87      | 60.77      | 13.41     | 45.81         |\n| – w/ TokenTune (Random) | 45.9%     | 28.4%     | 38.48 | 64.21     | 50.34 | 43.89      | 59.91      | 10.97     | 44.63         |\n| – w/ TokenSeek (Ours)   | 45.9%     | 28.4%     | 38.57 | 65.89     | 58.18 | 39.34      | 60.93      | 14.02     | 46.16         |\n| **QLoRA**               | 45.6%     | 34.8%     | 38.82 | 65.26     | 56.39 | 38.85      | 61.33      | 14.02     | 45.78         |\n| – w/ TokenTune (Random) | 14.8%     | 14.3%     | 39.33 | 62.97     | 41.76 | 41.36      | 60.69      | 12.80     | 43.15         |\n| – w/ TokenSeek (Ours)   | 14.8%     | 14.3%     | 39.08 | 65.98     | 58.03 | 38.65      | 61.33      | 14.63     | 46.28         |\n\nchallenge: coding tasks contain denser information → concern about effectiveness under higher information density → evaluate tokenseek in this setting.\n\nempirical finding: tokenseek remains effective → attribute to instance-aware token ditching and full forward pass preservation → retain complete attention and contextual information.\n\nrevision update: include new experimental results and corresponding discussion in the manuscript.\n",
+        "draft": "",
+        "assets": []
+      },
+      "Response7": {
+        "outline": "two stages: offline instance-aware token seeking → online efficient token ditching during training.\n\nscoring design: forward pass for context score + gradient only at penultimate layer (earlier layers frozen) → much lower memory than full fine-tuning → store per-instance token mapping.\n\ntraining mechanism: ditch gradients of unselected tokens based on stored mapping → see section 3.1 and 3.2.2 for theoretical memory analysis → empirical results align with theory.\n\nmemory source summary: partial backward scoring + instance-aware direct token ditching → revise manuscript to clarify and expand discussion.",
         "draft": "",
         "assets": []
       }
@@ -111,32 +116,37 @@
         {
           "id": "weakness1",
           "source": "weakness",
-          "text": "Limited Novelty Clarification: The main contribution—token importance–based selection—extends the previous TokenTune framework rather than introducing a fully new paradigm. While TokenSeek improves token importance estimation compared to random selection, the core ideas of memory reduction and generalizability are largely inherited from TokenTune. The paper should better articulate what is fundamentally novel about TokenSeek beyond methodological refinements."
+          "text": "Novelty relative to TokenTune: Limited Novelty Clarification: The main contribution—token importance–based selection—extends the previous TokenTune framework rather than introducing a fully new paradigm."
         },
         {
           "id": "weakness2",
           "source": "weakness",
-          "text": "Comparison to Low-Rank and Partial-Tuning Methods: On Line 835, the paper notes that TokenSeek and TokenTune incur ~11–15% more GPU hours than full-token tuning. In contrast, low-rank PEFT methods (e.g., LoRA) typically achieve both lower memory and faster training. Since TokenSeek inherits TokenTune’s extra computational overhead, the paper should clarify whether TokenSeek offers any non-trivial advantages over low-rank or partial-tuning approaches."
+          "text": "Novelty relative to TokenTune (Part 2): While TokenSeek improves token importance estimation compared to random selection, the core ideas of memory reduction and generalizability are largely inherited from TokenTune. The paper should better articulate what is fundamentally novel about TokenSeek beyond methodological refinements."
         },
         {
           "id": "weakness3",
           "source": "weakness",
-          "text": "Missing Baselines and Related Work: Several recent sparsity-based PEFT methods are missing from the related work and experimental comparisons. As TokenSeek belongs to the PEFT family, adding one representative partial-tuning or sparse fine-tuning baseline (e.g., [1–3]) would provide a more complete evaluation and contextualization of the method’s contribution."
+          "text": "Comparison with Low-Rank/Partial-Tuning: Comparison to Low-Rank and Partial-Tuning Methods: On Line 835, the paper notes that TokenSeek and TokenTune incur ~11–15% more GPU hours than full-token tuning. In contrast, low-rank PEFT methods (e.g., LoRA) typically achieve both lower memory and faster training. Since TokenSeek inherits TokenTune’s extra computational overhead, the paper should clarify whether TokenSeek offers any non-trivial advantages over low-rank or partial-tuning approaches."
         },
         {
           "id": "weakness4",
           "source": "weakness",
-          "text": "Some minor typos “as showin in Fig. 1 (a)” → shown; “Benifit from” → Benefit from; L313 “Unde” → Under; “achiving” → achieving; “TokenSeek achieve” → achieves; “LoRA/QLoRA achieves” → plural → achieve"
+          "text": "Missing Sparsity-based PEFT Baselines: Missing Baselines and Related Work: Several recent sparsity-based PEFT methods are missing from the related work and experimental comparisons. As TokenSeek belongs to the PEFT family, adding one representative partial-tuning or sparse fine-tuning baseline (e.g., [1–3]) would provide a more complete evaluation and contextualization of the method’s contribution."
+        },
+        {
+          "id": "weakness5",
+          "source": "weakness",
+          "text": "Correction of Typos: Some minor typos “as showin in Fig. 1 (a)” → shown; “Benifit from” → Benefit from; L313 “Unde” → Under; “achiving” → achieving; “TokenSeek achieve” → achieves; “LoRA/QLoRA achieves” → plural → achieve"
         },
         {
           "id": "question1",
           "source": "question",
-          "text": "Code-Domain Generalization: The experiments cover QA and Open-Platypus datasets. How would TokenSeek perform on code-related datasets (e.g., CodeAlpaca, HumanEval)? Code data tends to have dense information where most tokens are important, which could reduce token sparsity efficiency. Including one experiment on a code dataset would better demonstrate TokenSeek’s generalizability."
+          "text": "Generalization to Code Domains: Code-Domain Generalization: The experiments cover QA and Open-Platypus datasets. How would TokenSeek perform on code-related datasets (e.g., CodeAlpaca, HumanEval)? Code data tends to have dense information where most tokens are important, which could reduce token sparsity efficiency. Including one experiment on a code dataset would better demonstrate TokenSeek’s generalizability."
         },
         {
           "id": "question2",
           "source": "question",
-          "text": "Source of Memory Savings: Please clarify precisely where the memory savings originate. Since token selection is gradient-based, forward propagation must still process all tokens, and optimizer memory (e.g., Adam states) typically depends on trainable parameters rather than token count. How does TokenSeek achieve the reported activation memory reduction—through selective gradient storage, reduced backward pass, or another mechanism? A detailed explanation would strengthen the technical soundness."
+          "text": "Mechanism of Activation Memory Reduction: Source of Memory Savings: Please clarify precisely where the memory savings originate. Since token selection is gradient-based, forward propagation must still process all tokens, and optimizer memory (e.g., Adam states) typically depends on trainable parameters rather than token count. How does TokenSeek achieve the reported activation memory reduction—through selective gradient storage, reduced backward pass, or another mechanism? A detailed explanation would strengthen the technical soundness."
         }
       ],
       "responses": [
@@ -145,38 +155,45 @@
           "title": "Novelty relative to TokenTune",
           "source": "weakness",
           "source_id": "weakness1",
-          "quoted_issue": "Limited Novelty Clarification: The main contribution—token importance–based selection—extends the previous TokenTune framework rather than introducing a fully new paradigm. While TokenSeek improves token importance estimation compared to random selection, the core ideas of memory reduction and generalizability are largely inherited from TokenTune. The paper should better articulate what is fundamentally novel about TokenSeek beyond methodological refinements."
+          "quoted_issue": "Limited Novelty Clarification: The main contribution—token importance–based selection—extends the previous TokenTune framework rather than introducing a fully new paradigm."
         },
         {
-          "id": "Response2",
-          "title": "Comparison with Low-Rank/Partial-Tuning",
+          "title": "Novelty relative to TokenTune (Part 2)",
           "source": "weakness",
-          "source_id": "weakness2",
-          "quoted_issue": "Comparison to Low-Rank and Partial-Tuning Methods: On Line 835, the paper notes that TokenSeek and TokenTune incur ~11–15% more GPU hours than full-token tuning. In contrast, low-rank PEFT methods (e.g., LoRA) typically achieve both lower memory and faster training. Since TokenSeek inherits TokenTune’s extra computational overhead, the paper should clarify whether TokenSeek offers any non-trivial advantages over low-rank or partial-tuning approaches."
+          "quoted_issue": "While TokenSeek improves token importance estimation compared to random selection, the core ideas of memory reduction and generalizability are largely inherited from TokenTune. The paper should better articulate what is fundamentally novel about TokenSeek beyond methodological refinements.",
+          "id": "Response2",
+          "source_id": "weakness2"
         },
         {
           "id": "Response3",
-          "title": "Missing Sparsity-based PEFT Baselines",
+          "title": "Comparison with Low-Rank/Partial-Tuning",
           "source": "weakness",
           "source_id": "weakness3",
-          "quoted_issue": "Missing Baselines and Related Work: Several recent sparsity-based PEFT methods are missing from the related work and experimental comparisons. As TokenSeek belongs to the PEFT family, adding one representative partial-tuning or sparse fine-tuning baseline (e.g., [1–3]) would provide a more complete evaluation and contextualization of the method’s contribution."
+          "quoted_issue": "Comparison to Low-Rank and Partial-Tuning Methods: On Line 835, the paper notes that TokenSeek and TokenTune incur ~11–15% more GPU hours than full-token tuning. In contrast, low-rank PEFT methods (e.g., LoRA) typically achieve both lower memory and faster training. Since TokenSeek inherits TokenTune’s extra computational overhead, the paper should clarify whether TokenSeek offers any non-trivial advantages over low-rank or partial-tuning approaches."
         },
         {
           "id": "Response4",
-          "title": "Correction of Typos",
+          "title": "Missing Sparsity-based PEFT Baselines",
           "source": "weakness",
           "source_id": "weakness4",
-          "quoted_issue": "Some minor typos “as showin in Fig. 1 (a)” → shown; “Benifit from” → Benefit from; L313 “Unde” → Under; “achiving” → achieving; “TokenSeek achieve” → achieves; “LoRA/QLoRA achieves” → plural → achieve"
+          "quoted_issue": "Missing Baselines and Related Work: Several recent sparsity-based PEFT methods are missing from the related work and experimental comparisons. As TokenSeek belongs to the PEFT family, adding one representative partial-tuning or sparse fine-tuning baseline (e.g., [1–3]) would provide a more complete evaluation and contextualization of the method’s contribution."
         },
         {
           "id": "Response5",
+          "title": "Correction of Typos",
+          "source": "weakness",
+          "source_id": "weakness5",
+          "quoted_issue": "Some minor typos “as showin in Fig. 1 (a)” → shown; “Benifit from” → Benefit from; L313 “Unde” → Under; “achiving” → achieving; “TokenSeek achieve” → achieves; “LoRA/QLoRA achieves” → plural → achieve"
+        },
+        {
+          "id": "Response6",
           "title": "Generalization to Code Domains",
           "source": "question",
           "source_id": "question1",
           "quoted_issue": "Code-Domain Generalization: The experiments cover QA and Open-Platypus datasets. How would TokenSeek perform on code-related datasets (e.g., CodeAlpaca, HumanEval)? Code data tends to have dense information where most tokens are important, which could reduce token sparsity efficiency. Including one experiment on a code dataset would better demonstrate TokenSeek’s generalizability."
         },
         {
-          "id": "Response6",
+          "id": "Response7",
           "title": "Mechanism of Activation Memory Reduction",
           "source": "question",
           "source_id": "question2",
@@ -207,6 +224,9 @@
         "planTask": ""
       },
       "Response6": {
+        "planTask": ""
+      },
+      "Response7": {
         "planTask": ""
       }
     }

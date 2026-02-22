@@ -1351,12 +1351,41 @@ select {
 }
 
 .response-item-label {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 1.2rem;
   font-weight: 700;
-  text-align: center;
   color: var(--text);
   margin-bottom: 12px;
+}
+
+.split-response-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 1px dashed var(--text-muted);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.split-response-btn:hover {
+  background: var(--text);
+  color: var(--bg);
+  border-style: solid;
+  border-color: var(--text);
 }
 
 .response-source-badge {

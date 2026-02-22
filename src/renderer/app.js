@@ -935,7 +935,13 @@ function renderAtomicIssuesAndResponses(issues, responses) {
     const title = resp.title || '';
 
     html += `<div class="response-item">
-      <div class="response-item-label">Response ${idx + 1}</div>
+      <div class="response-item-label">
+        Response ${idx + 1}
+        <button class="split-response-btn" data-split-index="${idx}" title="Split issue">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
+          Split
+        </button>
+      </div>
       <div class="response-source-badge">
         <span class="source-id ${sourceClass}">${escapeHTML(sourceId)}</span>${title ? `<span class="source-title">: ${escapeHTML(title)}</span>` : ''}
       </div>
@@ -1002,6 +1008,80 @@ function confirmAddResponse() {
 function cancelAddResponse() {
   addResponseModalEl.classList.add('hidden');
   pendingInsertIndex = null;
+}
+
+/* ── Split Response Modal ── */
+const splitResponseModalEl = document.getElementById('splitResponseModal');
+const splitResponseContentInput = document.getElementById('splitResponseContentInput');
+const splitResponseError = document.getElementById('splitResponseError');
+const confirmSplitResponseBtn = document.getElementById('confirmSplitResponseBtn');
+const cancelSplitResponseBtn = document.getElementById('cancelSplitResponseBtn');
+
+let pendingSplitIndex = null;
+
+function promptSplitResponse(idx) {
+  const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
+  const resp = data.responses && data.responses[idx];
+  if (!resp) return;
+  pendingSplitIndex = idx;
+  splitResponseContentInput.value = resp.quoted_issue || '';
+  splitResponseError.textContent = '';
+  splitResponseModalEl.classList.remove('hidden');
+  setTimeout(() => {
+    splitResponseContentInput.focus();
+    splitResponseContentInput.setSelectionRange(0, 0);
+  }, 60);
+}
+
+function confirmSplitResponse() {
+  const content = splitResponseContentInput.value;
+  const cursorPosition = splitResponseContentInput.selectionStart;
+
+  if (cursorPosition === 0 || cursorPosition === content.length) {
+    splitResponseError.textContent = 'Please place the cursor in the middle of the text to split.';
+    return;
+  }
+
+  const part1 = content.slice(0, cursorPosition).trim();
+  const part2 = content.slice(cursorPosition).trim();
+
+  if (!part1 || !part2) {
+    splitResponseError.textContent = 'Both split parts must contain text.';
+    return;
+  }
+
+  if (pendingSplitIndex === null) return;
+
+  const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
+  const originalResp = data.responses[pendingSplitIndex];
+
+  // Update original to part1
+  originalResp.quoted_issue = part1;
+
+  // Insert part2 as a new issue right after
+  data.responses.splice(pendingSplitIndex + 1, 0, {
+    title: originalResp.title ? `${originalResp.title} (Part 2)` : '',
+    source: originalResp.source,
+    quoted_issue: part2
+  });
+
+  syncAndResequenceResponses(data);
+  state.breakdownData[state.activeReviewerIdx] = data;
+  queueStateSync();
+  renderBreakdownPanel();
+
+  splitResponseModalEl.classList.add('hidden');
+  pendingSplitIndex = null;
+}
+
+function cancelSplitResponse() {
+  splitResponseModalEl.classList.add('hidden');
+  pendingSplitIndex = null;
+}
+
+if (confirmSplitResponseBtn) {
+  confirmSplitResponseBtn.addEventListener('click', confirmSplitResponse);
+  cancelSplitResponseBtn.addEventListener('click', cancelSplitResponse);
 }
 
 function syncAndResequenceResponses(data) {
@@ -1673,9 +1753,15 @@ reviewerInput.addEventListener('input', (e) => {
 
 
 breakdownContentEl.addEventListener('click', (e) => {
-  const btn = e.target.closest('.insert-response-btn');
-  if (btn) {
-    promptAddResponse(Number(btn.dataset.insertIndex));
+  const insertBtn = e.target.closest('.insert-response-btn');
+  if (insertBtn) {
+    promptAddResponse(Number(insertBtn.dataset.insertIndex));
+    return;
+  }
+  const splitBtn = e.target.closest('.split-response-btn');
+  if (splitBtn) {
+    promptSplitResponse(Number(splitBtn.dataset.splitIndex));
+    return;
   }
 });
 
