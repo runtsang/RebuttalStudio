@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('studioApi', {
   updateApiSettings: (payload) => ipcRenderer.invoke('app:api:updateSettings', payload),
   listProviderModels: (payload) => ipcRenderer.invoke('app:api:listModels', payload),
   runStage1Breakdown: (payload) => ipcRenderer.invoke('app:stage1:breakdown', payload),
+  runStage2Refine: (payload) => ipcRenderer.invoke('app:stage2:refine', payload),
   createProject: (payload) => ipcRenderer.invoke('projects:create', payload),
   openProject: (folderName) => ipcRenderer.invoke('projects:open', folderName),
   updateProjectState: (payload) => ipcRenderer.invoke('projects:updateState', payload),
