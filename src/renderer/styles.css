@@ -1133,7 +1133,9 @@ select {
 
 
 .stage2-insert-modal {
-  width: min(760px, 92vw);
+  width: fit-content;
+  min-width: min(760px, 92vw);
+  max-width: 92vw;
 }
 
 .stage2-table-dimensions {
@@ -1154,13 +1156,15 @@ select {
   padding: 8px;
   background: var(--panel);
   margin-bottom: 10px;
+  width: max-content;
+  max-width: 100%;
 }
 
 .stage2-table-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 6px;
   margin-bottom: 6px;
+  min-width: max-content;
 }
 
 .stage2-table-row:last-child {
@@ -1348,10 +1352,11 @@ select {
 
 .response-item-label {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.88rem;
+  font-size: 1.2rem;
   font-weight: 700;
+  text-align: center;
   color: var(--text);
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .response-source-badge {
@@ -1460,10 +1465,11 @@ select {
 
 .response-header {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.8rem;
+  font-size: 1.2rem;
   font-weight: 700;
+  text-align: center;
   color: var(--text-muted);
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .fixed-issue-meta {

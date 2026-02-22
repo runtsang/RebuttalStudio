@@ -1492,7 +1492,7 @@ function buildStage2TableGrid(rows = stage2TableRows, cols = stage2TableCols) {
     const rowHtml = Array.from({ length: stage2TableCols })
       .map((__, c) => `<input class="stage2-table-cell" data-table-row="${r}" data-table-col="${c}" placeholder="${r === 0 ? `H${c + 1}` : ''}" />`)
       .join('');
-    return `<div class="stage2-table-row">${rowHtml}</div>`;
+    return `<div class="stage2-table-row" style="grid-template-columns: repeat(${stage2TableCols}, minmax(120px, 1fr));">${rowHtml}</div>`;
   }).join('');
   stage2TableGridEl.innerHTML = grid;
 }
