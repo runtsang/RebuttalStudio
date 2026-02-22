@@ -339,6 +339,31 @@
     </div>
   </div>
 
+  <!-- Stage3 Style Modal -->
+  <div id="stage3StyleModal" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="stage3StyleTitle">
+      <h3 id="stage3StyleTitle">First Round Style</h3>
+      <div class="settings-group">
+        <label for="stage3StyleSelect">Style</label>
+        <select id="stage3StyleSelect" class="text-input">
+          <option value="standard">Standard Style</option>
+        </select>
+      </div>
+      <div id="stage3ColorSection" class="settings-group">
+        <label>Theme Color</label>
+        <div id="stage3PresetColors" class="stage3-palette"></div>
+        <div class="stage3-custom-color-row">
+          <span class="muted">Custom Hex</span>
+          <input id="stage3CustomHexInput" class="text-input" placeholder="#f26921" maxlength="7" />
+        </div>
+      </div>
+      <p id="stage3StyleError" class="error"></p>
+      <div class="modal-actions">
+        <button id="stage3StyleConfirmBtn" class="btn primary">Apply</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Stage2 Insert Table Modal -->
   <div id="stage2TableModal" class="modal-backdrop hidden">
     <div class="modal stage2-insert-modal" role="dialog" aria-modal="true" aria-labelledby="stage2TableModalTitle">

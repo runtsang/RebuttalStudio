@@ -1732,3 +1732,82 @@ select {
   justify-content: center;
 }
 
+
+.stage3-palette {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.stage3-color-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--dot);
+  cursor: pointer;
+}
+
+.stage3-color-dot.active {
+  box-shadow: 0 0 0 2px var(--text);
+}
+
+.stage3-color-custom {
+  border: 1px dashed var(--border);
+  background: transparent;
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.stage3-custom-color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.stage3-left-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stage3-reviewer-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+}
+
+.stage3-issues-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stage3-issue-pill {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-muted);
+  color: var(--text-muted);
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.stage3-issue-pill.active {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.stage3-plan-head {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.stage3-preview-markdown {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  font-size: 0.88rem;
+}

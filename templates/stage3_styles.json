@@ -1,0 +1,16 @@
+{
+  "defaultStyle": "standard",
+  "styles": {
+    "standard": {
+      "label": "Standard Style",
+      "supportsThemeColor": true,
+      "template": {
+        "title": "R{{responseIndex}}: {{responseTitle}}",
+        "quoteLabel": "{{issueTypeLabel}}-{{issueIndex}}:",
+        "quoteContent": "{{quotedIssue}}",
+        "responseLabel": "Response {{issueCode}}:",
+        "responseContent": "{{refinedAnswer}}"
+      }
+    }
+  }
+}

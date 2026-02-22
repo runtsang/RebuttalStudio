@@ -41,6 +41,7 @@ const STAGES = [
 
 /* TEMPLATE_LIBRARY is loaded asynchronously from templates/templates.json */
 let TEMPLATE_LIBRARY = {};
+let STAGE3_STYLE_LIBRARY = {};
 
 async function loadTemplateLibrary() {
   try {
@@ -52,6 +53,20 @@ async function loadTemplateLibrary() {
     }
   } catch (err) {
     console.error('Error loading templates.json:', err);
+  }
+}
+
+
+async function loadStage3StyleLibrary() {
+  try {
+    const resp = await fetch('../../templates/stage3_styles.json');
+    if (resp.ok) {
+      STAGE3_STYLE_LIBRARY = await resp.json();
+    } else {
+      console.error('Failed to load stage3_styles.json:', resp.status);
+    }
+  } catch (err) {
+    console.error('Error loading stage3_styles.json:', err);
   }
 }
 
@@ -74,6 +89,9 @@ const state = {
   // Breakdown data per reviewer
   breakdownData: {},
   stage2Replies: {},
+  stage3Settings: { style: 'standard', color: '#f26921' },
+  stage3Drafts: {},
+  stage3Selection: {},
   templateUi: {
     audienceKey: 'reviewer',
     typeKey: 'nudge_reply',
@@ -86,6 +104,7 @@ let stage2OutlineContext = { responseId: null, x: 0, y: 0 };
 let stage2ModalTargetResponseId = null;
 let stage2TableRows = 3;
 let stage2TableCols = 3;
+const STAGE3_PRESET_COLORS = ['#ff0000', '#ff7f00', '#ffff00', '#00aa00', '#0077ff', '#4b0082', '#8b00ff'];
 
 function normalizePositiveInt(value, fallback, min = 1, max = 20) {
   const n = Number(value);
@@ -196,6 +215,14 @@ const stage2CodeContentInputEl = document.getElementById('stage2CodeContentInput
 const stage2CodeErrorEl = document.getElementById('stage2CodeError');
 const stage2CodeCancelBtnEl = document.getElementById('stage2CodeCancelBtn');
 const stage2CodeConfirmBtnEl = document.getElementById('stage2CodeConfirmBtn');
+const stage3StyleModalEl = document.getElementById('stage3StyleModal');
+const stage3StyleSelectEl = document.getElementById('stage3StyleSelect');
+const stage3ColorSectionEl = document.getElementById('stage3ColorSection');
+const stage3PresetColorsEl = document.getElementById('stage3PresetColors');
+const stage3CustomHexInputEl = document.getElementById('stage3CustomHexInput');
+const stage3StyleErrorEl = document.getElementById('stage3StyleError');
+const stage3StyleConfirmBtnEl = document.getElementById('stage3StyleConfirmBtn');
+
 
 /* ────────────────────────────────────────────────────────────
    Theme
@@ -616,6 +643,11 @@ function renderBreakdownPanel() {
     return;
   }
 
+  if (stageKey === 'stage3') {
+    renderStage3Panels();
+    return;
+  }
+
   const tpl = getConferenceTemplate();
   let scoresHTML = '<div class="scores-header">';
 
@@ -773,6 +805,113 @@ function insertStage2Asset(responseId, type, content) {
   queueStateSync();
   renderBreakdownPanel();
 }
+function stage3ResponsesForActiveReviewer() {
+  const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
+  return Array.isArray(data.responses) ? data.responses : [];
+}
+
+function getStage3DraftForResponse(responseId) {
+  if (!state.stage3Drafts[state.activeReviewerIdx]) state.stage3Drafts[state.activeReviewerIdx] = {};
+  if (!state.stage3Drafts[state.activeReviewerIdx][responseId]) {
+    state.stage3Drafts[state.activeReviewerIdx][responseId] = { planTask: '' };
+  }
+  return state.stage3Drafts[state.activeReviewerIdx][responseId];
+}
+
+function ensureStage3Selection() {
+  const responses = stage3ResponsesForActiveReviewer();
+  if (!responses.length) return null;
+  const selected = state.stage3Selection[state.activeReviewerIdx];
+  if (selected && responses.some((r) => r.id === selected)) return selected;
+  state.stage3Selection[state.activeReviewerIdx] = responses[0].id;
+  return responses[0].id;
+}
+
+function stage3IssueCode(resp) {
+  return resp.source === 'question' ? `Q${(resp.source_id || '').replace(/\D/g, '') || '1'}` : `W${(resp.source_id || '').replace(/\D/g, '') || '1'}`;
+}
+
+function renderStage3Palette() {
+  if (!stage3PresetColorsEl) return;
+  const activeColor = state.stage3Settings.color || '#f26921';
+  const buttons = STAGE3_PRESET_COLORS.map((color) => `<button class="stage3-color-dot ${color.toLowerCase() === activeColor.toLowerCase() ? 'active' : ''}" data-stage3-color="${color}" style="--dot:${color}" title="${color}"></button>`).join('');
+  stage3PresetColorsEl.innerHTML = `${buttons}<button class="stage3-color-custom" data-stage3-color="custom">Custom</button>`;
+  stage3CustomHexInputEl.value = activeColor;
+}
+
+function renderStage3StyleOptions() {
+  const styles = STAGE3_STYLE_LIBRARY?.styles || {};
+  const keys = Object.keys(styles);
+  if (!keys.length) return;
+  stage3StyleSelectEl.innerHTML = keys.map((key) => `<option value="${key}">${escapeHTML(styles[key].label || key)}</option>`).join('');
+}
+
+function openStage3StyleModal() {
+  if (!stage3StyleModalEl) return;
+  renderStage3StyleOptions();
+  stage3StyleSelectEl.value = state.stage3Settings.style || (STAGE3_STYLE_LIBRARY.defaultStyle || 'standard');
+  stage3StyleErrorEl.textContent = '';
+  stage3ColorSectionEl.classList.toggle('hidden', stage3StyleSelectEl.value !== 'standard');
+  renderStage3Palette();
+  stage3StyleModalEl.classList.remove('hidden');
+}
+
+function normalizeHexColor(value) {
+  const text = `${value || ''}`.trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(text)) return '';
+  return text.toLowerCase();
+}
+
+function applyStage3StyleSettings() {
+  const style = stage3StyleSelectEl.value || 'standard';
+  let color = state.stage3Settings.color || '#f26921';
+  if (style === 'standard') {
+    const maybeHex = normalizeHexColor(stage3CustomHexInputEl.value);
+    if (!maybeHex) {
+      stage3StyleErrorEl.textContent = 'Please input a valid hex color like #f26921.';
+      return;
+    }
+    color = maybeHex;
+  }
+  state.stage3Settings = { style, color };
+  stage3StyleModalEl.classList.add('hidden');
+  queueStateSync();
+  if (currentStageKey() === 'stage3') renderStage3Panels();
+}
+
+function renderStage3Panels() {
+  const stage2LeftEl = document.getElementById('stage2LeftPanel');
+  const responses = stage3ResponsesForActiveReviewer();
+  const selectedId = ensureStage3Selection();
+
+  if (!responses.length) {
+    stage2LeftEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Reviewer</h4><p class="breakdown-placeholder">No responses found. Please complete Stage 1 and Stage 2 first.</p></div></div>`;
+    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Preview</h4><p class="breakdown-placeholder">Nothing to preview yet.</p></div></div>`;
+    return;
+  }
+
+  const reviewerName = state.reviewers[state.activeReviewerIdx]?.name || `${state.activeReviewerIdx + 1}`;
+  const chips = responses.map((resp, idx) => `<button class="stage3-issue-pill ${resp.id === selectedId ? 'active' : ''}" data-stage3-response="${escapeHTML(resp.id)}">${idx + 1}</button>`).join('');
+  const selectedResp = responses.find((r) => r.id === selectedId) || responses[0];
+  const draft = getStage3DraftForResponse(selectedResp.id);
+
+  stage2LeftEl.innerHTML = `
+    <div class="stage3-left-wrap">
+      <div class="stage3-reviewer-label">Reviewer ${escapeHTML(reviewerName)}</div>
+      <div class="stage3-issues-row">${chips}</div>
+      <div class="stage3-plan-head">Plan Task</div>
+      <textarea class="response-textarea outline-textarea" data-stage3-field="planTask" data-response-id="${escapeHTML(selectedResp.id)}" placeholder="Edit plan task for this response...">${escapeHTML(draft.planTask || '')}</textarea>
+    </div>`;
+
+  const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+  const refined = stage2Map[selectedResp.id]?.draft || '';
+  const color = state.stage3Settings.color || '#f26921';
+  const issueLabel = selectedResp.source === 'question' ? 'Question' : 'Weakness';
+  const issueIndex = (selectedResp.source_id || '').replace(/\D/g, '') || '1';
+  const preview = `### <span style="color:${color};">R${responses.findIndex((r) => r.id === selectedResp.id) + 1}: ${escapeHTML(selectedResp.title || 'Untitled')}</span>\n\n> <span style="color:${color};">${issueLabel}-${issueIndex}:</span> "${escapeHTML(selectedResp.quoted_issue || '')}"\n\n<span style="color:${color};">Response ${stage3IssueCode(selectedResp)}:</span>\n\n${escapeHTML(refined || '(No refined answer yet)')}`;
+  breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Preview</h4><div class="stage3-preview-markdown">${preview}</div></div></div>`;
+}
+
 function escapeHTML(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -1099,6 +1238,9 @@ function renderWorkspace() {
     }
 
     state.stage2Replies = state.currentDoc.stage2Replies || {};
+    state.stage3Settings = state.currentDoc.stage3Settings || { style: 'standard', color: '#f26921' };
+    state.stage3Drafts = state.currentDoc.stage3Drafts || {};
+    state.stage3Selection = state.currentDoc.stage3Selection || {};
 
     renderReviewerTabs();
     renderBreakdownPanel();
@@ -1138,6 +1280,9 @@ function queueStateSync() {
   state.currentDoc.reviewers = state.reviewers;
   state.currentDoc.breakdownData = state.breakdownData;
   state.currentDoc.stage2Replies = state.stage2Replies;
+  state.currentDoc.stage3Settings = state.stage3Settings;
+  state.currentDoc.stage3Drafts = state.stage3Drafts;
+  state.currentDoc.stage3Selection = state.stage3Selection;
   window.studioApi.updateProjectState({
     folderName: state.currentFolderName,
     doc: state.currentDoc,
@@ -1377,16 +1522,17 @@ function selectStage(label) {
 function syncStageUi() {
   const stageKey = currentStageKey();
   const isStage2 = stageKey === 'stage2';
-  convertBtnEl.querySelector('.convert-label').textContent = isStage2 ? 'Refine' : 'Break down';
-  convertBtnEl.querySelector('.convert-icon').textContent = isStage2 ? '⇢' : '→';
+  const isStage3 = stageKey === 'stage3';
+  convertBtnEl.querySelector('.convert-label').textContent = isStage2 ? 'Refine' : (isStage3 ? 'Preview' : 'Break down');
+  convertBtnEl.querySelector('.convert-icon').textContent = isStage2 ? '⇢' : (isStage3 ? '👁' : '→');
   const heading = document.querySelector('.breakdown-panel > .breakdown-heading');
   if (heading) {
-    heading.textContent = isStage2 ? 'Refined Draft' : 'Structured Breakdown';
+    heading.textContent = isStage2 ? 'Refined Draft' : (isStage3 ? 'Preview' : 'Structured Breakdown');
   }
 
   // Toggle left panel: reviewer input vs outline panel
   const stage2LeftEl = document.getElementById('stage2LeftPanel');
-  if (isStage2) {
+  if (isStage2 || isStage3) {
     reviewerInput.classList.add('hidden');
     document.querySelector('.reviewer-tabs-row')?.classList.add('hidden');
     stage2LeftEl.classList.remove('hidden');
@@ -1395,8 +1541,13 @@ function syncStageUi() {
     document.querySelector('.reviewer-tabs-row')?.classList.remove('hidden');
     stage2LeftEl.classList.add('hidden');
   }
-  reviewerInput.setAttribute('contenteditable', isStage2 ? 'false' : 'true');
-  reviewerInput.classList.toggle('readonly', isStage2);
+  reviewerInput.setAttribute('contenteditable', (isStage2 || isStage3) ? 'false' : 'true');
+  reviewerInput.classList.toggle('readonly', (isStage2 || isStage3));
+
+  if (isStage3) {
+    openStage3StyleModal();
+    renderStage3Panels();
+  }
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -1405,6 +1556,7 @@ function syncStageUi() {
 async function init() {
   loadTheme();
   await loadTemplateLibrary();
+  await loadStage3StyleLibrary();
   state.appSettings = await window.studioApi.getAppSettings();
   state.apiSettings = await window.studioApi.getApiSettings();
   autosaveInput.value = state.appSettings.defaultAutosaveIntervalSeconds;
@@ -1425,6 +1577,9 @@ document.getElementById('brandBtn').addEventListener('click', () => {
   state.activeReviewerIdx = 0;
   state.breakdownData = {};
   state.stage2Replies = {};
+  state.stage3Settings = { style: 'standard', color: '#f26921' };
+  state.stage3Drafts = {};
+  state.stage3Selection = {};
   renderWorkspace();
   syncStageUi();
 });
@@ -1479,6 +1634,10 @@ addReviewerBtnEl.addEventListener('click', addReviewer);
 convertBtnEl.addEventListener('click', () => {
   if (currentStageKey() === 'stage2') {
     runStage2RefineForResponses();
+    return;
+  }
+  if (currentStageKey() === 'stage3') {
+    renderStage3Panels();
     return;
   }
   performBreakdown();
@@ -1577,6 +1736,14 @@ const stage2LeftPanelEl = document.getElementById('stage2LeftPanel');
 stage2LeftPanelEl.addEventListener('input', (e) => {
   const stage2Field = e.target?.dataset?.stage2Field;
   const stage2ResponseId = e.target?.dataset?.responseId;
+  const stage3Field = e.target?.dataset?.stage3Field;
+  const stage3ResponseId = e.target?.dataset?.responseId;
+  if (stage3Field && stage3ResponseId) {
+    const draft = getStage3DraftForResponse(stage3ResponseId);
+    draft[stage3Field] = e.target.value;
+    queueStateSync();
+    return;
+  }
   if (stage2Field && stage2ResponseId) {
     const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
     if (!stage2Map[stage2ResponseId]) {
@@ -1818,5 +1985,32 @@ document.getElementById('templateRenderCopyBtn').addEventListener('click', async
   await copyText(templateRenderedOutputEl.value);
 });
 document.getElementById('templateAiPolishBtn').addEventListener('click', runTemplatePolish);
+
+
+if (stage3StyleSelectEl) {
+  stage3StyleSelectEl.addEventListener('change', () => {
+    stage3ColorSectionEl.classList.toggle('hidden', stage3StyleSelectEl.value !== 'standard');
+  });
+  stage3PresetColorsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-stage3-color]');
+    if (!btn) return;
+    const color = btn.dataset.stage3Color;
+    if (color && color !== 'custom') {
+      stage3CustomHexInputEl.value = color;
+      renderStage3Palette();
+    } else {
+      stage3CustomHexInputEl.focus();
+    }
+  });
+  stage3StyleConfirmBtnEl.addEventListener('click', applyStage3StyleSettings);
+
+  stage2LeftPanelEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-stage3-response]');
+    if (!btn) return;
+    state.stage3Selection[state.activeReviewerIdx] = btn.dataset.stage3Response;
+    queueStateSync();
+    renderStage3Panels();
+  });
+}
 
 init();
