@@ -43,6 +43,34 @@ Our workflow is organized into **5 stages**:
 
 Through this principled pipeline, we aim to help academic researchers **focus on the rebuttal content itself**, rather than getting bogged down by formatting minutiae and the mechanical overhead of organizing responses.
 
+---
+
+## 🚀 How to Use
+
+```bash
+# ─── Step 1: Install Node.js & npm (skip if already installed) ───
+# Download and install Node.js (npm is included) from:
+#   https://nodejs.org/  (LTS version recommended)
+#
+# Verify installation:
+node -v    # should print something like v20.x.x
+npm -v     # should print something like 10.x.x
+
+# ─── Step 2: Clone this repository ───
+git clone https://github.com/runtsang/RebuttalStudio.git
+cd RebuttalStudio
+
+# ─── Step 3: Install dependencies ───
+npm install
+
+# ─── Step 4: Launch Rebuttal Studio ───
+npm start
+```
+
+<p align="center">
+  📺 Step-by-step video guide:&nbsp;&nbsp;
+  <a href="#">Bilibili</a>&nbsp; | &nbsp;<a href="#">YouTube</a>
+</p>
 
 ---
 
