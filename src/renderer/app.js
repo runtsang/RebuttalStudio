@@ -38,6 +38,62 @@ const STAGES = [
   { key: 'stage5', label: 'Conclusion', desc: 'Finalize and summarize the rebuttal outcome' },
 ];
 
+
+const TEMPLATE_LIBRARY = {
+  reviewer: {
+    label: 'Reviewer',
+    types: [
+      {
+        key: 'nudge_reply',
+        label: '催回复',
+        title: 'Looking forward to the discussion',
+        body: `Looking forward to the discussion
+
+Dear Reviewer {{reviewerId}},
+
+We deeply appreciate the time and effort you’ve taken to review our work, especially given your busy schedule. As the authors-reviewer discussion phase draws to a close, we would be grateful for the opportunity to engage in dialogue with you. Our goal is to ensure we've adequately addressed your concerns and welcome any additional questions or points of discussion you'd like to raise.
+
+Thank you for your thoughtful consideration.
+
+Best regards,
+
+The Authors of Submission {{submissionId}}`,
+      },
+      {
+        key: 'nudge_discussion',
+        label: '催讨论 / Follow up',
+        title: 'Follow-up on remaining concerns',
+        body: `Dear Reviewer {{reviewerId}},
+
+We deeply appreciate the time and effort you’ve taken to review our work, especially given your busy schedule. As the authors-reviewer discussion phase draws to a close, we would be grateful to know whether we have adequately addressed your follow-up concerns and welcome any additional questions or points of discussion you'd like to raise.
+
+Thank you for your thoughtful consideration.
+
+Best regards,
+
+The Authors of Submission {{submissionId}}`,
+      },
+    ],
+  },
+  areaChair: {
+    label: 'Area Chair',
+    types: [
+      {
+        key: 'status_update',
+        label: '状态更新',
+        title: 'Status update request',
+        body: `Dear Area Chair,
+
+Thank you for overseeing our submission {{submissionId}}. We would appreciate your guidance on whether any additional clarification is needed from our side before the discussion phase ends.
+
+Best regards,
+
+The Authors`,
+      },
+    ],
+  },
+};
+
 /* ────────────────────────────────────────────────────────────
    State
    ──────────────────────────────────────────────────────────── */
@@ -57,6 +113,11 @@ const state = {
   // Breakdown data per reviewer
   breakdownData: {},
   stage2Replies: {},
+  templateUi: {
+    audienceKey: 'reviewer',
+    typeKey: 'nudge_reply',
+    values: { reviewerId: 'X', submissionId: 'X' },
+  },
 };
 
 let stage2RefineProgress = null;
@@ -103,6 +164,14 @@ const convertBtnEl = document.getElementById('convertBtn');
 const breakdownContentEl = document.getElementById('breakdownContent');
 
 const appEl = document.querySelector('.app');
+const templateModalEl = document.getElementById('templateModal');
+const templateAudienceTabsEl = document.getElementById('templateAudienceTabs');
+const templateTypeListEl = document.getElementById('templateTypeList');
+const templatePreviewTitleEl = document.getElementById('templatePreviewTitle');
+const templateFieldsEl = document.getElementById('templateFields');
+const templateRenderedOutputEl = document.getElementById('templateRenderedOutput');
+const templateErrorEl = document.getElementById('templateError');
+
 
 const API_PROVIDER_KEYS = ['openai', 'anthropic', 'gemini', 'deepseek', 'azureOpenai'];
 
@@ -236,6 +305,117 @@ function renderSidebarStages() {
       </span>
     </button>`;
   }).join('');
+
+  sidebarStageListEl.insertAdjacentHTML('beforeend', `
+    <button class="sidebar-template-trigger" type="button" data-template-open="1" aria-label="Open template center">
+      <span class="sidebar-template-icon">✦</span>
+      <span class="sidebar-template-text">template</span>
+    </button>
+  `);
+}
+
+function getTemplateAudienceEntries() {
+  return Object.entries(TEMPLATE_LIBRARY);
+}
+
+function getTemplateSelection() {
+  const audience = TEMPLATE_LIBRARY[state.templateUi.audienceKey] || TEMPLATE_LIBRARY.reviewer;
+  const types = audience.types || [];
+  let selected = types.find((t) => t.key === state.templateUi.typeKey);
+  if (!selected && types.length) {
+    selected = types[0];
+    state.templateUi.typeKey = selected.key;
+  }
+  return { audience, selected };
+}
+
+function extractTemplateVars(body = '') {
+  const vars = new Set();
+  const matches = body.matchAll(/{{\s*([a-zA-Z0-9_]+)\s*}}/g);
+  for (const m of matches) vars.add(m[1]);
+  return Array.from(vars);
+}
+
+function renderTemplateModal() {
+  const entries = getTemplateAudienceEntries();
+  templateAudienceTabsEl.innerHTML = entries.map(([key, item]) => {
+    const active = key === state.templateUi.audienceKey ? ' active' : '';
+    return `<button class="template-audience-tab${active}" data-template-audience="${key}">${escapeHTML(item.label)}</button>`;
+  }).join('');
+
+  const { audience, selected } = getTemplateSelection();
+  templateTypeListEl.innerHTML = (audience.types || []).map((t) => {
+    const active = t.key === state.templateUi.typeKey ? ' active' : '';
+    return `<button class="template-type-item${active}" data-template-type="${t.key}">${escapeHTML(t.label)}</button>`;
+  }).join('');
+
+  if (!selected) {
+    templatePreviewTitleEl.textContent = 'Template';
+    templateFieldsEl.innerHTML = '<p class="muted">No template found.</p>';
+    return;
+  }
+
+  templatePreviewTitleEl.textContent = selected.title || selected.label;
+  const vars = extractTemplateVars(selected.body || '');
+  templateFieldsEl.innerHTML = vars.map((v) => {
+    const val = state.templateUi.values[v] ?? '';
+    return `<label class="template-field">${escapeHTML(v)}<input class="text-input" data-template-var="${v}" value="${escapeHTML(val)}" /></label>`;
+  }).join('');
+}
+
+function renderTemplateText({ useAi = false } = {}) {
+  const { selected } = getTemplateSelection();
+  if (!selected) return '';
+  let text = `${selected.body || ''}`;
+  const vars = extractTemplateVars(text);
+  for (const v of vars) {
+    const raw = `${state.templateUi.values[v] ?? ''}`.trim();
+    const val = raw || 'X';
+    text = text.replaceAll(new RegExp(`{{\\s*${v}\\s*}}`, 'g'), val);
+  }
+  if (useAi) return text;
+  return text.trim();
+}
+
+async function copyText(text) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (_e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+}
+
+async function runTemplatePolish() {
+  templateErrorEl.textContent = '';
+  const providerKey = state.apiSettings.activeApiProvider;
+  const profile = getActiveApiProfile(providerKey);
+  if (!profile || !profile.apiKey) {
+    templateErrorEl.textContent = 'Please configure API Settings first.';
+    return;
+  }
+  const raw = renderTemplateText();
+  if (!raw) return;
+  try {
+    const result = await window.studioApi.runTemplateRephrase({ providerKey, profile, content: raw });
+    const polished = `${result?.text || ''}`.trim();
+    templateRenderedOutputEl.value = polished || raw;
+    await copyText(templateRenderedOutputEl.value);
+  } catch (error) {
+    templateErrorEl.textContent = error.message || 'AI polish failed.';
+  }
+}
+
+function openTemplateModal() {
+  templateErrorEl.textContent = '';
+  renderTemplateModal();
+  templateRenderedOutputEl.value = renderTemplateText();
+  openModal('templateModal');
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -1304,6 +1484,11 @@ drawerProjectListEl.addEventListener('click', (e) => {
 // Stage selection from sidebar
 sidebarStageListEl.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-stage]');
+  const templateBtn = e.target.closest('[data-template-open]');
+  if (templateBtn) {
+    openTemplateModal();
+    return;
+  }
   if (!btn || btn.disabled) return;
   selectStage(btn.dataset.stage);
 });
@@ -1634,5 +1819,34 @@ document.addEventListener('keydown', async (e) => {
     await loadProjects();
   }
 });
+
+
+document.getElementById('closeTemplateBtn').addEventListener('click', () => closeModal('templateModal'));
+templateAudienceTabsEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-template-audience]');
+  if (!btn) return;
+  state.templateUi.audienceKey = btn.dataset.templateAudience;
+  state.templateUi.typeKey = '';
+  renderTemplateModal();
+  templateRenderedOutputEl.value = renderTemplateText();
+});
+templateTypeListEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-template-type]');
+  if (!btn) return;
+  state.templateUi.typeKey = btn.dataset.templateType;
+  renderTemplateModal();
+  templateRenderedOutputEl.value = renderTemplateText();
+});
+templateFieldsEl.addEventListener('input', (e) => {
+  const key = e.target?.dataset?.templateVar;
+  if (!key) return;
+  state.templateUi.values[key] = e.target.value;
+  templateRenderedOutputEl.value = renderTemplateText();
+});
+document.getElementById('templateRenderCopyBtn').addEventListener('click', async () => {
+  templateRenderedOutputEl.value = renderTemplateText();
+  await copyText(templateRenderedOutputEl.value);
+});
+document.getElementById('templateAiPolishBtn').addEventListener('click', runTemplatePolish);
 
 init();

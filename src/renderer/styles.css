@@ -1588,3 +1588,110 @@ select {
     grid-template-columns: 1fr;
   }
 }
+.sidebar-template-trigger {
+  margin-top: 10px;
+  width: 100%;
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 50%, transparent);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.sidebar-template-trigger:hover {
+  filter: brightness(1.08);
+}
+
+.sidebar-template-icon {
+  font-size: 1rem;
+}
+
+.sidebar-template-text {
+  text-transform: lowercase;
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.template-modal {
+  width: min(1100px, 92vw);
+}
+
+.template-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 14px;
+  min-height: 460px;
+}
+
+.template-left {
+  border-right: 1px solid var(--border);
+  padding-right: 10px;
+}
+
+.template-audience-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.template-audience-tab,
+.template-type-item {
+  border: 1px solid var(--border);
+  background: var(--panel-muted);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.template-audience-tab.active,
+.template-type-item.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.template-type-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.template-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.template-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.template-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.template-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.84rem;
+}
+
+.template-output {
+  min-height: 300px;
+  font-family: 'IBM Plex Mono', monospace;
+  line-height: 1.45;
+}
