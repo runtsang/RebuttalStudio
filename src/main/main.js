@@ -369,6 +369,60 @@ async function runGeminiStage2Refine(profile = {}, payload = {}) {
   return { draft, raw: parsed };
 }
 
+
+function buildTemplateRephrasePrompt(content) {
+  return `Please rephrase the following rebuttal message.
+Requirements:
+- Keep meaning unchanged.
+- Keep it polite, concise, and professional.
+- Keep placeholders such as X unchanged if present.
+Return JSON only with schema: {"text":"..."}.
+
+Text:
+${content}`;
+}
+
+async function runGeminiTemplateRephrase(profile = {}, content = '') {
+  const apiKey = (profile.apiKey || '').trim();
+  const baseUrl = (profile.baseUrl || '').trim().replace(/\/$/, '') || 'https://generativelanguage.googleapis.com/v1beta';
+  const model = (profile.model || '').trim() || 'gemini-3-flash-preview';
+  if (!apiKey) throw new Error('Gemini API key is required.');
+  if (!`${content}`.trim()) throw new Error('Template content is empty.');
+
+  const endpoint = `${baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body = {
+    generationConfig: { temperature: 0.5, responseMimeType: 'application/json' },
+    contents: [{ role: 'user', parts: [{ text: buildTemplateRephrasePrompt(content) }] }],
+  };
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Template rephrase failed (${res.status}): ${detail.slice(0, 240)}`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text || '').join('')?.trim();
+  if (!text) throw new Error('Gemini returned empty content for template rephrase.');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/, '').trim();
+    parsed = JSON.parse(cleaned);
+  }
+
+  const out = `${parsed?.text ?? parsed?.draft ?? ''}`.trim();
+  if (!out) throw new Error('Template rephrase did not return text.');
+  return { text: out, raw: parsed };
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1800,
@@ -449,6 +503,19 @@ ipcMain.handle('app:stage2:refine', async (_event, payload) => {
     quotedIssue: `${payload?.quotedIssue || ''}`,
     outline: `${payload?.outline || ''}`,
   });
+});
+
+
+ipcMain.handle('app:template:rephrase', async (_event, payload) => {
+  const providerKey = payload?.providerKey;
+  const profile = payload?.profile || {};
+  const content = `${payload?.content || ''}`;
+
+  if (providerKey !== 'gemini') {
+    throw new Error('Template AI polish currently requires Gemini provider.');
+  }
+
+  return runGeminiTemplateRephrase(profile, content);
 });
 
 ipcMain.handle('app:api:listModels', async (_event, payload) => {

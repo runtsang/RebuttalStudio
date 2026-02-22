@@ -385,6 +385,35 @@
     </div>
   </div>
 
+  <!-- Template Modal -->
+  <div id="templateModal" class="modal-backdrop hidden">
+    <div class="modal template-modal" role="dialog" aria-modal="true" aria-labelledby="templateModalTitle">
+      <h3 id="templateModalTitle">Template Center</h3>
+      <div class="template-layout">
+        <section class="template-left">
+          <div id="templateAudienceTabs" class="template-audience-tabs"></div>
+          <div id="templateTypeList" class="template-type-list"></div>
+        </section>
+        <section class="template-right">
+          <div class="template-preview-header">
+            <h4 id="templatePreviewTitle">Template</h4>
+            <div class="template-actions">
+              <button id="templateRenderCopyBtn" class="btn" title="Render and copy">↗ Render+Copy</button>
+              <button id="templateAiPolishBtn" class="btn" title="AI rephrase">✨ Polish</button>
+            </div>
+          </div>
+          <div id="templateFields" class="template-fields"></div>
+          <textarea id="templateRenderedOutput" class="text-input template-output" readonly
+            placeholder="Rendered template text will appear here..."></textarea>
+          <p id="templateError" class="error"></p>
+        </section>
+      </div>
+      <div class="modal-actions">
+        <button id="closeTemplateBtn" class="btn primary">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script src="./app.js"></script>
 </body>
 
