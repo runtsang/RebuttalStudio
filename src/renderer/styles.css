@@ -1131,6 +1131,56 @@ select {
   gap: var(--space-2);
 }
 
+
+.stage2-insert-modal {
+  width: min(760px, 92vw);
+}
+
+.stage2-table-dimensions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stage2-table-actions {
+  justify-content: flex-start;
+}
+
+.stage2-table-grid {
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--panel);
+  margin-bottom: 10px;
+}
+
+.stage2-table-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.stage2-table-row:last-child {
+  margin-bottom: 0;
+}
+
+.stage2-table-cell {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-muted);
+  color: var(--text);
+  padding: 6px 8px;
+}
+
+.stage2-code-input {
+  min-height: 180px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
 /* Stage advance modal */
 .stage-advance-modal {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);

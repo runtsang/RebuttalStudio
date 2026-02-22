@@ -339,6 +339,52 @@
     </div>
   </div>
 
+  <!-- Stage2 Insert Table Modal -->
+  <div id="stage2TableModal" class="modal-backdrop hidden">
+    <div class="modal stage2-insert-modal" role="dialog" aria-modal="true" aria-labelledby="stage2TableModalTitle">
+      <h3 id="stage2TableModalTitle">Insert Table</h3>
+      <div class="settings-group stage2-table-dimensions">
+        <div>
+          <label for="stage2TableRowsInput">Rows</label>
+          <input id="stage2TableRowsInput" type="number" min="1" max="20" class="text-input" value="3" />
+        </div>
+        <div>
+          <label for="stage2TableColsInput">Columns</label>
+          <input id="stage2TableColsInput" type="number" min="1" max="10" class="text-input" value="3" />
+        </div>
+      </div>
+      <div class="modal-actions stage2-table-actions">
+        <button id="stage2TableBuildBtn" class="btn" type="button">Build Grid</button>
+      </div>
+      <div id="stage2TableGrid" class="stage2-table-grid"></div>
+      <p id="stage2TableError" class="error"></p>
+      <div class="modal-actions">
+        <button id="stage2TableCancelBtn" class="btn">Cancel</button>
+        <button id="stage2TableConfirmBtn" class="btn primary">Insert</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stage2 Insert Code Modal -->
+  <div id="stage2CodeModal" class="modal-backdrop hidden">
+    <div class="modal stage2-insert-modal" role="dialog" aria-modal="true" aria-labelledby="stage2CodeModalTitle">
+      <h3 id="stage2CodeModalTitle">Insert Code</h3>
+      <div class="settings-group">
+        <label for="stage2CodeLanguageInput">Language (optional)</label>
+        <input id="stage2CodeLanguageInput" class="text-input" placeholder="e.g. python" />
+      </div>
+      <div class="settings-group">
+        <label for="stage2CodeContentInput">Code</label>
+        <textarea id="stage2CodeContentInput" class="text-input stage2-code-input" placeholder="Paste your code here..."></textarea>
+      </div>
+      <p id="stage2CodeError" class="error"></p>
+      <div class="modal-actions">
+        <button id="stage2CodeCancelBtn" class="btn">Cancel</button>
+        <button id="stage2CodeConfirmBtn" class="btn primary">Insert</button>
+      </div>
+    </div>
+  </div>
+
   <script src="./app.js"></script>
 </body>
 
