@@ -426,16 +426,19 @@ function renderBreakdownPanel() {
     if (i > 0) scoresHTML += '<span class="score-divider">|</span>';
     const val = data.scores[s.key] || s.default;
     scoresHTML += `<div class="score-item" data-score-key="${s.key}">
-      <span class="score-label">${s.label}</span>
+      <span class="score-label blue-label">${s.label}</span>
       <span class="score-value" contenteditable="true" data-score-edit="${s.key}">${escapeHTML(val)}</span>
     </div>`;
   });
   scoresHTML += '</div>';
   scoresHTML += '</div>';
 
+  // Block color classes: first block (summary+strength) = red, second (weakness+questions) = blue
+  const blockColors = ['block-red', 'block-blue'];
   let blocksHTML = '';
-  tpl.blocks.forEach(blockIdxs => {
-    blocksHTML += '<div class="breakdown-block">';
+  tpl.blocks.forEach((blockIdxs, blockIdx) => {
+    const colorClass = blockColors[blockIdx] || '';
+    blocksHTML += `<div class="breakdown-block ${colorClass}">`;
     blockIdxs.forEach(sIdx => {
       const sec = tpl.sections[sIdx];
       const content = data.sections[sec.key];
@@ -457,6 +460,14 @@ function renderBreakdownPanel() {
   }
 
   breakdownContentEl.innerHTML = scoresHTML + blocksHTML;
+
+  // Auto-resize textareas to fit content
+  setTimeout(() => {
+    document.querySelectorAll('.response-quoted-issue').forEach(el => {
+      el.style.height = 'auto';
+      if (el.scrollHeight > 0) el.style.height = el.scrollHeight + 'px';
+    });
+  }, 10);
 }
 
 
@@ -468,33 +479,119 @@ function escapeHTML(str) {
 
 
 function renderAtomicIssuesAndResponses(issues, responses) {
-  const issueItems = issues.map((issue) => `
-    <div class="issue-card" data-issue-id="${escapeHTML(issue.id)}">
-      <div class="issue-id">${escapeHTML(issue.id)}</div>
-      <div class="issue-text" contenteditable="true" data-issue-edit="${escapeHTML(issue.id)}">${escapeHTML(issue.text)}</div>
-    </div>`).join('');
+  if (!responses.length && !issues.length) return '';
 
-  const responseItems = responses.map((resp) => `
-    <div class="response-card" data-response-id="${escapeHTML(resp.id)}">
-      <div class="response-header">${escapeHTML(resp.id)} · ${escapeHTML(resp.title || '')}</div>
-      <label>Source</label>
-      <input class="response-input" data-response-field="source" data-response-id="${escapeHTML(resp.id)}" value="${escapeHTML(resp.source || '')}" />
-      <label>Source ID</label>
-      <input class="response-input" data-response-field="source_id" data-response-id="${escapeHTML(resp.id)}" value="${escapeHTML(resp.source_id || '')}" />
-      <label>Quoted Issue</label>
-      <textarea class="response-textarea" data-response-field="quoted_issue" data-response-id="${escapeHTML(resp.id)}">${escapeHTML(resp.quoted_issue || '')}</textarea>
-    </div>`).join('');
+  // Centered dashed divider with title
+  let html = '<div class="atomic-divider"><span class="atomic-divider-text">Atomic Issues</span></div>';
 
-  return `<div class="breakdown-block breakdown-output-block">
-    <div class="breakdown-section">
-      <h4 class="breakdown-section-title">Atomic Issues (API Output)</h4>
-      <div class="issues-grid">${issueItems || '<p class="breakdown-placeholder">No issues extracted.</p>'}</div>
-    </div>
-    <div class="breakdown-section">
-      <h4 class="breakdown-section-title">Responses (Editable Check)</h4>
-      <div class="responses-grid">${responseItems || '<p class="breakdown-placeholder">No responses generated.</p>'}</div>
-    </div>
-  </div>`;
+  html += `<div class="insert-response-wrapper"><button class="insert-response-btn" data-insert-index="0" title="Add issue">＋</button></div>`;
+
+  // Render each Response card
+  responses.forEach((resp, idx) => {
+    const sourceId = resp.source_id || '';
+    const isQuestion = resp.source === 'question';
+    const sourceClass = isQuestion ? 'question-source' : '';
+    const title = resp.title || '';
+
+    html += `<div class="response-item">
+      <div class="response-item-label">Response ${idx + 1}</div>
+      <div class="response-source-badge">
+        <span class="source-id ${sourceClass}">${escapeHTML(sourceId)}</span>${title ? `<span class="source-title">: ${escapeHTML(title)}</span>` : ''}
+      </div>
+      <div class="response-field-label">Quoted Issue</div>
+      <textarea class="response-quoted-issue" data-response-id="${escapeHTML(resp.id)}" data-response-field="quoted_issue">${escapeHTML(resp.quoted_issue || '')}</textarea>
+    </div>`;
+
+    html += `<div class="insert-response-wrapper"><button class="insert-response-btn" data-insert-index="${idx + 1}" title="Add issue">＋</button></div>`;
+  });
+
+  return html;
+}
+
+/* ── Add Response Modal ── */
+const addResponseModalEl = document.getElementById('addResponseModal');
+const addResponseTypeInput = document.getElementById('addResponseTypeInput');
+const addResponseTitleInput = document.getElementById('addResponseTitleInput');
+const addResponseContentInput = document.getElementById('addResponseContentInput');
+const addResponseError = document.getElementById('addResponseError');
+const confirmAddResponseBtn = document.getElementById('confirmAddResponseBtn');
+const cancelAddResponseBtn = document.getElementById('cancelAddResponseBtn');
+
+let pendingInsertIndex = null;
+
+function promptAddResponse(idx) {
+  pendingInsertIndex = idx;
+  addResponseTitleInput.value = '';
+  addResponseContentInput.value = '';
+  addResponseError.textContent = '';
+  addResponseModalEl.classList.remove('hidden');
+  setTimeout(() => addResponseTitleInput.focus(), 60);
+}
+
+function confirmAddResponse() {
+  const title = addResponseTitleInput.value.trim();
+  const content = addResponseContentInput.value.trim();
+  const type = addResponseTypeInput.value;
+
+  if (!content) {
+    addResponseError.textContent = 'Content is required.';
+    return;
+  }
+
+  if (pendingInsertIndex === null) return;
+
+  const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
+  if (!data.responses) data.responses = [];
+
+  data.responses.splice(pendingInsertIndex, 0, {
+    title: title,
+    source: type,
+    quoted_issue: content
+  });
+
+  syncAndResequenceResponses(data);
+  state.breakdownData[state.activeReviewerIdx] = data;
+  queueStateSync();
+  renderBreakdownPanel();
+
+  addResponseModalEl.classList.add('hidden');
+  pendingInsertIndex = null;
+}
+
+function cancelAddResponse() {
+  addResponseModalEl.classList.add('hidden');
+  pendingInsertIndex = null;
+}
+
+function syncAndResequenceResponses(data) {
+  let wCount = 0;
+  let qCount = 0;
+  let rCount = 0;
+  const newIssues = [];
+
+  data.responses.forEach(resp => {
+    rCount++;
+    resp.id = `Response${rCount}`;
+    if (resp.source === 'weakness') {
+      wCount++;
+      resp.source_id = `weakness${wCount}`;
+    } else {
+      qCount++;
+      resp.source_id = `question${qCount}`;
+    }
+
+    newIssues.push({
+      id: resp.source_id,
+      source: resp.source,
+      text: (resp.title ? resp.title + ': ' : '') + (resp.quoted_issue || '')
+    });
+  });
+  data.atomicIssues = newIssues;
+}
+
+if (confirmAddResponseBtn) {
+  confirmAddResponseBtn.addEventListener('click', confirmAddResponse);
+  cancelAddResponseBtn.addEventListener('click', cancelAddResponse);
 }
 
 function parseSectionFromEditable(element) {
@@ -1000,7 +1097,19 @@ reviewerInput.addEventListener('input', (e) => {
 });
 
 
+breakdownContentEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('.insert-response-btn');
+  if (btn) {
+    promptAddResponse(Number(btn.dataset.insertIndex));
+  }
+});
+
 breakdownContentEl.addEventListener('input', (e) => {
+  if (e.target.classList.contains('response-quoted-issue')) {
+    e.target.style.height = 'auto';
+    e.target.style.height = e.target.scrollHeight + 'px';
+  }
+
   const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
   const scoreKey = e.target?.dataset?.scoreEdit;
   if (scoreKey) {

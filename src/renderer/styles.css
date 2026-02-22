@@ -563,22 +563,28 @@ select {
   display: grid;
   grid-template-columns: 1fr 64px 1fr;
   gap: var(--space-3);
-  align-items: stretch;
+  align-items: start;
+  height: calc(100vh - 56px - var(--space-4) * 2);
+  overflow: hidden;
 }
 
 .workspace-panel {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  max-height: 100%;
 }
 
 /* ────────────────────── Convert Button (replaces arrow) ────────────────────── */
 .convert-column {
-  align-self: center;
+  position: sticky;
+  top: calc(50vh - 56px);
+  align-self: start;
   justify-self: center;
   display: flex;
   flex-direction: column;
   align-items: center;
+  z-index: 10;
 }
 
 .convert-btn {
@@ -597,14 +603,14 @@ select {
   transition: background 0.2s, border-color 0.2s, transform 0.15s, box-shadow 0.2s;
 }
 
-.convert-btn:hover {
+.convert-btn:hover:not(.loading) {
   background: var(--hover);
   border-color: var(--text-muted);
   transform: scale(1.08);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
-.convert-btn:active {
+.convert-btn:active:not(.loading) {
   transform: scale(0.95);
 }
 
@@ -620,6 +626,61 @@ select {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-muted);
+}
+
+/* Loading state */
+.convert-btn.loading {
+  opacity: 0.85;
+  pointer-events: none;
+  cursor: wait;
+  border-color: var(--text-muted);
+}
+
+.convert-btn.loading .convert-icon,
+.convert-btn.loading .convert-label {
+  display: none;
+}
+
+.loading-dots {
+  display: none;
+}
+
+.convert-btn.loading .loading-dots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text);
+  animation: dotBounce 1.2s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes dotBounce {
+
+  0%,
+  80%,
+  100% {
+    transform: scale(0.4);
+    opacity: 0.4;
+  }
+
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* ────────────────────── Structured Breakdown (ICLR) ────────────────────── */
@@ -673,6 +734,10 @@ select {
   letter-spacing: 0.5px;
 }
 
+.score-label.blue-label {
+  color: #4a7daa;
+}
+
 .score-value {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 1.1rem;
@@ -695,6 +760,27 @@ select {
   border-radius: 6px;
   background: var(--panel-muted);
   overflow: hidden;
+}
+
+/* Tinted block variants */
+.breakdown-block.block-red {
+  background: rgba(194, 84, 84, 0.08);
+  border-color: rgba(194, 84, 84, 0.25);
+}
+
+.breakdown-block.block-blue {
+  background: rgba(74, 125, 170, 0.08);
+  border-color: rgba(74, 125, 170, 0.25);
+}
+
+[data-theme="light"] .breakdown-block.block-red {
+  background: rgba(194, 84, 84, 0.06);
+  border-color: rgba(194, 84, 84, 0.2);
+}
+
+[data-theme="light"] .breakdown-block.block-blue {
+  background: rgba(74, 125, 170, 0.06);
+  border-color: rgba(74, 125, 170, 0.2);
 }
 
 .breakdown-section {
@@ -1094,6 +1180,8 @@ select {
 @media (max-width: 1100px) {
   .workspace-layout {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
   }
 
   .convert-column {
@@ -1120,64 +1208,135 @@ select {
   font-style: italic;
 }
 
-.breakdown-output-block .breakdown-section + .breakdown-section {
+.breakdown-output-block .breakdown-section+.breakdown-section {
   border-top: 1px dashed var(--border);
 }
 
-.issues-grid,
-.responses-grid {
+/* ────────────────────── Atomic Issues Section ────────────────────── */
+.atomic-divider {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0;
 }
 
-.issue-card,
-.response-card {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px;
-  background: var(--panel);
+.atomic-divider::before,
+.atomic-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dashed var(--border);
 }
 
-.issue-id,
-.response-header {
+.atomic-divider-text {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-bottom: 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
-.issue-text {
-  white-space: pre-wrap;
-  min-height: 36px;
-  outline: none;
+/* Individual Response cards */
+.response-item {
+  margin-bottom: 14px;
 }
 
-.response-card label {
-  display: block;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin-top: 8px;
-  margin-bottom: 3px;
+.response-item:last-child {
+  margin-bottom: 0;
 }
 
-.response-input,
-.response-textarea {
-  width: 100%;
+.response-item-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.response-source-badge {
+  display: inline-block;
   border: 1px solid var(--border);
   border-radius: 4px;
+  padding: 5px 10px;
   background: var(--panel-muted);
-  color: var(--text);
-  padding: 6px 8px;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
 }
 
-.response-textarea {
-  min-height: 70px;
-  resize: vertical;
+.response-source-badge .source-id {
+  color: #c25454;
 }
 
-.convert-btn.loading {
-  opacity: 0.75;
-  pointer-events: none;
+.response-source-badge .source-id.question-source {
+  color: #4a7daa;
+}
+
+.response-source-badge .source-title {
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.response-field-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.response-quoted-issue {
+  width: 100%;
+  min-height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  resize: none;
+  overflow: hidden;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.response-quoted-issue:focus {
+  outline: none;
+  border-color: var(--text-muted);
+}
+
+/* ────────────────────── Insert Response Button ────────────────────── */
+.insert-response-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0 16px;
+}
+
+.insert-response-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px dashed var(--text-muted);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.insert-response-btn:hover {
+  background: var(--text);
+  color: var(--bg);
+  border-style: solid;
+  border-color: var(--text);
+  transform: scale(1.1);
 }

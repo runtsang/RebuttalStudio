@@ -49,7 +49,7 @@ function startAutosaveScheduler() {
   }
 
   autosaveState.intervalId = setInterval(() => {
-    persistNow().catch(() => {});
+    persistNow().catch(() => { });
   }, autosaveState.intervalSeconds * 1000);
 }
 
@@ -59,7 +59,7 @@ function queueDebouncedSave() {
   }
 
   autosaveState.debounceId = setTimeout(() => {
-    persistNow().catch(() => {});
+    persistNow().catch(() => { });
     autosaveState.debounceId = null;
   }, DEBOUNCE_MS);
 }
@@ -286,8 +286,8 @@ function normalizeStage1Breakdown(payload = {}) {
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1280,
-    height: 860,
+    width: 1800,
+    height: 1280,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

@@ -98,6 +98,7 @@
               title="Convert to structured breakdown">
               <span class="convert-icon">→</span>
               <span class="convert-label">Break down</span>
+              <div class="loading-dots"><span></span><span></span><span></span></div>
             </button>
           </div>
 
@@ -306,6 +307,34 @@
   <!-- Right-click context menu for reviewer tabs -->
   <div id="reviewerContextMenu" class="context-menu hidden">
     <button class="context-menu-item" data-action="rename">✏️ Rename</button>
+  </div>
+
+  <!-- Add Response Modal -->
+  <div id="addResponseModal" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addResponseTitle">
+      <h3 id="addResponseTitle">Add Atomic Issue</h3>
+      <div class="settings-group">
+        <label for="addResponseTypeInput">Type</label>
+        <select id="addResponseTypeInput" class="text-input">
+          <option value="weakness">Weakness</option>
+          <option value="question">Question</option>
+        </select>
+      </div>
+      <div class="settings-group">
+        <label for="addResponseTitleInput">Title</label>
+        <input id="addResponseTitleInput" class="text-input" placeholder="e.g. Missing baseline comparison" />
+      </div>
+      <div class="settings-group">
+        <label for="addResponseContentInput">Content</label>
+        <textarea id="addResponseContentInput" class="text-input" style="min-height: 80px;"
+          placeholder="The issue text..."></textarea>
+      </div>
+      <p id="addResponseError" class="error"></p>
+      <div class="modal-actions">
+        <button id="cancelAddResponseBtn" class="btn">Cancel</button>
+        <button id="confirmAddResponseBtn" class="btn primary">Confirm</button>
+      </div>
+    </div>
   </div>
 
   <script src="./app.js"></script>
