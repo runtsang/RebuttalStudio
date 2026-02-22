@@ -61,6 +61,15 @@ const state = {
 
 let stage2RefineProgress = null;
 let stage2OutlineContext = { responseId: null, x: 0, y: 0 };
+let stage2ModalTargetResponseId = null;
+let stage2TableRows = 3;
+let stage2TableCols = 3;
+
+function normalizePositiveInt(value, fallback, min = 1, max = 20) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(n)));
+}
 
 /* ────────────────────────────────────────────────────────────
    DOM refs
@@ -142,6 +151,21 @@ const stageAdvanceMsgEl = document.getElementById('stageAdvanceMsg');
 const confirmAdvanceBtnEl = document.getElementById('confirmAdvanceBtn');
 const cancelAdvanceBtnEl = document.getElementById('cancelAdvanceBtn');
 const nextStageBtnEl = document.getElementById('nextStageBtn');
+const stage2TableModalEl = document.getElementById('stage2TableModal');
+const stage2TableRowsInputEl = document.getElementById('stage2TableRowsInput');
+const stage2TableColsInputEl = document.getElementById('stage2TableColsInput');
+const stage2TableBuildBtnEl = document.getElementById('stage2TableBuildBtn');
+const stage2TableGridEl = document.getElementById('stage2TableGrid');
+const stage2TableErrorEl = document.getElementById('stage2TableError');
+const stage2TableCancelBtnEl = document.getElementById('stage2TableCancelBtn');
+const stage2TableConfirmBtnEl = document.getElementById('stage2TableConfirmBtn');
+
+const stage2CodeModalEl = document.getElementById('stage2CodeModal');
+const stage2CodeLanguageInputEl = document.getElementById('stage2CodeLanguageInput');
+const stage2CodeContentInputEl = document.getElementById('stage2CodeContentInput');
+const stage2CodeErrorEl = document.getElementById('stage2CodeError');
+const stage2CodeCancelBtnEl = document.getElementById('stage2CodeCancelBtn');
+const stage2CodeConfirmBtnEl = document.getElementById('stage2CodeConfirmBtn');
 
 /* ────────────────────────────────────────────────────────────
    Theme
@@ -531,7 +555,7 @@ function renderStage2Panels(data) {
         <div class="fixed-issue-quote">&gt; ${escapeHTML(resp.quoted_issue || '')}</div>
       </div>
       <textarea class="response-textarea outline-textarea" data-stage2-field="outline" data-response-id="${escapeHTML(resp.id)}" placeholder="Input a response outline for this issue (key points, evidence, and writing strategy).">${escapeHTML(item.outline || '')}</textarea>
-      <div class="stage2-outline-tip">Right click in outline box: Insert Table / Formula / Code</div>
+      <div class="stage2-outline-tip">Right click in outline box: Insert Table / Code</div>
     </div>`;
   }).join('');
 
@@ -575,8 +599,7 @@ function ensureStage2ContextMenu() {
   menu.className = 'stage2-outline-menu hidden';
   menu.innerHTML = `
     <button class="stage2-outline-menu-item" data-outline-insert="table">Insert Table</button>
-    <button class="stage2-outline-menu-item" data-outline-insert="formula">Insert Formula</button>
-    <button class="stage2-outline-menu-item" data-outline-insert="code">Insert Code</button>
+        <button class="stage2-outline-menu-item" data-outline-insert="code">Insert Code</button>
   `;
   document.body.appendChild(menu);
   return menu;
@@ -1326,6 +1349,7 @@ reviewerInput.addEventListener('input', (e) => {
 });
 
 
+
 breakdownContentEl.addEventListener('click', (e) => {
   const btn = e.target.closest('.insert-response-btn');
   if (btn) {
@@ -1421,52 +1445,6 @@ stage2LeftPanelEl.addEventListener('contextmenu', (e) => {
   menu.classList.remove('hidden');
 });
 
-breakdownContentEl.addEventListener('click', (e) => {
-  const tableFor = e.target?.dataset?.stage2InsertTable;
-  if (tableFor) {
-    const rows = Number(prompt('Rows?', '3') || 3);
-    const cols = Number(prompt('Columns?', '3') || 3);
-    if (!rows || !cols) return;
-    const header = `| ${Array.from({ length: cols }).map((_, i) => `H${i + 1}`).join(' | ')} |`;
-    const divider = `| ${Array.from({ length: cols }).map(() => '---').join(' | ')} |`;
-    const body = Array.from({ length: rows - 1 })
-      .map(() => `| ${Array.from({ length: cols }).map(() => ' ').join(' | ')} |`)
-      .join('\n');
-    const tableMd = `${header}\n${divider}${body ? `\n${body}` : ''}`;
-    const map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
-    map[tableFor].assets.push({ type: 'table', content: tableMd });
-    state.stage2Replies[state.activeReviewerIdx] = map;
-    queueStateSync();
-    renderBreakdownPanel();
-    return;
-  }
-
-  const formulaFor = e.target?.dataset?.stage2InsertFormula;
-  if (formulaFor) {
-    const formula = prompt('Paste OpenReview formula (LaTeX), e.g. $$E=mc^2$$', '$$E=mc^2$$');
-    if (!formula) return;
-    const map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
-    map[formulaFor].assets.push({ type: 'formula', content: formula });
-    state.stage2Replies[state.activeReviewerIdx] = map;
-    queueStateSync();
-    renderBreakdownPanel();
-    return;
-  }
-
-  const assetInsert = e.target?.dataset?.assetInsert;
-  const assetIndex = Number(e.target?.dataset?.assetIndex);
-  if (assetInsert && Number.isInteger(assetIndex)) {
-    const map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
-    const asset = map[assetInsert]?.assets?.[assetIndex];
-    if (!asset) return;
-    const cur = map[assetInsert].outline || '';
-    map[assetInsert].outline = `${cur}${cur ? '\n\n' : ''}${asset.content}`;
-    state.stage2Replies[state.activeReviewerIdx] = map;
-    queueStateSync();
-    renderBreakdownPanel();
-  }
-});
-
 breakdownContentEl.addEventListener('contextmenu', (e) => {
   const outlineEl = e.target.closest('textarea[data-stage2-field="outline"]');
   if (!outlineEl) return;
@@ -1494,30 +1472,111 @@ document.addEventListener('click', (e) => {
   if (!responseId || !action) return;
 
   if (action === 'table') {
-    const rows = Number(prompt('Insert table: number of rows', '3') || 3);
-    const cols = Number(prompt('Insert table: number of columns', '3') || 3);
-    if (!rows || !cols || rows < 1 || cols < 1) return;
-    const header = `| ${Array.from({ length: cols }).map((_, i) => `H${i + 1}`).join(' | ')} |`;
-    const divider = `| ${Array.from({ length: cols }).map(() => '---').join(' | ')} |`;
-    const body = Array.from({ length: rows - 1 }).map(() => `| ${Array.from({ length: cols }).map(() => ' ').join(' | ')} |`).join('\n');
-    const tableMd = `${header}\n${divider}${body ? `\n${body}` : ''}`;
-    insertStage2Asset(responseId, 'table', tableMd);
-    return;
-  }
-
-  if (action === 'formula') {
-    const formula = prompt('Insert formula (LaTeX / Markdown)', '$$E=mc^2$$');
-    if (!formula) return;
-    insertStage2Asset(responseId, 'formula', formula);
+    openStage2TableModal(responseId);
     return;
   }
 
   if (action === 'code') {
-    const code = prompt('Insert code block content', 'def answer():\n    return "TODO"');
-    if (!code) return;
-    const fenced = `\`\`\`\n${code}\n\`\`\``;
-    insertStage2Asset(responseId, 'code', fenced);
+    openStage2CodeModal(responseId);
   }
+});
+
+
+function buildStage2TableGrid(rows = stage2TableRows, cols = stage2TableCols) {
+  stage2TableRows = normalizePositiveInt(rows, stage2TableRows, 1, 20);
+  stage2TableCols = normalizePositiveInt(cols, stage2TableCols, 1, 10);
+  stage2TableRowsInputEl.value = stage2TableRows;
+  stage2TableColsInputEl.value = stage2TableCols;
+
+  const grid = Array.from({ length: stage2TableRows }).map((_, r) => {
+    const rowHtml = Array.from({ length: stage2TableCols })
+      .map((__, c) => `<input class="stage2-table-cell" data-table-row="${r}" data-table-col="${c}" placeholder="${r === 0 ? `H${c + 1}` : ''}" />`)
+      .join('');
+    return `<div class="stage2-table-row">${rowHtml}</div>`;
+  }).join('');
+  stage2TableGridEl.innerHTML = grid;
+}
+
+function buildMarkdownTableFromGrid() {
+  const rows = Array.from(stage2TableGridEl.querySelectorAll('.stage2-table-row'));
+  if (!rows.length) return '';
+  const matrix = rows.map((row) => Array.from(row.querySelectorAll('.stage2-table-cell')).map((input) => {
+    const text = `${input.value || ''}`.replace(/\|/g, '\\|').trim();
+    return text || ' ';
+  }));
+  const header = matrix[0].map((cell, idx) => cell.trim() || `H${idx + 1}`);
+  const divider = header.map(() => '---');
+  const body = matrix.slice(1);
+  const lines = [
+    `| ${header.join(' | ')} |`,
+    `| ${divider.join(' | ')} |`,
+    ...body.map((row) => `| ${row.join(' | ')} |`),
+  ];
+  return lines.join('\n');
+}
+
+function openStage2TableModal(responseId) {
+  stage2ModalTargetResponseId = responseId;
+  stage2TableErrorEl.textContent = '';
+  buildStage2TableGrid(stage2TableRowsInputEl.value || stage2TableRows, stage2TableColsInputEl.value || stage2TableCols);
+  openModal('stage2TableModal');
+}
+
+function closeStage2TableModal() {
+  stage2TableErrorEl.textContent = '';
+  closeModal('stage2TableModal');
+}
+
+function openStage2CodeModal(responseId) {
+  stage2ModalTargetResponseId = responseId;
+  stage2CodeErrorEl.textContent = '';
+  stage2CodeLanguageInputEl.value = '';
+  stage2CodeContentInputEl.value = '';
+  openModal('stage2CodeModal');
+  stage2CodeContentInputEl.focus();
+}
+
+function closeStage2CodeModal() {
+  stage2CodeErrorEl.textContent = '';
+  closeModal('stage2CodeModal');
+}
+
+stage2TableBuildBtnEl.addEventListener('click', () => {
+  buildStage2TableGrid(stage2TableRowsInputEl.value, stage2TableColsInputEl.value);
+});
+
+stage2TableCancelBtnEl.addEventListener('click', closeStage2TableModal);
+stage2TableConfirmBtnEl.addEventListener('click', () => {
+  if (!stage2ModalTargetResponseId) {
+    closeStage2TableModal();
+    return;
+  }
+  const tableMd = buildMarkdownTableFromGrid();
+  if (!tableMd.trim()) {
+    stage2TableErrorEl.textContent = 'Please build and fill table content first.';
+    return;
+  }
+  insertStage2Asset(stage2ModalTargetResponseId, 'table', tableMd);
+  closeStage2TableModal();
+});
+
+stage2CodeCancelBtnEl.addEventListener('click', closeStage2CodeModal);
+stage2CodeConfirmBtnEl.addEventListener('click', () => {
+  if (!stage2ModalTargetResponseId) {
+    closeStage2CodeModal();
+    return;
+  }
+  const rawCode = `${stage2CodeContentInputEl.value || ''}`.trimEnd();
+  if (!rawCode.trim()) {
+    stage2CodeErrorEl.textContent = 'Please input code content.';
+    return;
+  }
+  const lang = `${stage2CodeLanguageInputEl.value || ''}`.trim();
+  const fenced = `\`\`\`${lang}
+${rawCode}
+\`\`\``;
+  insertStage2Asset(stage2ModalTargetResponseId, 'code', fenced);
+  closeStage2CodeModal();
 });
 
 document.getElementById('apiOpenBtn').addEventListener('click', openApiSettingsModal);
