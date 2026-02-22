@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs/promises');
 const { app, BrowserWindow, ipcMain } = require('electron');
 const {
   createProject,
@@ -7,6 +8,7 @@ const {
   saveProject,
   loadAppSettings,
   saveAppSettings,
+  PROJECTS_ROOT,
 } = require('./projectService');
 
 const MIN_AUTOSAVE_SECONDS = 10;
@@ -73,6 +75,36 @@ function normalizeInterval(seconds) {
     throw new Error(`Autosave interval must be between ${MIN_AUTOSAVE_SECONDS} and ${MAX_AUTOSAVE_SECONDS} seconds.`);
   }
   return Math.floor(n);
+}
+
+function normalizeReviewerIdForFile(reviewerId = '') {
+  const text = `${reviewerId || ''}`.trim() || 'reviewer';
+  const safe = text.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
+  return safe || 'reviewer';
+}
+
+async function saveCondensedMarkdown(reviewerId, condensedMarkdown, folderName = autosaveState.currentFolder) {
+  if (!folderName) {
+    throw new Error('No project is currently open.');
+  }
+  const safeReviewer = normalizeReviewerIdForFile(reviewerId);
+  const stage4Dir = path.join(PROJECTS_ROOT, folderName, 'stage4', 'condensed');
+  const filePath = path.join(stage4Dir, `${safeReviewer}.md`);
+  await fs.mkdir(stage4Dir, { recursive: true });
+  await fs.writeFile(filePath, `${condensedMarkdown || ''}`.trim(), 'utf8');
+  return filePath;
+}
+
+async function saveStage5CondensedMarkdown(reviewerId, condensedMarkdown, folderName = autosaveState.currentFolder) {
+  if (!folderName) {
+    throw new Error('No project is currently open.');
+  }
+  const safeReviewer = normalizeReviewerIdForFile(reviewerId);
+  const stage5Dir = path.join(PROJECTS_ROOT, folderName, 'stage5', 'condensed');
+  const filePath = path.join(stage5Dir, `${safeReviewer}.md`);
+  await fs.mkdir(stage5Dir, { recursive: true });
+  await fs.writeFile(filePath, `${condensedMarkdown || ''}`.trim(), 'utf8');
+  return filePath;
 }
 
 
@@ -369,6 +401,258 @@ async function runGeminiStage2Refine(profile = {}, payload = {}) {
   return { draft, raw: parsed };
 }
 
+function buildStage4CondensePrompt(allSource) {
+  return `You are executing the rebuttalstudio_skill -> stage4/condense/SKILL.md workflow.
+
+Task:
+- Condense the prior Stage 3 "All" discussion into a compact markdown context file.
+- Preserve only high-value facts and claims.
+- Keep structure short and scannable.
+- Return JSON only.
+
+JSON schema:
+{
+  "condensedMarkdown": "..."
+}
+
+Formatting requirements for condensedMarkdown:
+- Use markdown headings and bullet points.
+- Include sections: "Key Question(s)" and "Main Answer(s)".
+- Keep content concise and avoid duplicated wording.
+- Do not fabricate experiments, numbers, or citations.
+
+Stage 3 All source:
+${allSource}`;
+}
+
+async function runGeminiStage4Condense(profile = {}, allSource = '') {
+  const apiKey = (profile.apiKey || '').trim();
+  const baseUrl = (profile.baseUrl || '').trim().replace(/\/$/, '') || 'https://generativelanguage.googleapis.com/v1beta';
+  const model = (profile.model || '').trim() || 'gemini-3-flash-preview';
+  if (!apiKey) {
+    throw new Error('Gemini API key is required.');
+  }
+  if (!`${allSource}`.trim()) {
+    throw new Error('Stage3 All source is empty.');
+  }
+
+  const endpoint = `${baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body = {
+    generationConfig: {
+      temperature: 0.1,
+      responseMimeType: 'application/json',
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: buildStage4CondensePrompt(allSource) }],
+      },
+    ],
+  };
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Gemini stage4 condense failed (${res.status}): ${detail.slice(0, 240)}`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text || '').join('')?.trim();
+  if (!text) {
+    throw new Error('Gemini returned empty content for stage4 condense.');
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/, '').trim();
+    parsed = JSON.parse(cleaned);
+  }
+
+  const condensedMarkdown = `${parsed?.condensedMarkdown ?? parsed?.summary ?? ''}`.trim();
+  if (!condensedMarkdown) {
+    throw new Error('Stage4 condense did not return condensedMarkdown.');
+  }
+
+  return { condensedMarkdown, raw: parsed };
+}
+
+function buildStage4RefinePrompt(payload = {}) {
+  return `You are executing the rebuttalstudio_skill -> stage4/refine/SKILL.md workflow.
+
+Task:
+- Generate a polished follow-up response for a multi-round reviewer discussion.
+- Use the condensed prior discussion context + current follow-up question + user draft.
+- Keep claims grounded in provided inputs.
+- Return JSON only.
+
+JSON schema:
+{
+  "refinedText": "..."
+}
+
+Inputs:
+Condensed context markdown:
+${payload.condensedMarkdown || ''}
+
+Follow-up question text:
+${payload.followupQuestion || ''}
+
+User draft:
+${payload.draft || ''}`;
+}
+
+async function runGeminiStage4Refine(profile = {}, payload = {}) {
+  const apiKey = (profile.apiKey || '').trim();
+  const baseUrl = (profile.baseUrl || '').trim().replace(/\/$/, '') || 'https://generativelanguage.googleapis.com/v1beta';
+  const model = (profile.model || '').trim() || 'gemini-3-flash-preview';
+  if (!apiKey) {
+    throw new Error('Gemini API key is required.');
+  }
+  if (!`${payload?.condensedMarkdown || ''}`.trim()) {
+    throw new Error('Condensed markdown context is empty.');
+  }
+  if (!`${payload?.followupQuestion || ''}`.trim() && !`${payload?.draft || ''}`.trim()) {
+    throw new Error('Follow-up question and draft are both empty.');
+  }
+
+  const endpoint = `${baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body = {
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: 'application/json',
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: buildStage4RefinePrompt(payload) }],
+      },
+    ],
+  };
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Gemini stage4 refine failed (${res.status}): ${detail.slice(0, 240)}`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text || '').join('')?.trim();
+  if (!text) {
+    throw new Error('Gemini returned empty content for stage4 refine.');
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/, '').trim();
+    parsed = JSON.parse(cleaned);
+  }
+
+  const refinedText = `${parsed?.refinedText ?? parsed?.draft ?? parsed?.response ?? ''}`.trim();
+  if (!refinedText) {
+    throw new Error('Stage4 refine did not return refinedText.');
+  }
+
+  return { refinedText, raw: parsed };
+}
+
+function buildStage5FinalRemarksPrompt(payload = {}) {
+  const reviewerSummaries = Array.isArray(payload.reviewerSummaries) ? payload.reviewerSummaries : [];
+  return `You are executing the rebuttalstudio_skill -> stage5/final-remarks/SKILL.md workflow.
+
+Task:
+- Fill a Stage5 conclusion template using all reviewers' condensed discussion markdown.
+- Preserve the template section order and markdown structure.
+- Replace placeholders with grounded content only.
+- For {{key_strengths_points_markdown}}, output 4-5 markdown bullet points summarized from reviewers' strengths.
+- Return JSON only.
+
+JSON schema:
+{
+  "filledMarkdown": "..."
+}
+
+Template markdown:
+${payload.templateSource || ''}
+
+Reviewer summaries JSON:
+${JSON.stringify(reviewerSummaries, null, 2)}`;
+}
+
+async function runGeminiStage5FinalRemarks(profile = {}, payload = {}) {
+  const apiKey = (profile.apiKey || '').trim();
+  const baseUrl = (profile.baseUrl || '').trim().replace(/\/$/, '') || 'https://generativelanguage.googleapis.com/v1beta';
+  const model = (profile.model || '').trim() || 'gemini-3-flash-preview';
+  if (!apiKey) {
+    throw new Error('Gemini API key is required.');
+  }
+  if (!`${payload?.templateSource || ''}`.trim()) {
+    throw new Error('Stage5 template source is empty.');
+  }
+  if (!Array.isArray(payload?.reviewerSummaries) || !payload.reviewerSummaries.length) {
+    throw new Error('Stage5 reviewer summaries are empty.');
+  }
+
+  const endpoint = `${baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body = {
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: 'application/json',
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: buildStage5FinalRemarksPrompt(payload) }],
+      },
+    ],
+  };
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Gemini stage5 final remarks failed (${res.status}): ${detail.slice(0, 240)}`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text || '').join('')?.trim();
+  if (!text) {
+    throw new Error('Gemini returned empty content for stage5 final remarks.');
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/, '').trim();
+    parsed = JSON.parse(cleaned);
+  }
+
+  const filledMarkdown = `${parsed?.filledMarkdown ?? parsed?.finalRemarks ?? parsed?.text ?? ''}`.trim();
+  if (!filledMarkdown) {
+    throw new Error('Stage5 final remarks did not return filledMarkdown.');
+  }
+
+  return { filledMarkdown, raw: parsed };
+}
+
 
 function buildTemplateRephrasePrompt(content) {
   return `You are executing the rebuttalstudio_skill -> polish/SKILL.md workflow.
@@ -509,6 +793,65 @@ ipcMain.handle('app:stage2:refine', async (_event, payload) => {
     sourceId: `${payload?.sourceId || ''}`,
     quotedIssue: `${payload?.quotedIssue || ''}`,
     outline: `${payload?.outline || ''}`,
+  });
+});
+
+ipcMain.handle('app:stage4:condense', async (_event, payload) => {
+  const providerKey = payload?.providerKey;
+  const profile = payload?.profile || {};
+  const allSource = `${payload?.allSource || ''}`;
+
+  if (providerKey !== 'gemini') {
+    throw new Error('Stage4 condense currently requires Gemini provider.');
+  }
+
+  return runGeminiStage4Condense(profile, allSource);
+});
+
+ipcMain.handle('app:stage4:saveCondensed', async (_event, payload) => {
+  const reviewerId = `${payload?.reviewerId || ''}`.trim();
+  const condensedMarkdown = `${payload?.condensedMarkdown || ''}`;
+  const folderName = `${payload?.folderName || autosaveState.currentFolder || ''}`.trim();
+  const pathSaved = await saveCondensedMarkdown(reviewerId, condensedMarkdown, folderName);
+  return { path: pathSaved };
+});
+
+ipcMain.handle('app:stage4:refine', async (_event, payload) => {
+  const providerKey = payload?.providerKey;
+  const profile = payload?.profile || {};
+
+  if (providerKey !== 'gemini') {
+    throw new Error('Stage4 refine currently requires Gemini provider.');
+  }
+
+  return runGeminiStage4Refine(profile, {
+    condensedMarkdown: `${payload?.condensedMarkdown || ''}`,
+    followupQuestion: `${payload?.followupQuestion || ''}`,
+    draft: `${payload?.draft || ''}`,
+  });
+});
+
+ipcMain.handle('app:stage5:saveCondensed', async (_event, payload) => {
+  const reviewerId = `${payload?.reviewerId || ''}`.trim();
+  const condensedMarkdown = `${payload?.condensedMarkdown || ''}`;
+  const folderName = `${payload?.folderName || autosaveState.currentFolder || ''}`.trim();
+  const pathSaved = await saveStage5CondensedMarkdown(reviewerId, condensedMarkdown, folderName);
+  return { path: pathSaved };
+});
+
+ipcMain.handle('app:stage5:finalize', async (_event, payload) => {
+  const providerKey = payload?.providerKey;
+  const profile = payload?.profile || {};
+  const templateSource = `${payload?.templateSource || ''}`;
+  const reviewerSummaries = Array.isArray(payload?.reviewerSummaries) ? payload.reviewerSummaries : [];
+
+  if (providerKey !== 'gemini') {
+    throw new Error('Stage5 final remarks currently requires Gemini provider.');
+  }
+
+  return runGeminiStage5FinalRemarks(profile, {
+    templateSource,
+    reviewerSummaries,
   });
 });
 

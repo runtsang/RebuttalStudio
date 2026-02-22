@@ -42,6 +42,8 @@ const STAGES = [
 /* TEMPLATE_LIBRARY is loaded asynchronously from templates/templates.json */
 let TEMPLATE_LIBRARY = {};
 let STAGE3_STYLE_LIBRARY = {};
+let STAGE5_STYLE_LIBRARY = {};
+let STAGE5_SAMPLE_TEMPLATE = '';
 
 async function loadTemplateLibrary() {
   try {
@@ -70,6 +72,34 @@ async function loadStage3StyleLibrary() {
   }
 }
 
+async function loadStage5StyleLibrary() {
+  try {
+    const resp = await fetch('../../templates/stage5_styles.json');
+    if (resp.ok) {
+      STAGE5_STYLE_LIBRARY = await resp.json();
+    } else {
+      console.error('Failed to load stage5_styles.json:', resp.status);
+    }
+  } catch (err) {
+    console.error('Error loading stage5_styles.json:', err);
+  }
+}
+
+async function loadStage5SampleTemplate() {
+  try {
+    const resp = await fetch('../../templates/final_remarks_tokenseek.md');
+    if (resp.ok) {
+      STAGE5_SAMPLE_TEMPLATE = await resp.text();
+    } else {
+      console.error('Failed to load final_remarks_tokenseek.md:', resp.status);
+      STAGE5_SAMPLE_TEMPLATE = '';
+    }
+  } catch (err) {
+    console.error('Error loading final_remarks_tokenseek.md:', err);
+    STAGE5_SAMPLE_TEMPLATE = '';
+  }
+}
+
 /* ────────────────────────────────────────────────────────────
    State
    ──────────────────────────────────────────────────────────── */
@@ -92,6 +122,9 @@ const state = {
   stage3Settings: { style: 'standard', color: '#f26921' },
   stage3Drafts: {},
   stage3Selection: {},
+  stage4Data: {},
+  stage5Data: {},
+  stage5Settings: { style: 'run' },
   templateUi: {
     audienceKey: 'reviewer',
     typeKey: 'nudge_reply',
@@ -100,12 +133,18 @@ const state = {
 };
 
 let stage2RefineProgress = null;
+let stage4RefineRuntime = { running: false, reviewerIdx: -1 };
+let stage5AutoFillRuntime = { running: false };
 let stage2OutlineContext = { responseId: null, x: 0, y: 0 };
 let stage3SourceContext = { responseId: null, x: 0, y: 0, start: 0, end: 0 };
 let stage2ModalTargetResponseId = null;
 let stage2TableRows = 3;
 let stage2TableCols = 3;
+let stage3BreakdownPartsCache = [];
 const STAGE3_PRESET_COLORS = ['#ff0000', '#ff7f00', '#ffff00', '#00aa00', '#0077ff', '#4b0082', '#8b00ff'];
+const STAGE3_ALL_TAB_ID = '__all__';
+const STAGE3_ALL_OPENING_PARAGRAPH = 'Thank you for acknowledging the A, B, and C of our method. We sincerely appreciate your time and effort in reviewing our paper and providing valuable comments. We provide explanations to your questions point-by-point in the following.';
+const STAGE3_ALL_CLOSING_PARAGRAPH = '**We appreciate your thoughtful comments. We hope our response addresses your concerns. Please let us know if there are any additional questions, and we will be happy to discuss further.**';
 
 function normalizePositiveInt(value, fallback, min = 1, max = 20) {
   const n = Number(value);
@@ -139,6 +178,7 @@ const drawerToggleEl = document.getElementById('drawerToggle');
 
 const reviewerTabsEl = document.getElementById('reviewerTabs');
 const addReviewerBtnEl = document.getElementById('addReviewerBtn');
+const reviewerTabsRowEl = document.querySelector('.reviewer-tabs-row');
 
 const convertBtnEl = document.getElementById('convertBtn');
 const stage3AdjustStyleBtn = document.getElementById('stage3AdjustStyleBtn');
@@ -154,6 +194,10 @@ const templatePreviewTitleEl = document.getElementById('templatePreviewTitle');
 const templateFieldsEl = document.getElementById('templateFields');
 const templateRenderedOutputEl = document.getElementById('templateRenderedOutput');
 const templateErrorEl = document.getElementById('templateError');
+const stage4CopyPopupEl = document.getElementById('stage4CopyPopup');
+const stage4CopyPopupCopyBtnEl = document.getElementById('stage4CopyPopupCopyBtn');
+const stage4CopyPopupCloseBtnEl = document.getElementById('stage4CopyPopupCloseBtn');
+const convertColumnEl = document.querySelector('.convert-column');
 
 
 const API_PROVIDER_KEYS = ['openai', 'anthropic', 'gemini', 'deepseek', 'azureOpenai'];
@@ -225,6 +269,19 @@ const stage3PresetColorsEl = document.getElementById('stage3PresetColors');
 const stage3CustomHexInputEl = document.getElementById('stage3CustomHexInput');
 const stage3StyleErrorEl = document.getElementById('stage3StyleError');
 const stage3StyleConfirmBtnEl = document.getElementById('stage3StyleConfirmBtn');
+const stage5TemplateModalEl = document.getElementById('stage5TemplateModal');
+const stage5TemplateSelectEl = document.getElementById('stage5TemplateSelect');
+const stage5TemplateErrorEl = document.getElementById('stage5TemplateError');
+const stage5TemplateApplyBtnEl = document.getElementById('stage5TemplateApplyBtn');
+const stage5TemplateCancelBtnEl = document.getElementById('stage5TemplateCancelBtn');
+const stage3BreakdownModalEl = document.getElementById('stage3BreakdownModal');
+const stage3BreakdownLengthInputEl = document.getElementById('stage3BreakdownLengthInput');
+const stage3BreakdownErrorEl = document.getElementById('stage3BreakdownError');
+const stage3BreakdownCancelBtnEl = document.getElementById('stage3BreakdownCancelBtn');
+const stage3BreakdownConfirmBtnEl = document.getElementById('stage3BreakdownConfirmBtn');
+const stage3BreakdownResultModalEl = document.getElementById('stage3BreakdownResultModal');
+const stage3BreakdownResultBodyEl = document.getElementById('stage3BreakdownResultBody');
+const stage3BreakdownResultCloseBtnEl = document.getElementById('stage3BreakdownResultCloseBtn');
 
 
 /* ────────────────────────────────────────────────────────────
@@ -491,14 +548,51 @@ function renderReviewerTabs() {
   }
 }
 
+function reviewerSelectionStorageKey() {
+  return `rebuttal-studio-active-reviewer:${state.currentFolderName || 'default'}`;
+}
+
+function persistActiveReviewerSelection() {
+  const idx = Math.max(0, Number(state.activeReviewerIdx) || 0);
+  if (state.currentDoc) state.currentDoc.activeReviewerIdx = idx;
+  try {
+    localStorage.setItem(reviewerSelectionStorageKey(), String(idx));
+  } catch (_err) {
+    // ignore storage failures
+  }
+}
+
+function restoreActiveReviewerSelection() {
+  const reviewerCount = state.reviewers.length || 1;
+  const fromDoc = Number(state.currentDoc?.activeReviewerIdx);
+  let idx = Number.isFinite(fromDoc) ? fromDoc : NaN;
+  if (!Number.isFinite(idx)) {
+    try {
+      const raw = localStorage.getItem(reviewerSelectionStorageKey());
+      const fromLs = Number(raw);
+      idx = Number.isFinite(fromLs) ? fromLs : 0;
+    } catch (_err) {
+      idx = 0;
+    }
+  }
+  state.activeReviewerIdx = Math.max(0, Math.min(reviewerCount - 1, Math.floor(idx)));
+}
+
 function switchReviewer(idx) {
+  if (stage4RefineRuntime.running) {
+    alert('Stage4 refine is running. Please wait until it finishes before switching reviewers.');
+    return;
+  }
   // Save current content
   if (state.reviewers[state.activeReviewerIdx]) {
     state.reviewers[state.activeReviewerIdx].content = reviewerInput.innerHTML;
   }
+  hideCopyPopup();
   state.activeReviewerIdx = idx;
+  persistActiveReviewerSelection();
   renderReviewerTabs();
   renderBreakdownPanel();
+  queueStateSync();
 }
 
 /* ── Reviewer Name Modal ── */
@@ -612,6 +706,7 @@ function addReviewer() {
     const newIdx = state.reviewers.length;
     state.reviewers.push({ id: newIdx, name: suffix, content: '' });
     state.activeReviewerIdx = newIdx;
+    persistActiveReviewerSelection();
     renderReviewerTabs();
     renderBreakdownPanel();
     reviewerInput.focus();
@@ -686,6 +781,16 @@ function renderBreakdownPanel() {
 
   if (stageKey === 'stage3') {
     renderStage3Panels();
+    return;
+  }
+
+  if (stageKey === 'stage4') {
+    renderStage4Panels();
+    return;
+  }
+
+  if (stageKey === 'stage5') {
+    renderStage5Panels();
     return;
   }
 
@@ -884,6 +989,18 @@ function stage3SelectionTouchesStrictLines(text, start, end) {
   return false;
 }
 
+function isSelectionAlreadyInStage3ColorToken(source, start, end, colorHex) {
+  const text = `${source || ''}`;
+  const prefix = `\${\\color{${colorHex}}\\text{`;
+  const suffix = '}}$';
+  const leftIdx = text.lastIndexOf(prefix, start);
+  if (leftIdx < 0) return false;
+  const bodyStart = leftIdx + prefix.length;
+  const rightIdx = text.indexOf(suffix, bodyStart);
+  if (rightIdx < 0) return false;
+  return start >= bodyStart && end <= rightIdx;
+}
+
 function applyStage3HeadingPrefix(text, prefix) {
   return text.split('\n').map((line) => {
     if (!line.trim()) return line;
@@ -902,7 +1019,10 @@ function applyStage3SourceFormat(formatType) {
     start = stage3SourceContext.start;
     end = stage3SourceContext.end;
   }
-  if (start === end) return;
+  if (start === end) {
+    showStage3ThemeNotice('Select text first.');
+    return;
+  }
 
   if (stage3SelectionTouchesStrictLines(source, start, end)) {
     alert('Formatting on strict Stage 3 title/label lines is blocked to preserve immutable syntax.');
@@ -915,13 +1035,8 @@ function applyStage3SourceFormat(formatType) {
   if (formatType === 'italic') replacement = `*${selected}*`;
   if (formatType === 'underline') replacement = `<u>${selected}</u>`;
   if (formatType === 'color') {
-    const picked = prompt('Hex color (e.g. #ff0000):', state.stage3Settings.color || '#ff0000');
-    if (picked === null) return;
-    const hex = normalizeHexColor(picked);
-    if (!hex) {
-      alert('Invalid hex color. Please use #RRGGBB.');
-      return;
-    }
+    const hex = normalizeHexColor(state.stage3Settings.color || '#ff0000') || '#ff0000';
+    if (isSelectionAlreadyInStage3ColorToken(source, start, end, hex)) return;
     replacement = `\${\\color{${hex}}\\text{${selected}}}$`;
   }
   if (formatType === 'h1') replacement = applyStage3HeadingPrefix(selected, '#');
@@ -951,11 +1066,654 @@ function stage3ResponsesForActiveReviewer() {
 }
 
 function getStage3DraftForResponse(responseId) {
-  if (!state.stage3Drafts[state.activeReviewerIdx]) state.stage3Drafts[state.activeReviewerIdx] = {};
-  if (!state.stage3Drafts[state.activeReviewerIdx][responseId]) {
-    state.stage3Drafts[state.activeReviewerIdx][responseId] = { markdownSource: '', planTask: '', renderedHtml: '', renderedThemeColor: '' };
+  return getOrCreateStage3DraftForReviewer(state.activeReviewerIdx, responseId);
+}
+
+function ensureStage3Selection() {
+  const responses = stage3ResponsesForActiveReviewer();
+  if (!responses.length) return null;
+  const selected = state.stage3Selection[state.activeReviewerIdx];
+  if (selected === STAGE3_ALL_TAB_ID) return selected;
+  if (selected && responses.some((r) => r.id === selected)) return selected;
+  state.stage3Selection[state.activeReviewerIdx] = responses[0].id;
+  return responses[0].id;
+}
+
+function countChars(text) {
+  return `${text || ''}`.length;
+}
+
+function getCurrentReviewerIdentifier() {
+  return state.reviewers[state.activeReviewerIdx]?.name || `${state.activeReviewerIdx + 1}`;
+}
+
+function getReviewerId(reviewerIdx = state.activeReviewerIdx) {
+  const idx = Number.isFinite(Number(reviewerIdx)) ? Number(reviewerIdx) : state.activeReviewerIdx;
+  const safeIdx = Math.max(0, Math.min(state.reviewers.length - 1, idx));
+  const reviewerName = `${state.reviewers[safeIdx]?.name || ''}`.trim();
+  return reviewerName || `R${String(safeIdx + 1).padStart(3, '0')}`;
+}
+
+function reviewerIdxFromId(reviewerId) {
+  if (Number.isFinite(Number(reviewerId))) {
+    const idx = Number(reviewerId);
+    if (idx >= 0 && idx < state.reviewers.length) return idx;
   }
-  const draft = state.stage3Drafts[state.activeReviewerIdx][responseId];
+  const key = `${reviewerId || ''}`.trim();
+  const byName = state.reviewers.findIndex((_, idx) => getReviewerId(idx) === key);
+  return byName >= 0 ? byName : state.activeReviewerIdx;
+}
+
+function extractTextFromHtml(html = '') {
+  const div = document.createElement('div');
+  div.innerHTML = `${html || ''}`;
+  return (div.textContent || div.innerText || '').trim();
+}
+
+function createStage4ProgressState() {
+  return {
+    step1: { status: 'idle', text: '' },
+    step2: { status: 'idle', text: '' },
+  };
+}
+
+function stage4DraftStorageKey(reviewerId) {
+  const safeReviewer = `${reviewerId || ''}`.replace(/[^a-zA-Z0-9_-]/g, '_') || 'reviewer';
+  return `rebuttal-studio-stage4-draft:${state.currentFolderName || 'default'}:${safeReviewer}`;
+}
+
+function loadStage4DraftFromStorage(reviewerId) {
+  try {
+    return localStorage.getItem(stage4DraftStorageKey(reviewerId)) || '';
+  } catch (_error) {
+    return '';
+  }
+}
+
+function persistStage4DraftToStorage(reviewerId, draft) {
+  try {
+    localStorage.setItem(stage4DraftStorageKey(reviewerId), `${draft || ''}`);
+  } catch (_error) {
+    // ignore storage failures
+  }
+}
+
+function getStage4StateForReviewer(reviewerIdx = state.activeReviewerIdx) {
+  if (!state.stage4Data[reviewerIdx]) {
+    state.stage4Data[reviewerIdx] = {
+      followupQuestion: '',
+      draft: '',
+      condensedMarkdown: '',
+      condensedPath: '',
+      refinedText: '',
+      progress: createStage4ProgressState(),
+    };
+  }
+  const cell = state.stage4Data[reviewerIdx];
+  const reviewerId = getReviewerId(reviewerIdx);
+  if (typeof cell.followupQuestion !== 'string') cell.followupQuestion = '';
+  if (typeof cell.draft !== 'string') cell.draft = '';
+  if (!cell.draft) {
+    cell.draft = loadStage4DraftFromStorage(reviewerId);
+  }
+  if (typeof cell.condensedMarkdown !== 'string') cell.condensedMarkdown = '';
+  if (typeof cell.condensedPath !== 'string') cell.condensedPath = '';
+  if (typeof cell.refinedText !== 'string') cell.refinedText = '';
+  if (!cell.progress || typeof cell.progress !== 'object') cell.progress = createStage4ProgressState();
+  if (!cell.progress.step1 || !cell.progress.step2) cell.progress = createStage4ProgressState();
+  return cell;
+}
+
+function getStage3AllSource(reviewerId) {
+  const reviewerIdx = reviewerIdxFromId(reviewerId);
+  return buildAllDocument(reviewerIdx);
+}
+
+async function skill1_condense(allSource) {
+  const providerKey = state.apiSettings.activeApiProvider;
+  const profile = getActiveApiProfile(providerKey);
+  if (!profile || !profile.apiKey) {
+    throw new Error('Please configure API Settings first.');
+  }
+  const result = await window.studioApi.runStage4Condense({
+    providerKey,
+    profile,
+    allSource,
+  });
+  return `${result?.condensedMarkdown || ''}`.trim();
+}
+
+async function saveCondensedMarkdown(reviewerId, condensedMarkdown) {
+  const result = await window.studioApi.saveStage4CondensedMarkdown({
+    reviewerId,
+    condensedMarkdown,
+    folderName: state.currentFolderName || '',
+  });
+  return `${result?.path || ''}`.trim();
+}
+
+async function skill2_refine(condensedMarkdown, followupQuestion, draft) {
+  const providerKey = state.apiSettings.activeApiProvider;
+  const profile = getActiveApiProfile(providerKey);
+  if (!profile || !profile.apiKey) {
+    throw new Error('Please configure API Settings first.');
+  }
+  const result = await window.studioApi.runStage4Refine({
+    providerKey,
+    profile,
+    condensedMarkdown,
+    followupQuestion,
+    draft,
+  });
+  return `${result?.refinedText || ''}`.trim();
+}
+
+function setProgress(step, status) {
+  const stage4 = getStage4StateForReviewer(state.activeReviewerIdx);
+  const targets = {
+    step1: {
+      running: 'Condensing prior discussion…',
+      saved: 'Saved condensed context to local Markdown.',
+      error: 'Step 1 failed.',
+      idle: '',
+    },
+    step2: {
+      running: 'Refining follow-up response with condensed context…',
+      done: 'Done.',
+      error: 'Step 2 failed.',
+      idle: '',
+    },
+  };
+  if (!targets[step]) return;
+  stage4.progress[step] = {
+    status,
+    text: targets[step][status] || '',
+  };
+}
+
+function showCopyPopup(refinedText) {
+  if (!stage4CopyPopupEl) return;
+  stage4CopyPopupEl.dataset.copyText = `${refinedText || ''}`;
+  stage4CopyPopupEl.classList.remove('hidden');
+}
+
+function hideCopyPopup() {
+  if (!stage4CopyPopupEl) return;
+  stage4CopyPopupEl.classList.add('hidden');
+  stage4CopyPopupEl.dataset.copyText = '';
+}
+
+function renderStage4ProgressLine(label, step) {
+  const status = step?.status || 'idle';
+  const text = step?.text || '';
+  return `<div class="stage4-progress-line" data-status="${escapeHTML(status)}">
+    <span class="stage4-progress-dot"></span>
+    <span class="stage4-progress-label">${escapeHTML(label)}</span>
+    <span class="stage4-progress-text">${escapeHTML(text || 'Waiting...')}</span>
+  </div>`;
+}
+
+function renderStage4Panels() {
+  const stage2LeftEl = document.getElementById('stage2LeftPanel');
+  const reviewerName = state.reviewers[state.activeReviewerIdx]?.name || `${state.activeReviewerIdx + 1}`;
+  const stage4 = getStage4StateForReviewer(state.activeReviewerIdx);
+  const isRunning = stage4RefineRuntime.running && stage4RefineRuntime.reviewerIdx === state.activeReviewerIdx;
+
+  stage2LeftEl.innerHTML = `
+    <div class="stage4-left-wrap">
+      <div class="stage3-reviewer-label">Reviewer ${escapeHTML(reviewerName)}</div>
+      <div class="breakdown-block stage4-left-block">
+        <div class="breakdown-section">
+          <h4 class="breakdown-section-title">Reviewer Follow-up (Raw)</h4>
+          <textarea class="response-textarea stage4-followup-editor" data-stage4-field="followupQuestion" placeholder="Paste the complete reviewer follow-up question or concern here.">${escapeHTML(stage4.followupQuestion || '')}</textarea>
+        </div>
+      </div>
+      <div class="breakdown-block stage4-left-block">
+        <div class="breakdown-section">
+          <h4 class="breakdown-section-title">Draft Editor</h4>
+          <textarea class="response-textarea stage4-draft-editor" data-stage4-field="draft" placeholder="Draft your follow-up response for this reviewer...">${escapeHTML(stage4.draft || '')}</textarea>
+        </div>
+      </div>
+    </div>`;
+
+  const refinedText = stage4.refinedText || '';
+  const progress = stage4.progress || createStage4ProgressState();
+  const hasProgress = Boolean(progress.step1?.text || progress.step2?.text || isRunning);
+  breakdownContentEl.innerHTML = `
+    <div class="stage4-right-wrap">
+      <div class="stage4-progress-wrap ${hasProgress ? '' : 'stage4-progress-muted'}">
+        ${renderStage4ProgressLine('Step 1', progress.step1)}
+        ${renderStage4ProgressLine('Step 2', progress.step2)}
+      </div>
+      <div class="breakdown-block">
+        <div class="breakdown-section">
+          <div class="stage4-section-head">
+            <h4 class="breakdown-section-title">Final Refined Output</h4>
+            <button class="btn" data-stage4-copy-refined="1">Copy</button>
+          </div>
+          <textarea class="response-textarea stage4-refined-readonly" readonly>${escapeHTML(refinedText)}</textarea>
+          ${stage4.condensedPath ? `<p class="muted stage4-condensed-path">Condensed context: ${escapeHTML(stage4.condensedPath)}</p>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+async function runStage4RefinePipeline() {
+  if (stage4RefineRuntime.running) return;
+  const reviewerIdx = state.activeReviewerIdx;
+  const reviewerId = getReviewerId(reviewerIdx);
+  const stage4 = getStage4StateForReviewer(reviewerIdx);
+  const allSource = getStage3AllSource(reviewerIdx);
+  if (!`${allSource || ''}`.trim()) {
+    alert('Stage3 All source is empty for this reviewer.');
+    return;
+  }
+
+  stage4RefineRuntime = { running: true, reviewerIdx };
+  convertBtnEl.disabled = true;
+  convertBtnEl.classList.add('loading');
+  setProgress('step1', 'running');
+  setProgress('step2', 'idle');
+  renderStage4Panels();
+
+  try {
+    const condensedMarkdown = await skill1_condense(allSource);
+    const pathSaved = await saveCondensedMarkdown(reviewerId, condensedMarkdown);
+    stage4.condensedMarkdown = condensedMarkdown;
+    stage4.condensedPath = pathSaved;
+    setProgress('step1', 'saved');
+    queueStateSync();
+    renderStage4Panels();
+  } catch (error) {
+    setProgress('step1', 'error');
+    queueStateSync();
+    renderStage4Panels();
+    stage4RefineRuntime = { running: false, reviewerIdx: -1 };
+    alert(error.message || 'Stage4 Step1 failed.');
+    return;
+  }
+
+  try {
+    setProgress('step2', 'running');
+    renderStage4Panels();
+    const refinedText = await skill2_refine(stage4.condensedMarkdown, stage4.followupQuestion, stage4.draft);
+    stage4.refinedText = refinedText;
+    setProgress('step2', 'done');
+    queueStateSync();
+    renderStage4Panels();
+    showCopyPopup(refinedText);
+  } catch (error) {
+    setProgress('step2', 'error');
+    queueStateSync();
+    renderStage4Panels();
+    alert(error.message || 'Stage4 Step2 failed.');
+  } finally {
+    stage4RefineRuntime = { running: false, reviewerIdx: -1 };
+    convertBtnEl.disabled = false;
+    convertBtnEl.classList.remove('loading');
+    renderStage4Panels();
+  }
+}
+
+function createStage5ProgressState() {
+  return {
+    step1: { status: 'idle', text: '' },
+    step2: { status: 'idle', text: '' },
+  };
+}
+
+function getStage5TemplateEntry(styleKey = state.stage5Settings.style) {
+  const styles = STAGE5_STYLE_LIBRARY?.styles || {};
+  const wanted = `${styleKey || ''}`.trim();
+  if (wanted && styles[wanted]) return { key: wanted, entry: styles[wanted] };
+  const fallbackKey = STAGE5_STYLE_LIBRARY?.defaultStyle || Object.keys(styles)[0] || '';
+  return fallbackKey && styles[fallbackKey] ? { key: fallbackKey, entry: styles[fallbackKey] } : null;
+}
+
+function buildStage5TemplateSource(styleKey = state.stage5Settings.style) {
+  const selected = getStage5TemplateEntry(styleKey);
+  return `${selected?.entry?.template?.body || ''}`.trim();
+}
+
+function getStage5State() {
+  if (!state.stage5Data || typeof state.stage5Data !== 'object') {
+    state.stage5Data = {};
+  }
+  const cell = state.stage5Data;
+  if (typeof cell.styleKey !== 'string' || !cell.styleKey) {
+    cell.styleKey = state.stage5Settings.style || getStage5TemplateEntry()?.key || '';
+  }
+  if (typeof cell.source !== 'string') cell.source = '';
+  if (typeof cell.renderedHtml !== 'string') cell.renderedHtml = '';
+  if (typeof cell.templateConfirmed !== 'boolean') cell.templateConfirmed = false;
+  if (!cell.templateConfirmed && `${cell.source || ''}`.trim()) cell.templateConfirmed = true;
+  if (typeof cell.previewMode !== 'string') cell.previewMode = 'project';
+  if (!cell.progress || typeof cell.progress !== 'object') cell.progress = createStage5ProgressState();
+  if (!cell.progress.step1 || !cell.progress.step2) cell.progress = createStage5ProgressState();
+  if (!cell.finalRatings || typeof cell.finalRatings !== 'object') cell.finalRatings = {};
+  if (!cell.condensedMap || typeof cell.condensedMap !== 'object') cell.condensedMap = {};
+  if (!cell.condensedPaths || typeof cell.condensedPaths !== 'object') cell.condensedPaths = {};
+
+  state.reviewers.forEach((_, idx) => {
+    const reviewerId = getReviewerId(idx);
+    if (typeof cell.finalRatings[reviewerId] !== 'string') {
+      cell.finalRatings[reviewerId] = '';
+    }
+  });
+
+  if (cell.templateConfirmed && !cell.source && cell.styleKey) {
+    cell.source = buildStage5TemplateSource(cell.styleKey);
+  }
+
+  return cell;
+}
+
+function renderStage5TemplateOptions() {
+  if (!stage5TemplateSelectEl) return;
+  const styles = STAGE5_STYLE_LIBRARY?.styles || {};
+  const keys = Object.keys(styles);
+  stage5TemplateSelectEl.innerHTML = keys.map((key) => {
+    const label = styles[key]?.label || key;
+    return `<option value="${escapeHTML(key)}">${escapeHTML(label)}</option>`;
+  }).join('');
+}
+
+function openStage5TemplateModal() {
+  if (!stage5TemplateModalEl) return;
+  renderStage5TemplateOptions();
+  const stage5 = getStage5State();
+  const selected = getStage5TemplateEntry(stage5.styleKey);
+  if (selected?.key) {
+    stage5TemplateSelectEl.value = selected.key;
+  }
+  stage5TemplateErrorEl.textContent = '';
+  stage5TemplateModalEl.classList.remove('hidden');
+}
+
+function closeStage5TemplateModal() {
+  if (!stage5TemplateModalEl) return;
+  stage5TemplateErrorEl.textContent = '';
+  stage5TemplateModalEl.classList.add('hidden');
+}
+
+function applyStage5TemplateSelection() {
+  const picked = `${stage5TemplateSelectEl?.value || ''}`.trim();
+  if (!picked) {
+    stage5TemplateErrorEl.textContent = 'Please select a template.';
+    return;
+  }
+  const selected = getStage5TemplateEntry(picked);
+  if (!selected?.entry) {
+    stage5TemplateErrorEl.textContent = 'Selected template is unavailable.';
+    return;
+  }
+  const stage5 = getStage5State();
+  stage5.styleKey = selected.key;
+  stage5.templateConfirmed = true;
+  stage5.source = buildStage5TemplateSource(selected.key);
+  stage5.renderedHtml = '';
+  stage5.previewMode = 'project';
+  stage5.progress = createStage5ProgressState();
+  state.stage5Settings.style = selected.key;
+  queueStateSync();
+  closeStage5TemplateModal();
+  if (currentStageKey() === 'stage5') {
+    renderStage5Panels();
+  }
+}
+
+function renderStage5PreviewHtml(markdownSource = '') {
+  const rawHtml = renderStage3Markdown(markdownSource || '');
+  const safeHtml = sanitizeStage3Html(rawHtml);
+  return `<div class="stage5-openreview-preview">${safeHtml || '<p class="breakdown-placeholder">Nothing to preview yet.</p>'}</div>`;
+}
+
+function fitStage5SourceEditorHeight() {
+  if (currentStageKey() !== 'stage5') return;
+  const editor = document.querySelector('textarea.stage5-source-editor');
+  const leftPanel = document.getElementById('stage2LeftPanel');
+  if (!editor || !leftPanel) return;
+
+  const editorTop = editor.getBoundingClientRect().top;
+  const panelBottom = leftPanel.getBoundingClientRect().bottom;
+  const minTarget = Math.max(300, Math.floor(panelBottom - editorTop - 12));
+  editor.style.height = 'auto';
+  editor.style.minHeight = `${minTarget}px`;
+  editor.style.height = `${Math.max(minTarget, editor.scrollHeight)}px`;
+}
+
+function setStage5Progress(step, status, customText = '') {
+  const stage5 = getStage5State();
+  const targets = {
+    step1: {
+      running: 'Condensing all reviewers from Stage3 All source…',
+      saved: 'Saved all condensed reviewer markdown files.',
+      error: 'Step 1 failed.',
+      idle: '',
+    },
+    step2: {
+      running: 'Filling Stage5 template placeholders from reviewer summaries…',
+      done: 'Done.',
+      error: 'Step 2 failed.',
+      idle: '',
+    },
+  };
+  if (!targets[step]) return;
+  stage5.progress[step] = {
+    status,
+    text: customText || targets[step][status] || '',
+  };
+}
+
+function renderStage5ProgressLine(label, step) {
+  const status = step?.status || 'idle';
+  const text = step?.text || '';
+  return `<div class="stage4-progress-line" data-status="${escapeHTML(status)}">
+    <span class="stage4-progress-dot"></span>
+    <span class="stage4-progress-label">${escapeHTML(label)}</span>
+    <span class="stage4-progress-text">${escapeHTML(text || 'Waiting...')}</span>
+  </div>`;
+}
+
+function renderStage5Panels() {
+  const stage2LeftEl = document.getElementById('stage2LeftPanel');
+  const stage5 = getStage5State();
+  const selectedTemplate = getStage5TemplateEntry(stage5.styleKey);
+
+  if (!stage5.templateConfirmed || !selectedTemplate?.entry) {
+    stage2LeftEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Conclusion Template</h4><p class="breakdown-placeholder">Please select a Stage5 template first.</p></div></div>`;
+    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Rendered Preview</h4><p class="breakdown-placeholder">Nothing to preview yet.</p></div></div>`;
+    if (stage5TemplateModalEl?.classList.contains('hidden')) {
+      openStage5TemplateModal();
+    }
+    return;
+  }
+
+  if (!stage5.source) {
+    stage5.source = buildStage5TemplateSource(stage5.styleKey);
+  }
+
+  const reviewerRows = state.reviewers.map((reviewer, idx) => {
+    const reviewerId = getReviewerId(idx);
+    const reviewerLabel = reviewer.name ? `Reviewer ${reviewer.name}` : `Reviewer ${idx + 1}`;
+    const original = `${state.breakdownData?.[idx]?.scores?.rating || ''}`.trim() || 'N/A';
+    const finalRating = `${stage5.finalRatings[reviewerId] || ''}`;
+    return `<label class="stage5-score-row">
+      <span class="stage5-score-row-label">${escapeHTML(reviewerLabel)}: ${escapeHTML(original)}</span>
+      <span class="stage5-score-row-arrow">→</span>
+      <input class="text-input stage5-rating-input" data-stage5-rating="${escapeHTML(reviewerId)}" value="${escapeHTML(finalRating)}" placeholder="final rating" />
+    </label>`;
+  }).join('');
+
+  const progress = stage5.progress || createStage5ProgressState();
+  const hasProgress = Boolean(progress.step1?.text || progress.step2?.text || stage5AutoFillRuntime.running);
+
+  stage2LeftEl.innerHTML = `
+    <div class="stage5-left-wrap">
+      <div class="stage5-score-board">
+        ${reviewerRows || '<p class="muted">No reviewers found.</p>'}
+      </div>
+      <div class="breakdown-block stage4-left-block">
+        <div class="breakdown-section">
+          <h4 class="breakdown-section-title">Raw Source (Editable)</h4>
+          <textarea class="response-textarea stage5-source-editor" data-stage5-field="source" placeholder="Stage5 template source...">${escapeHTML(stage5.source || '')}</textarea>
+        </div>
+      </div>
+    </div>`;
+
+  const sampleMode = stage5.previewMode === 'sample';
+  const toggleLabel = sampleMode ? 'Return' : 'Final Template';
+  const previewHtml = sampleMode
+    ? renderStage5PreviewHtml(STAGE5_SAMPLE_TEMPLATE || '')
+    : (stage5.renderedHtml || '');
+  const previewBody = previewHtml
+    ? `<div class="stage5-preview-host">${previewHtml}</div>`
+    : `<p class="breakdown-placeholder">${sampleMode ? 'Sample template is unavailable.' : 'Click Preview to render the current Stage5 source.'}</p>`;
+
+  breakdownContentEl.innerHTML = `
+    <div class="stage5-right-wrap">
+      <div class="stage4-progress-wrap ${hasProgress ? '' : 'stage4-progress-muted'}">
+        ${renderStage5ProgressLine('Step 1', progress.step1)}
+        ${renderStage5ProgressLine('Step 2', progress.step2)}
+      </div>
+      <div class="breakdown-block">
+        <div class="breakdown-section">
+          <div class="stage4-section-head">
+            <h4 class="breakdown-section-title">${sampleMode ? 'Final Template Sample (Read-only)' : 'Rendered Preview (Read-only)'}</h4>
+            <button class="btn" data-stage5-toggle-sample="1">${toggleLabel}</button>
+          </div>
+          ${previewBody}
+        </div>
+      </div>
+    </div>`;
+  setTimeout(() => fitStage5SourceEditorHeight(), 0);
+}
+
+async function saveStage5CondensedMarkdownFile(reviewerId, condensedMarkdown) {
+  const result = await window.studioApi.saveStage5CondensedMarkdown({
+    reviewerId,
+    condensedMarkdown,
+    folderName: state.currentFolderName || '',
+  });
+  return `${result?.path || ''}`.trim();
+}
+
+async function skill5_finalize(templateSource, reviewerSummaries) {
+  const providerKey = state.apiSettings.activeApiProvider;
+  const profile = getActiveApiProfile(providerKey);
+  if (!profile || !profile.apiKey) {
+    throw new Error('Please configure API Settings first.');
+  }
+  const result = await window.studioApi.runStage5FinalRemarks({
+    providerKey,
+    profile,
+    templateSource,
+    reviewerSummaries,
+  });
+  return `${result?.filledMarkdown || ''}`.trim();
+}
+
+async function runStage5AutoFillPipeline() {
+  if (stage5AutoFillRuntime.running) return;
+  const stage5 = getStage5State();
+  if (!`${stage5.source || ''}`.trim()) {
+    alert('Stage5 template source is empty. Please select a template first.');
+    return;
+  }
+  if (!state.reviewers.length) {
+    alert('No reviewers found.');
+    return;
+  }
+
+  stage5AutoFillRuntime = { running: true };
+  stage2AutoFitBtn.disabled = true;
+  stage2AutoFitBtn.classList.add('loading');
+  setStage5Progress('step1', 'running');
+  setStage5Progress('step2', 'idle');
+  renderStage5Panels();
+
+  const reviewerSummaries = [];
+  const condensedMap = {};
+  const condensedPaths = {};
+
+  try {
+    for (let idx = 0; idx < state.reviewers.length; idx += 1) {
+      const reviewerId = getReviewerId(idx);
+      const reviewerLabel = state.reviewers[idx]?.name || `${idx + 1}`;
+      const allSource = getStage3AllSource(idx);
+      if (!`${allSource || ''}`.trim()) {
+        throw new Error(`Stage3 All source is empty for Reviewer ${reviewerLabel}.`);
+      }
+      setStage5Progress('step1', 'running', `Condensing Reviewer ${reviewerLabel}...`);
+      renderStage5Panels();
+      const condensedMarkdown = await skill1_condense(allSource);
+      const pathSaved = await saveStage5CondensedMarkdownFile(reviewerId, condensedMarkdown);
+      condensedMap[reviewerId] = condensedMarkdown;
+      condensedPaths[reviewerId] = pathSaved;
+      reviewerSummaries.push({
+        reviewerId,
+        originalRating: `${state.breakdownData?.[idx]?.scores?.rating || ''}`.trim(),
+        finalRating: `${stage5.finalRatings?.[reviewerId] || ''}`.trim(),
+        condensedMarkdown,
+      });
+    }
+    stage5.condensedMap = condensedMap;
+    stage5.condensedPaths = condensedPaths;
+    setStage5Progress('step1', 'saved');
+    queueStateSync();
+    renderStage5Panels();
+  } catch (error) {
+    setStage5Progress('step1', 'error', error.message || 'Stage5 step1 failed.');
+    queueStateSync();
+    renderStage5Panels();
+    stage5AutoFillRuntime = { running: false };
+    stage2AutoFitBtn.disabled = false;
+    stage2AutoFitBtn.classList.remove('loading');
+    alert(error.message || 'Stage5 step1 failed.');
+    return;
+  }
+
+  try {
+    setStage5Progress('step2', 'running');
+    renderStage5Panels();
+    const filled = await skill5_finalize(stage5.source, reviewerSummaries);
+    stage5.source = filled;
+    stage5.renderedHtml = '';
+    stage5.previewMode = 'project';
+    setStage5Progress('step2', 'done');
+    queueStateSync();
+    renderStage5Panels();
+  } catch (error) {
+    setStage5Progress('step2', 'error', error.message || 'Stage5 step2 failed.');
+    queueStateSync();
+    renderStage5Panels();
+    alert(error.message || 'Stage5 step2 failed.');
+  } finally {
+    stage5AutoFillRuntime = { running: false };
+    stage2AutoFitBtn.disabled = false;
+    stage2AutoFitBtn.classList.remove('loading');
+    renderStage5Panels();
+  }
+}
+
+function renderStage5Preview() {
+  const stage5 = getStage5State();
+  const liveEditor = document.querySelector('textarea.stage5-source-editor');
+  if (liveEditor && typeof liveEditor.value === 'string') {
+    stage5.source = liveEditor.value;
+  }
+  stage5.previewMode = 'project';
+  stage5.renderedHtml = renderStage5PreviewHtml(stage5.source || '');
+  queueStateSync();
+  renderStage5Panels();
+}
+
+function getOrCreateStage3DraftForReviewer(reviewerIdx, responseId) {
+  if (!state.stage3Drafts[reviewerIdx]) state.stage3Drafts[reviewerIdx] = {};
+  if (!state.stage3Drafts[reviewerIdx][responseId]) {
+    state.stage3Drafts[reviewerIdx][responseId] = { markdownSource: '', planTask: '', renderedHtml: '', renderedThemeColor: '' };
+  }
+  const draft = state.stage3Drafts[reviewerIdx][responseId];
   if (typeof draft.markdownSource !== 'string') draft.markdownSource = '';
   if (typeof draft.renderedHtml !== 'string') draft.renderedHtml = '';
   if (typeof draft.renderedThemeColor !== 'string') draft.renderedThemeColor = '';
@@ -963,13 +1721,156 @@ function getStage3DraftForResponse(responseId) {
   return draft;
 }
 
-function ensureStage3Selection() {
-  const responses = stage3ResponsesForActiveReviewer();
-  if (!responses.length) return null;
-  const selected = state.stage3Selection[state.activeReviewerIdx];
-  if (selected && responses.some((r) => r.id === selected)) return selected;
-  state.stage3Selection[state.activeReviewerIdx] = responses[0].id;
-  return responses[0].id;
+function buildStage3UnitsForReviewer(reviewerIdx) {
+  const data = getBreakdownDataForReviewer(reviewerIdx);
+  const responses = Array.isArray(data.responses) ? data.responses : [];
+  const stage2Map = getStage2ResponsesForReviewer(reviewerIdx);
+  const color = state.stage3Settings.color || '#f26921';
+  const units = [{ key: 'opening', text: STAGE3_ALL_OPENING_PARAGRAPH, atomic: true }];
+
+  responses.forEach((resp) => {
+    const draft = getOrCreateStage3DraftForReviewer(reviewerIdx, resp.id);
+    const refined = stage2Map[resp.id]?.draft || '';
+    const strictSource = enforceStrictStage3Source(draft.markdownSource, resp, responses, refined, color);
+    units.push({ key: resp.id, text: strictSource, atomic: true });
+  });
+
+  units.push({ key: 'closing', text: STAGE3_ALL_CLOSING_PARAGRAPH, atomic: true });
+  return units;
+}
+
+function buildAllDocument(reviewerId) {
+  const reviewerIdx = Number(reviewerId);
+  const safeReviewerIdx = Number.isFinite(reviewerIdx) ? reviewerIdx : state.activeReviewerIdx;
+  const units = buildStage3UnitsForReviewer(safeReviewerIdx);
+  return units.map((unit) => unit.text).join('\n\n');
+}
+
+function splitByUnits(units, L) {
+  const maxLen = Number(L);
+  if (!Number.isFinite(maxLen) || maxLen <= 0) return [];
+  const parts = [];
+  let currentUnits = [];
+  let currentLength = 0;
+
+  const finalizeCurrent = () => {
+    if (!currentUnits.length) return;
+    const text = currentUnits.map((u) => u.text).join('\n\n');
+    parts.push({
+      units: currentUnits,
+      text,
+      length: countChars(text),
+      hasOversizedUnit: currentUnits.some((u) => countChars(u.text) > maxLen),
+    });
+    currentUnits = [];
+    currentLength = 0;
+  };
+
+  units.forEach((unit) => {
+    const unitLength = countChars(unit.text);
+    if (unitLength > maxLen) {
+      finalizeCurrent();
+      parts.push({
+        units: [unit],
+        text: unit.text,
+        length: unitLength,
+        hasOversizedUnit: true,
+      });
+      return;
+    }
+
+    if (!currentUnits.length) {
+      currentUnits.push(unit);
+      currentLength = unitLength;
+      return;
+    }
+
+    const separatorLen = 2; // \n\n between units
+    if (currentLength + separatorLen + unitLength <= maxLen) {
+      currentUnits.push(unit);
+      currentLength += separatorLen + unitLength;
+      return;
+    }
+
+    finalizeCurrent();
+    currentUnits.push(unit);
+    currentLength = unitLength;
+  });
+
+  finalizeCurrent();
+  return parts;
+}
+
+function renderPreview(text) {
+  const color = state.stage3Settings.color || '#f26921';
+  return parseAndSanitizeStage3Markdown(text, color);
+}
+
+function updateStage3CharCounter(text) {
+  const label = document.querySelector('[data-stage3-char-counter]');
+  if (!label) return;
+  label.textContent = `Total words: ${countChars(text)}`;
+}
+
+function openStage3BreakdownModal() {
+  if (!stage3BreakdownModalEl) return;
+  stage3BreakdownErrorEl.textContent = '';
+  stage3BreakdownLengthInputEl.value = '';
+  stage3BreakdownModalEl.classList.remove('hidden');
+  setTimeout(() => stage3BreakdownLengthInputEl.focus(), 50);
+}
+
+function closeStage3BreakdownModal() {
+  if (!stage3BreakdownModalEl) return;
+  stage3BreakdownModalEl.classList.add('hidden');
+}
+
+function closeStage3BreakdownResultModal() {
+  if (!stage3BreakdownResultModalEl) return;
+  stage3BreakdownResultModalEl.classList.add('hidden');
+  stage3BreakdownPartsCache = [];
+}
+
+function renderStage3BreakdownResult(parts) {
+  if (!stage3BreakdownResultModalEl || !stage3BreakdownResultBodyEl) return;
+  stage3BreakdownPartsCache = Array.isArray(parts) ? parts : [];
+  const reviewerId = getCurrentReviewerIdentifier();
+  const total = parts.length;
+  stage3BreakdownResultBodyEl.innerHTML = parts.map((part, idx) => {
+    const subject = `Author Response to Reviewer ${reviewerId} (Part ${idx + 1}/${total})`;
+    const warning = part.hasOversizedUnit
+      ? '<p class="muted">Warning: This part contains at least one atomic unit longer than the max length and was kept intact.</p>'
+      : '';
+    return `
+      <div class="stage3-breakdown-part">
+        <div class="stage3-breakdown-subject"><strong>Subject:</strong> ${escapeHTML(subject)}</div>
+        ${warning}
+        <div class="stage3-breakdown-content-label"><strong>Content:</strong></div>
+        <textarea class="text-input stage3-breakdown-content" readonly>${escapeHTML(part.text)}</textarea>
+        <div class="stage3-breakdown-actions">
+          <button class="btn" data-stage3-copy-part="${idx}" data-stage3-copy-subject="${escapeHTML(subject)}">Copy</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  stage3BreakdownResultModalEl.classList.remove('hidden');
+}
+
+function confirmStage3Breakdown() {
+  const raw = `${stage3BreakdownLengthInputEl?.value || ''}`.trim();
+  const limit = Number(raw);
+  if (!Number.isInteger(limit) || limit <= 0) {
+    stage3BreakdownErrorEl.textContent = 'Please input a positive integer.';
+    return;
+  }
+  const units = buildStage3UnitsForReviewer(state.activeReviewerIdx);
+  const parts = splitByUnits(units, limit);
+  if (!parts.length) {
+    stage3BreakdownErrorEl.textContent = 'Unable to split content. Please check the max length.';
+    return;
+  }
+  closeStage3BreakdownModal();
+  renderStage3BreakdownResult(parts);
 }
 
 function stage3IssueCode(resp) {
@@ -1301,7 +2202,33 @@ function renderStage3Panels() {
   }
 
   const reviewerName = state.reviewers[state.activeReviewerIdx]?.name || `${state.activeReviewerIdx + 1}`;
-  const chips = responses.map((resp, idx) => `<button class="stage3-issue-pill ${resp.id === selectedId ? 'active' : ''}" data-stage3-response="${escapeHTML(resp.id)}">${idx + 1}</button>`).join('');
+  const chips = [
+    `<button class="stage3-issue-pill ${selectedId === STAGE3_ALL_TAB_ID ? 'active' : ''}" data-stage3-response="${STAGE3_ALL_TAB_ID}">All</button>`,
+    ...responses.map((resp, idx) => `<button class="stage3-issue-pill ${resp.id === selectedId ? 'active' : ''}" data-stage3-response="${escapeHTML(resp.id)}">${idx + 1}</button>`),
+  ].join('');
+
+  if (selectedId === STAGE3_ALL_TAB_ID) {
+    const allDoc = buildAllDocument(state.activeReviewerIdx);
+    stage2LeftEl.innerHTML = `
+      <div class="stage3-left-wrap">
+        <div class="stage3-head-row">
+          <div class="stage3-reviewer-label">Reviewer ${escapeHTML(reviewerName)}</div>
+          <div class="stage3-head-actions">
+            <div class="stage3-counter-label" data-stage3-char-counter>Total words: ${countChars(allDoc)}</div>
+            <button class="btn primary stage3-breakdown-float-btn" type="button" data-stage3-breakdown-open="1">To break down</button>
+          </div>
+        </div>
+        <div class="stage3-issues-row">${chips}</div>
+        <div class="stage3-plan-head">Combined Raw Source (Read-only)</div>
+        <textarea class="response-textarea outline-textarea stage3-source-editor stage3-source-editor-readonly" readonly>${escapeHTML(allDoc)}</textarea>
+      </div>`;
+    const allPreviewHtml = renderPreview(allDoc);
+    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Rendered Preview (Read-only)</h4><div class="stage3-preview-host">${allPreviewHtml}</div></div></div>`;
+    autoExpandStage3Editor();
+    updateStage3CharCounter(allDoc);
+    return;
+  }
+
   const selectedResp = responses.find((r) => r.id === selectedId) || responses[0];
   const draft = getStage3DraftForResponse(selectedResp.id);
   const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
@@ -1315,7 +2242,10 @@ function renderStage3Panels() {
 
   stage2LeftEl.innerHTML = `
     <div class="stage3-left-wrap">
-      <div class="stage3-reviewer-label">Reviewer ${escapeHTML(reviewerName)}</div>
+      <div class="stage3-head-row">
+        <div class="stage3-reviewer-label">Reviewer ${escapeHTML(reviewerName)}</div>
+        <div class="stage3-counter-label" data-stage3-char-counter>Total words: ${countChars(draft.markdownSource)}</div>
+      </div>
       <div class="stage3-issues-row">${chips}</div>
       <div class="stage3-plan-head">Editable Raw Source (Markdown)</div>
       <textarea class="response-textarea outline-textarea stage3-source-editor" data-stage3-field="markdownSource" data-response-id="${escapeHTML(selectedResp.id)}" placeholder="Write raw markdown source here...">${escapeHTML(draft.markdownSource)}</textarea>
@@ -1326,11 +2256,26 @@ function renderStage3Panels() {
     : '<p class="breakdown-placeholder">Click Preview to render the current Markdown source.</p>';
 
   breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Rendered Preview (Read-only)</h4>${previewBody}</div></div>`;
+  autoExpandStage3Editor();
+  updateStage3CharCounter(draft.markdownSource);
+}
+
+function autoExpandStage3Editor() {
+  if (currentStageKey() !== 'stage3') return;
+  const editor = document.querySelector('textarea.stage3-source-editor');
+  if (!editor) return;
+  stage2LeftPanelEl.style.overflowY = 'visible';
+  editor.style.height = 'auto';
+  editor.style.height = `${editor.scrollHeight}px`;
 }
 
 function renderStage3Preview() {
   const responses = stage3ResponsesForActiveReviewer();
   const selectedId = ensureStage3Selection();
+  if (selectedId === STAGE3_ALL_TAB_ID) {
+    renderStage3Panels();
+    return;
+  }
   const selectedResp = responses.find((r) => r.id === selectedId);
   if (!selectedResp) {
     renderStage3Panels();
@@ -1346,7 +2291,7 @@ function renderStage3Preview() {
   const refined = stage2Map[selectedResp.id]?.draft || '';
   const color = state.stage3Settings.color || '#f26921';
   draft.markdownSource = enforceStrictStage3Source(draft.markdownSource, selectedResp, responses, refined, color);
-  draft.renderedHtml = parseAndSanitizeStage3Markdown(draft.markdownSource, color);
+  draft.renderedHtml = renderPreview(draft.markdownSource);
   draft.renderedThemeColor = color;
   queueStateSync();
   showStage3ThemeNotice('');
@@ -1855,6 +2800,8 @@ function renderWorkspace() {
   namingPanelEl.classList.toggle('hidden', !state.pendingCreate);
 
   if (hasProject) {
+    stage4RefineRuntime = { running: false, reviewerIdx: -1 };
+    stage5AutoFillRuntime = { running: false };
     // Load reviewer data from project
     if (state.currentDoc.reviewers && state.currentDoc.reviewers.length > 0) {
       state.reviewers = state.currentDoc.reviewers;
@@ -1874,7 +2821,11 @@ function renderWorkspace() {
     state.stage3Settings = state.currentDoc.stage3Settings || { style: 'standard', color: '#f26921' };
     state.stage3Drafts = state.currentDoc.stage3Drafts || {};
     state.stage3Selection = state.currentDoc.stage3Selection || {};
+    state.stage4Data = state.currentDoc.stage4Data || {};
+    state.stage5Data = state.currentDoc.stage5Data || {};
+    state.stage5Settings = state.currentDoc.stage5Settings || { style: 'run' };
 
+    restoreActiveReviewerSelection();
     renderReviewerTabs();
     renderBreakdownPanel();
     syncStageUi();
@@ -1885,16 +2836,20 @@ function renderWorkspace() {
     if (!state.reviewers[0].name) {
       promptReviewerName((suffix) => {
         state.reviewers[0].name = suffix;
+        persistActiveReviewerSelection();
         renderReviewerTabs();
         queueStateSync();
       }, () => {
         // User cancelled — assign a fallback 4-char ID
         state.reviewers[0].name = 'R001';
+        persistActiveReviewerSelection();
         renderReviewerTabs();
         queueStateSync();
       });
     }
   } else {
+    hideCopyPopup();
+    closeStage5TemplateModal();
     exitProjectMode();
     syncStageUi();
   }
@@ -1911,11 +2866,15 @@ async function loadProjects() {
 function queueStateSync() {
   if (!state.currentDoc || !state.currentFolderName) return;
   state.currentDoc.reviewers = state.reviewers;
+  state.currentDoc.activeReviewerIdx = state.activeReviewerIdx;
   state.currentDoc.breakdownData = state.breakdownData;
   state.currentDoc.stage2Replies = state.stage2Replies;
   state.currentDoc.stage3Settings = state.stage3Settings;
   state.currentDoc.stage3Drafts = state.stage3Drafts;
   state.currentDoc.stage3Selection = state.stage3Selection;
+  state.currentDoc.stage4Data = state.stage4Data;
+  state.currentDoc.stage5Data = state.stage5Data;
+  state.currentDoc.stage5Settings = state.stage5Settings;
   window.studioApi.updateProjectState({
     folderName: state.currentFolderName,
     doc: state.currentDoc,
@@ -2136,6 +3095,9 @@ async function saveApiSettings() {
 function beginProjectCreation() {
   state.pendingCreate = true;
   state.currentDoc = null;
+  state.stage4Data = {};
+  state.stage5Data = {};
+  state.stage5Settings = { style: 'run' };
   state.selectedConference = 'ICLR';
   conferenceSelect.value = 'ICLR';
   exitProjectMode();
@@ -2150,18 +3112,28 @@ function selectStage(label) {
   renderSidebarStages();
   renderBreakdownPanel();
   syncStageUi();
+  if (currentStageKey() === 'stage5') {
+    const stage5 = getStage5State();
+    if (!stage5.templateConfirmed || !stage5.styleKey || !getStage5TemplateEntry(stage5.styleKey)) {
+      openStage5TemplateModal();
+    }
+  }
 }
 
 function syncStageUi() {
   const stageKey = currentStageKey();
   const isStage2 = stageKey === 'stage2';
   const isStage3 = stageKey === 'stage3';
-  convertBtnEl.querySelector('.convert-label').textContent = isStage2 ? 'Refine' : (isStage3 ? 'Preview' : 'Break down');
+  const isStage4 = stageKey === 'stage4';
+  const isStage5 = stageKey === 'stage5';
+  const isRefineMode = isStage2 || isStage4;
+  const isPreviewMode = isStage3 || isStage5;
+  convertBtnEl.querySelector('.convert-label').textContent = isRefineMode ? 'Refine' : (isPreviewMode ? 'Preview' : 'Break down');
 
   const iconEl = convertBtnEl.querySelector('.convert-icon');
-  if (isStage2) {
+  if (isRefineMode) {
     iconEl.textContent = '⇢';
-  } else if (isStage3) {
+  } else if (isPreviewMode) {
     iconEl.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:4px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
   } else {
     iconEl.textContent = '→';
@@ -2169,32 +3141,82 @@ function syncStageUi() {
 
   const heading = document.querySelector('.breakdown-panel > .breakdown-heading');
   if (heading) {
-    heading.textContent = isStage2 ? 'Refined Draft' : (isStage3 ? 'Preview' : 'Structured Breakdown');
+    heading.textContent = isStage2
+      ? 'Refined Draft'
+      : (isStage3
+        ? 'Preview'
+        : (isStage4
+          ? 'Final Refined Output'
+          : (isStage5 ? 'Final Conclusion Preview' : 'Structured Breakdown')));
   }
 
   // Toggle left panel: reviewer input vs outline panel
   const stage2LeftEl = document.getElementById('stage2LeftPanel');
-  if (isStage2 || isStage3) {
+  if (isStage2 || isStage3 || isStage4 || isStage5) {
     reviewerInput.classList.add('hidden');
-    document.querySelector('.reviewer-tabs-row')?.classList.add('hidden');
     stage2LeftEl.classList.remove('hidden');
   } else {
     reviewerInput.classList.remove('hidden');
-    document.querySelector('.reviewer-tabs-row')?.classList.remove('hidden');
     stage2LeftEl.classList.add('hidden');
   }
-  reviewerInput.setAttribute('contenteditable', (isStage2 || isStage3) ? 'false' : 'true');
-  reviewerInput.classList.toggle('readonly', (isStage2 || isStage3));
+  stage2LeftEl.style.overflowY = isStage3 ? 'visible' : 'auto';
+  reviewerInput.setAttribute('contenteditable', (isStage2 || isStage3 || isStage4 || isStage5) ? 'false' : 'true');
+  reviewerInput.classList.toggle('readonly', (isStage2 || isStage3 || isStage4 || isStage5));
+
+  if (reviewerTabsRowEl) {
+    reviewerTabsRowEl.classList.toggle('hidden', isStage5);
+  }
 
   if (stage3AdjustStyleBtn) {
-    stage3AdjustStyleBtn.classList.toggle('hidden', !isStage3);
+    stage3AdjustStyleBtn.classList.toggle('hidden', !(isStage3 || isStage5));
+    const labelEl = stage3AdjustStyleBtn.querySelector('.convert-label');
+    const iconSpan = stage3AdjustStyleBtn.querySelector('.convert-icon');
+    if (isStage5) {
+      if (labelEl) labelEl.textContent = 'Template';
+      stage3AdjustStyleBtn.title = 'Choose template';
+      stage3AdjustStyleBtn.setAttribute('aria-label', 'Choose template');
+      if (iconSpan) {
+        iconSpan.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="6" rx="1.5"></rect><rect x="3" y="14" width="18" height="6" rx="1.5"></rect></svg>';
+      }
+    } else {
+      if (labelEl) labelEl.textContent = 'Style';
+      stage3AdjustStyleBtn.title = 'Adjust Style';
+      stage3AdjustStyleBtn.setAttribute('aria-label', 'Adjust Style');
+      if (iconSpan) {
+        iconSpan.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" /></svg>';
+      }
+    }
   }
   if (stage3ThemeNoticeEl && !isStage3) {
     showStage3ThemeNotice('');
   }
 
   if (stage2AutoFitBtn) {
-    stage2AutoFitBtn.classList.toggle('hidden', !isStage2);
+    stage2AutoFitBtn.classList.toggle('hidden', !(isStage2 || isStage5));
+    const labelEl = stage2AutoFitBtn.querySelector('.convert-label');
+    const iconSpan = stage2AutoFitBtn.querySelector('.convert-icon');
+    if (isStage5) {
+      if (labelEl) labelEl.textContent = 'Auto Fill';
+      stage2AutoFitBtn.title = 'Auto fill conclusion';
+      stage2AutoFitBtn.setAttribute('aria-label', 'Auto fill conclusion');
+      if (iconSpan) {
+        iconSpan.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>';
+      }
+    } else {
+      if (labelEl) labelEl.textContent = 'Auto Fit';
+      stage2AutoFitBtn.title = 'Auto fit heights';
+      stage2AutoFitBtn.setAttribute('aria-label', 'Auto fit heights');
+      if (iconSpan) {
+        iconSpan.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>';
+      }
+    }
+  }
+  if (convertColumnEl) {
+    convertColumnEl.classList.remove('hidden');
+  }
+  workspaceEl.classList.remove('stage4-two-col');
+  if (!isStage4) {
+    hideCopyPopup();
   }
 }
 
@@ -2205,6 +3227,8 @@ async function init() {
   loadTheme();
   await loadTemplateLibrary();
   await loadStage3StyleLibrary();
+  await loadStage5StyleLibrary();
+  await loadStage5SampleTemplate();
   state.appSettings = await window.studioApi.getAppSettings();
   state.apiSettings = await window.studioApi.getApiSettings();
   autosaveInput.value = state.appSettings.defaultAutosaveIntervalSeconds;
@@ -2228,6 +3252,11 @@ document.getElementById('brandBtn').addEventListener('click', () => {
   state.stage3Settings = { style: 'standard', color: '#f26921' };
   state.stage3Drafts = {};
   state.stage3Selection = {};
+  state.stage4Data = {};
+  state.stage5Data = {};
+  state.stage5Settings = { style: 'run' };
+  hideCopyPopup();
+  closeStage5TemplateModal();
   renderWorkspace();
   syncStageUi();
 });
@@ -2288,6 +3317,14 @@ convertBtnEl.addEventListener('click', () => {
     renderStage3Preview();
     return;
   }
+  if (currentStageKey() === 'stage4') {
+    runStage4RefinePipeline();
+    return;
+  }
+  if (currentStageKey() === 'stage5') {
+    renderStage5Preview();
+    return;
+  }
   performBreakdown();
 });
 
@@ -2313,6 +3350,21 @@ reviewerInput.addEventListener('input', (e) => {
 
 
 breakdownContentEl.addEventListener('click', (e) => {
+  const stage4CopyBtn = e.target.closest('[data-stage4-copy-refined]');
+  if (stage4CopyBtn) {
+    const stage4 = getStage4StateForReviewer(state.activeReviewerIdx);
+    copyText(stage4.refinedText || '');
+    return;
+  }
+  const stage5ToggleBtn = e.target.closest('[data-stage5-toggle-sample]');
+  if (stage5ToggleBtn) {
+    const stage5 = getStage5State();
+    stage5.previewMode = stage5.previewMode === 'sample' ? 'project' : 'sample';
+    queueStateSync();
+    renderStage5Panels();
+    return;
+  }
+
   const refineOneBtn = e.target.closest('[data-stage2-refine-one]');
   if (refineOneBtn) {
     runStage2RefineOneResponse(refineOneBtn.dataset.stage2RefineOne);
@@ -2405,9 +3457,15 @@ stage2LeftPanelEl.addEventListener('input', (e) => {
   const stage2ResponseId = e.target?.dataset?.responseId;
   const stage3Field = e.target?.dataset?.stage3Field;
   const stage3ResponseId = e.target?.dataset?.responseId;
+  const stage4Field = e.target?.dataset?.stage4Field;
+  const stage5Field = e.target?.dataset?.stage5Field;
+  const stage5RatingReviewerId = e.target?.dataset?.stage5Rating;
   if (stage3Field && stage3ResponseId) {
     const draft = getStage3DraftForResponse(stage3ResponseId);
     draft[stage3Field] = e.target.value;
+    if (stage3Field === 'markdownSource') {
+      updateStage3CharCounter(draft.markdownSource);
+    }
     queueStateSync();
     return;
   }
@@ -2423,6 +3481,33 @@ stage2LeftPanelEl.addEventListener('input', (e) => {
     if (stage2Field === 'draft') {
       renderSidebarStages();
     }
+    return;
+  }
+  if (stage4Field === 'draft') {
+    const stage4 = getStage4StateForReviewer(state.activeReviewerIdx);
+    stage4.draft = e.target.value;
+    persistStage4DraftToStorage(getReviewerId(state.activeReviewerIdx), stage4.draft);
+    queueStateSync();
+    return;
+  }
+  if (stage4Field === 'followupQuestion') {
+    const stage4 = getStage4StateForReviewer(state.activeReviewerIdx);
+    stage4.followupQuestion = e.target.value;
+    queueStateSync();
+    return;
+  }
+  if (stage5Field === 'source') {
+    const stage5 = getStage5State();
+    stage5.source = e.target.value;
+    stage5.previewMode = 'project';
+    fitStage5SourceEditorHeight();
+    queueStateSync();
+    return;
+  }
+  if (stage5RatingReviewerId) {
+    const stage5 = getStage5State();
+    stage5.finalRatings[stage5RatingReviewerId] = e.target.value;
+    queueStateSync();
   }
 });
 
@@ -2732,6 +3817,11 @@ if (stage3StyleSelectEl) {
   stage3StyleConfirmBtnEl.addEventListener('click', applyStage3StyleSettings);
 
   stage2LeftPanelEl.addEventListener('click', (e) => {
+    const breakdownOpenBtn = e.target.closest('[data-stage3-breakdown-open]');
+    if (breakdownOpenBtn) {
+      openStage3BreakdownModal();
+      return;
+    }
     const btn = e.target.closest('[data-stage3-response]');
     if (!btn) return;
     state.stage3Selection[state.activeReviewerIdx] = btn.dataset.stage3Response;
@@ -2741,16 +3831,83 @@ if (stage3StyleSelectEl) {
 }
 
 if (stage3AdjustStyleBtn) {
-  stage3AdjustStyleBtn.addEventListener('click', openStage3StyleModal);
+  stage3AdjustStyleBtn.addEventListener('click', () => {
+    if (currentStageKey() === 'stage5') {
+      openStage5TemplateModal();
+      return;
+    }
+    openStage3StyleModal();
+  });
 }
 
 if (stage2AutoFitBtn) {
   stage2AutoFitBtn.addEventListener('click', () => {
+    if (currentStageKey() === 'stage5') {
+      runStage5AutoFillPipeline();
+      return;
+    }
     document.querySelectorAll('.response-quoted-issue, .response-textarea').forEach(el => {
       el.style.height = 'auto';
       if (el.scrollHeight > 0) el.style.height = el.scrollHeight + 'px';
     });
   });
 }
+
+if (stage5TemplateApplyBtnEl) {
+  stage5TemplateApplyBtnEl.addEventListener('click', applyStage5TemplateSelection);
+}
+
+if (stage5TemplateCancelBtnEl) {
+  stage5TemplateCancelBtnEl.addEventListener('click', closeStage5TemplateModal);
+}
+
+if (stage3BreakdownCancelBtnEl) {
+  stage3BreakdownCancelBtnEl.addEventListener('click', closeStage3BreakdownModal);
+}
+
+if (stage3BreakdownConfirmBtnEl) {
+  stage3BreakdownConfirmBtnEl.addEventListener('click', confirmStage3Breakdown);
+}
+
+if (stage3BreakdownLengthInputEl) {
+  stage3BreakdownLengthInputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmStage3Breakdown();
+    if (e.key === 'Escape') closeStage3BreakdownModal();
+  });
+}
+
+if (stage3BreakdownResultCloseBtnEl) {
+  stage3BreakdownResultCloseBtnEl.addEventListener('click', closeStage3BreakdownResultModal);
+}
+
+if (stage3BreakdownResultBodyEl) {
+  stage3BreakdownResultBodyEl.addEventListener('click', async (e) => {
+    const copyBtn = e.target.closest('[data-stage3-copy-part]');
+    if (!copyBtn) return;
+    const idx = Number(copyBtn.dataset.stage3CopyPart);
+    const part = stage3BreakdownPartsCache[idx];
+    if (!part) return;
+    const reviewerId = getCurrentReviewerIdentifier();
+    const total = stage3BreakdownPartsCache.length;
+    const subject = `Author Response to Reviewer ${reviewerId} (Part ${idx + 1}/${total})`;
+    await copyText(`Subject: ${subject}\n\nContent:\n${part.text}`);
+  });
+}
+
+if (stage4CopyPopupCopyBtnEl) {
+  stage4CopyPopupCopyBtnEl.addEventListener('click', async () => {
+    const text = stage4CopyPopupEl?.dataset?.copyText || '';
+    await copyText(text);
+  });
+}
+
+if (stage4CopyPopupCloseBtnEl) {
+  stage4CopyPopupCloseBtnEl.addEventListener('click', hideCopyPopup);
+}
+
+window.addEventListener('resize', () => {
+  autoExpandStage3Editor();
+  fitStage5SourceEditorHeight();
+});
 
 init();

@@ -2,7 +2,7 @@
   "defaultStyle": "standard",
   "styles": {
     "standard": {
-      "label": "Standard Style",
+      "label": "Run’s Template",
       "supportsThemeColor": true,
       "template": {
         "title": "R{{responseIndex}}: {{responseTitle}}",

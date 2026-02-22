@@ -384,7 +384,7 @@
       <div class="settings-group">
         <label for="stage3StyleSelect">Style</label>
         <select id="stage3StyleSelect" class="text-input">
-          <option value="standard">Standard Style</option>
+          <option value="standard">Run’s Template</option>
         </select>
       </div>
       <div id="stage3ColorSection" class="settings-group">
@@ -398,6 +398,50 @@
       <p id="stage3StyleError" class="error"></p>
       <div class="modal-actions">
         <button id="stage3StyleConfirmBtn" class="btn primary">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stage5 Template Modal -->
+  <div id="stage5TemplateModal" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="stage5TemplateTitle">
+      <h3 id="stage5TemplateTitle">Conclusion Template</h3>
+      <div class="settings-group">
+        <label for="stage5TemplateSelect">Template</label>
+        <select id="stage5TemplateSelect" class="text-input"></select>
+      </div>
+      <p class="muted">Applying a template resets the Stage5 raw source to that template skeleton.</p>
+      <p id="stage5TemplateError" class="error"></p>
+      <div class="modal-actions">
+        <button id="stage5TemplateCancelBtn" class="btn">Cancel</button>
+        <button id="stage5TemplateApplyBtn" class="btn primary">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stage3 Breakdown Max Length Modal -->
+  <div id="stage3BreakdownModal" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="stage3BreakdownTitle">
+      <h3 id="stage3BreakdownTitle">To break down</h3>
+      <div class="settings-group">
+        <label for="stage3BreakdownLengthInput">Max character length per part?</label>
+        <input id="stage3BreakdownLengthInput" class="text-input" type="number" min="1" step="1" placeholder="e.g. 4000" />
+      </div>
+      <p id="stage3BreakdownError" class="error"></p>
+      <div class="modal-actions">
+        <button id="stage3BreakdownCancelBtn" class="btn">Cancel</button>
+        <button id="stage3BreakdownConfirmBtn" class="btn primary">Split</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stage3 Breakdown Result Modal -->
+  <div id="stage3BreakdownResultModal" class="modal-backdrop hidden">
+    <div class="modal stage3-breakdown-result-modal" role="dialog" aria-modal="true" aria-labelledby="stage3BreakdownResultTitle">
+      <h3 id="stage3BreakdownResultTitle">Breakdown Result</h3>
+      <div id="stage3BreakdownResultBody" class="stage3-breakdown-result-body"></div>
+      <div class="modal-actions">
+        <button id="stage3BreakdownResultCloseBtn" class="btn primary">Close</button>
       </div>
     </div>
   </div>
@@ -478,6 +522,14 @@
       <div class="modal-actions">
         <button id="closeTemplateBtn" class="btn primary">Close</button>
       </div>
+    </div>
+  </div>
+
+  <div id="stage4CopyPopup" class="stage4-copy-popup hidden" role="status" aria-live="polite">
+    <div class="stage4-copy-popup-title">Refined result is ready.</div>
+    <div class="stage4-copy-popup-actions">
+      <button id="stage4CopyPopupCopyBtn" class="btn primary">Copy</button>
+      <button id="stage4CopyPopupCloseBtn" class="btn">Close</button>
     </div>
   </div>
 

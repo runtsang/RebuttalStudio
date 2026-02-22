@@ -1,0 +1,11 @@
+{
+  "defaultStyle": "run",
+  "styles": {
+    "run": {
+      "label": "Run’s Template",
+      "template": {
+        "body": "## I. Acknowledgments\n\n{{acknowledgments_overall}}\n\n**Before the discussion**, {{before_discussion_summary}}\n\n**During the discussion**, {{during_discussion_summary}}\n\n---\n\n## II. Key Strengths\n\nReviewers highlighted the following main strengths:\n\n{{key_strengths_points_markdown}}\n\n---\n\n## III. Key Concerns and Our Responses\n\nOur responses to key concerns are summarized below.\n\n| **Key Concerns** | **Reviewers** | **Our Response** |\n| --- | --- | --- |\n{{concern_rows_markdown}}\n\n---\n\n## IV. Commitment to Revision\n\n{{commitment_to_revision}}\n\n---\n\n**We deeply appreciate the expertise and time of the AC and reviewers.**"
+      }
+    }
+  }
+}
