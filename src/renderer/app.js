@@ -59,6 +59,9 @@ const state = {
   stage2Replies: {},
 };
 
+let stage2RefineProgress = null;
+let stage2OutlineContext = { responseId: null, x: 0, y: 0 };
+
 /* ────────────────────────────────────────────────────────────
    DOM refs
    ──────────────────────────────────────────────────────────── */
@@ -510,28 +513,70 @@ function renderStage2Panel(data) {
     return `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Replied</h4><p class="breakdown-placeholder">No responses found in Stage1. Please run Breakdown first.</p></div></div>`;
   }
 
+  const progressTotal = stage2RefineProgress?.total || 0;
+  const progressCurrent = stage2RefineProgress?.current || 0;
+  const progressPercent = progressTotal > 0 ? Math.min(100, Math.round((progressCurrent / progressTotal) * 100)) : 0;
+  const progressHtml = progressTotal > 0
+    ? `<div class="stage2-progress-wrap">
+      <div class="stage2-progress-title">Refine progress: ${progressCurrent}/${progressTotal}${stage2RefineProgress?.responseId ? ` · ${escapeHTML(stage2RefineProgress.responseId)}` : ''}</div>
+      <div class="stage2-progress-track"><div class="stage2-progress-fill" style="width:${progressPercent}%"></div></div>
+    </div>`
+    : '';
+
   const cards = responses.map((resp, idx) => {
     const item = stage2Map[resp.id] || { outline: '', draft: '', assets: [] };
-    const assets = (item.assets || []).map((asset, assetIdx) => `<div class="response-asset-item"><span>${escapeHTML(asset.type.toUpperCase())} ${assetIdx + 1}</span><button class="asset-insert-btn" data-asset-insert="${escapeHTML(resp.id)}" data-asset-index="${assetIdx}">Insert</button></div>`).join('');
+    const sourceIdx = Number((`${resp.source_id || ''}`.match(/(\d+)$/) || [])[1] || idx + 1);
+    const headerTitle = `Weakness for Question${sourceIdx}: ${resp.title || 'Untitled'}`;
     return `<div class="response-card stage2-response-card" data-response-id="${escapeHTML(resp.id)}">
       <div class="response-header">Response${idx + 1}</div>
       <div class="fixed-issue-meta">
-        <div><strong>${escapeHTML(resp.source_id || `weakness${idx + 1}`)}</strong> · ${escapeHTML(resp.title || '')}</div>
-        <div class="fixed-issue-quote">${escapeHTML(resp.quoted_issue || '')}</div>
+        <h5 class="stage2-issue-title">${escapeHTML(headerTitle)}</h5>
+        <div class="fixed-issue-quote">&gt; ${escapeHTML(resp.quoted_issue || '')}</div>
       </div>
       <label>Outline</label>
       <textarea class="response-textarea" data-stage2-field="outline" data-response-id="${escapeHTML(resp.id)}" placeholder="Input a response outline for this issue (key points, evidence, and writing strategy).">${escapeHTML(item.outline || '')}</textarea>
-      <div class="stage2-tools-row">
-        <button class="btn mini" data-stage2-insert-table="${escapeHTML(resp.id)}">Insert Table</button>
-        <button class="btn mini" data-stage2-insert-formula="${escapeHTML(resp.id)}">Insert Formula</button>
-      </div>
-      <div class="stage2-assets">${assets || '<span class="muted">No snippet inserted yet.</span>'}</div>
+      <div class="stage2-outline-tip">Right click in outline box: Insert Table / Formula / Code</div>
       <label>Refined Draft</label>
       <textarea class="response-textarea" data-stage2-field="draft" data-response-id="${escapeHTML(resp.id)}" placeholder="Refined academic reply will appear here.">${escapeHTML(item.draft || '')}</textarea>
     </div>`;
   }).join('');
 
-  return `<div class="breakdown-block breakdown-output-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Replied</h4><div class="responses-grid">${cards}</div></div></div>`;
+  return `<div class="breakdown-block breakdown-output-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Replied</h4>${progressHtml}<div class="responses-grid">${cards}</div></div></div>`;
+}
+
+function ensureStage2ContextMenu() {
+  let menu = document.getElementById('stage2OutlineMenu');
+  if (menu) return menu;
+  menu = document.createElement('div');
+  menu.id = 'stage2OutlineMenu';
+  menu.className = 'stage2-outline-menu hidden';
+  menu.innerHTML = `
+    <button class="stage2-outline-menu-item" data-outline-insert="table">Insert Table</button>
+    <button class="stage2-outline-menu-item" data-outline-insert="formula">Insert Formula</button>
+    <button class="stage2-outline-menu-item" data-outline-insert="code">Insert Code</button>
+  `;
+  document.body.appendChild(menu);
+  return menu;
+}
+
+function hideStage2ContextMenu() {
+  const menu = document.getElementById('stage2OutlineMenu');
+  if (!menu) return;
+  menu.classList.add('hidden');
+}
+
+function insertStage2Asset(responseId, type, content) {
+  if (!responseId || !content) return;
+  const map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+  if (!map[responseId]) {
+    map[responseId] = { outline: '', draft: '', assets: [] };
+  }
+  const cur = map[responseId].outline || '';
+  map[responseId].outline = `${cur}${cur ? '\n\n' : ''}${content}`;
+  map[responseId].assets.push({ type, content });
+  state.stage2Replies[state.activeReviewerIdx] = map;
+  queueStateSync();
+  renderBreakdownPanel();
 }
 function escapeHTML(str) {
   const div = document.createElement('div');
@@ -694,8 +739,13 @@ async function runStage2RefineForResponses() {
   convertBtnEl.classList.add('loading');
 
   try {
-    for (const resp of responses) {
+    stage2RefineProgress = { total: responses.length, current: 0, responseId: '' };
+    renderBreakdownPanel();
+    for (let i = 0; i < responses.length; i++) {
+      const resp = responses[i];
       const draftCell = stage2Map[resp.id] || { outline: '', draft: '', assets: [] };
+      stage2RefineProgress = { total: responses.length, current: i + 1, responseId: resp.id };
+      renderBreakdownPanel();
       if (!`${draftCell.outline || ''}`.trim()) {
         continue;
       }
@@ -719,8 +769,10 @@ async function runStage2RefineForResponses() {
     console.error(error);
     alert(error.message || 'Failed to run Stage2 refine API.');
   } finally {
+    stage2RefineProgress = null;
     convertBtnEl.disabled = false;
     convertBtnEl.classList.remove('loading');
+    renderBreakdownPanel();
   }
 }
 
@@ -1349,6 +1401,59 @@ breakdownContentEl.addEventListener('click', (e) => {
     state.stage2Replies[state.activeReviewerIdx] = map;
     queueStateSync();
     renderBreakdownPanel();
+  }
+});
+
+breakdownContentEl.addEventListener('contextmenu', (e) => {
+  const outlineEl = e.target.closest('textarea[data-stage2-field="outline"]');
+  if (!outlineEl) return;
+  e.preventDefault();
+  const menu = ensureStage2ContextMenu();
+  stage2OutlineContext = {
+    responseId: outlineEl.dataset.responseId || null,
+    x: e.clientX,
+    y: e.clientY,
+  };
+  menu.style.left = `${stage2OutlineContext.x}px`;
+  menu.style.top = `${stage2OutlineContext.y}px`;
+  menu.classList.remove('hidden');
+});
+
+document.addEventListener('click', (e) => {
+  const option = e.target.closest('[data-outline-insert]');
+  if (!option) {
+    hideStage2ContextMenu();
+    return;
+  }
+  const responseId = stage2OutlineContext.responseId;
+  const action = option.dataset.outlineInsert;
+  hideStage2ContextMenu();
+  if (!responseId || !action) return;
+
+  if (action === 'table') {
+    const rows = Number(prompt('Insert table: number of rows', '3') || 3);
+    const cols = Number(prompt('Insert table: number of columns', '3') || 3);
+    if (!rows || !cols || rows < 1 || cols < 1) return;
+    const header = `| ${Array.from({ length: cols }).map((_, i) => `H${i + 1}`).join(' | ')} |`;
+    const divider = `| ${Array.from({ length: cols }).map(() => '---').join(' | ')} |`;
+    const body = Array.from({ length: rows - 1 }).map(() => `| ${Array.from({ length: cols }).map(() => ' ').join(' | ')} |`).join('\n');
+    const tableMd = `${header}\n${divider}${body ? `\n${body}` : ''}`;
+    insertStage2Asset(responseId, 'table', tableMd);
+    return;
+  }
+
+  if (action === 'formula') {
+    const formula = prompt('Insert formula (LaTeX / Markdown)', '$$E=mc^2$$');
+    if (!formula) return;
+    insertStage2Asset(responseId, 'formula', formula);
+    return;
+  }
+
+  if (action === 'code') {
+    const code = prompt('Insert code block content', 'def answer():\n    return "TODO"');
+    if (!code) return;
+    const fenced = `\`\`\`\n${code}\n\`\`\``;
+    insertStage2Asset(responseId, 'code', fenced);
   }
 });
 
