@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <b>A structured, local-first rebuttal editor designed to help researchers craft high-quality academic rebuttals — so you can focus on <i>what</i> to say, not <i>how</i> to format it.</b>
+  <b>A rebuttal editor for researchers to craft high-quality academic rebuttals — so you can focus on <i>what</i> to say, not <i>how</i> to format it.</b>
 </p>
 
 ---
@@ -80,7 +80,7 @@ npm start
 
 ### Why Contribute?
 
-This project was built from scratch in **a single weekend (~15 hours)** by a solo developer with **zero prior experience** in web design or app development, powered by [Antigravity](https://deepmind.google/) and [Cursor](https://cursor.sh/). There is *so much* room for improvement, and we need your help.
+This project was built from scratch in **a single weekend (~15 hours) (cuz i ran out of my claude quota on Antigravity XD)** by a solo developer with **zero prior experience** in web design or app development, powered by [Antigravity](https://deepmind.google/) and [Codex](https://openai.com/codex/). There is *so much* room for improvement, and we need your help.
 
 ### 📝 Technical Report & Authorship
 
@@ -105,10 +105,10 @@ We deeply appreciate every contributor's effort — **you deserve this credit**.
 
 ### Long-Term Goals
 
-- [ ] **End-to-End Agent Mode** — Develop an agentic pipeline capable of automating the entire rebuttal workflow.
-  > ⚠️ *This is NOT the primary philosophy of Rebuttal Studio. We strongly believe that the author should remain in the driver's seat. The goal of automation is to reduce friction — not to replace the researcher's own critical thinking and domain expertise.*
 - [ ] **Online Collaborative Platform** — Deploy Rebuttal Studio as a cloud-hosted service with real-time multi-user collaboration, similar to Overleaf.
   > 🤝 *We are actively looking for collaborators to help build this online platform. If you're interested in contributing to this vision, please reach out!*
+- [ ] **End-to-End Agent Mode** — Develop an agentic pipeline capable of automating the entire rebuttal workflow.
+  > ⚠️ *This is NOT the primary philosophy of Rebuttal Studio. We strongly believe that the author should remain in the driver's seat. The goal of automation is to reduce friction — not to replace the researcher's own critical thinking and domain expertise.*
 
 ---
 
@@ -145,7 +145,7 @@ If you find Rebuttal Studio useful in your research, please consider citing our 
 ```bibtex
 @misc{rebuttalstudio,
   author       = {Zeng, Runjia},
-  title        = {A rebuttal editor designed to help researchers craft high-quality academic rebuttals},
+  title        = {A rebuttal editor for researchers to craft high-quality academic rebuttals},
   month        = 02,
   year         = 2026,
   publisher    = {Github},
