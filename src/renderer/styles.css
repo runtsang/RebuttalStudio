@@ -1181,3 +1181,59 @@ select {
   opacity: 0.75;
   pointer-events: none;
 }
+
+.reviewer-input.readonly {
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.stage2-response-card .fixed-issue-meta {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  background: var(--panel-muted);
+  font-size: 0.8rem;
+}
+
+.fixed-issue-quote {
+  margin-top: 6px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+
+.stage2-tools-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.btn.mini {
+  padding: 4px 8px;
+  font-size: 0.72rem;
+}
+
+.stage2-assets {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.response-asset-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.74rem;
+}
+
+.asset-insert-btn {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.7rem;
+}

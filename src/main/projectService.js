@@ -91,6 +91,7 @@ function createProjectDoc(projectName, conference, autosaveIntervalSeconds) {
     updatedAt: now,
     autosaveIntervalSeconds,
     currentStage: 'Stage1',
+    stage2Replies: {},
   };
 
   STAGE_KEYS.forEach((stageKey) => {
