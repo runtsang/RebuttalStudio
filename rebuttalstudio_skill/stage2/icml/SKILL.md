@@ -1,9 +1,9 @@
 ---
-name: stage2-iclr-refine
-description: Refine a Stage2 ICLR rebuttal draft into polished, reviewer-facing prose in the author's style; preserve factual grounding, optionally prepend a courteous opening phrase, and normalize tables/code/formulas into Markdown.
+name: stage2-icml-refine
+description: Refine a Stage2 ICML rebuttal draft into polished, reviewer-facing prose in the author's style; preserve factual grounding, optionally prepend a courteous opening phrase, and normalize tables/code/formulas into Markdown.
 ---
 
-# Stage2 ICLR Refine Skill
+# Stage2 ICML Refine Skill
 
 ## When to use
 Use this skill when you already have:
@@ -17,7 +17,7 @@ Turn a rough draft into a reviewer-ready response that:
 2. keeps claims factual and bounded by provided evidence,
 3. matches the user's concise, polite, academically confident writing style,
 4. optionally starts with a customized courteous opener.
-5. Make the response concise and procise as a nature paper
+5. Make the response concise and precise as a nature paper
 
 ## Input
 - `response_id` / `title` / `source` / `source_id` (metadata)
@@ -49,14 +49,14 @@ Do not stack multiple openers.
 - "Thank you for pointing this out."
 - "Thank you for highlighting this important point about [TOPIC]."
 - "We appreciate the opportunity to further articulate the novelty of [METHOD/IDEA]."
-- "Thank you for making a chane to let us classify our contribution more accurately."
+- "Thank you for making a chance to let us classify our contribution more accurately."
 
 ### Opener selection guidance (for API-time customization)
 - If reviewer gives actionable improvement advice → prefer "Thank you for the excellent suggestion."
 - If reviewer spots an omission/ambiguity → prefer "Thank you for pointing this out."
 - If reviewer emphasizes significance of a specific dimension → prefer "Thank you for highlighting this important point about [TOPIC]."
 - If reviewer challenges originality/positioning → prefer "We appreciate the opportunity to further articulate the novelty of [METHOD/IDEA]."
-- If reviewer challenges originality/positioning → prefer "Thank you for making a chane to let us classify our contribution more accurately."
+- If reviewer challenges originality/positioning → prefer "Thank you for making a chance to let us classify our contribution more accurately."
 
 ## Markdown normalization rules (mandatory)
 If input contains structured content, normalize in final `draft` as follows:

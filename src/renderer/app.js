@@ -25,7 +25,28 @@ const CONFERENCE_TEMPLATES = {
     // Group sections into blocks: [ [summary, strength], [weakness, questions] ]
     blocks: [[0, 1], [2, 3]],
   },
+  ICML: {
+    scores: [
+      { key: 'rating', label: 'Rating', default: 'A' },
+      { key: 'confidence', label: 'Confidence', default: 'B' },
+    ],
+    metrics: [
+      { key: 'soundness', label: 'Soundness', default: 'C' },
+      { key: 'presentation', label: 'Presentation', default: 'D' },
+      { key: 'significance', label: 'Significance', default: 'E' },
+      { key: 'originality', label: 'Originality', default: 'F' },
+    ],
+    sections: [
+      { key: 'summary', label: 'Summary', placeholder: 'This is the summary.' },
+      { key: 'strength', label: 'Strength', placeholder: 'This is the strength.' },
+      { key: 'weakness', label: 'Weakness', placeholder: 'This is the weakness.' },
+      { key: 'questions', label: 'Questions', placeholder: 'This is the questions.' },
+    ],
+    // Group sections into blocks: [ [summary, strength], [weakness, questions] ]
+    blocks: [[0, 1], [2, 3]],
+  },
 };
+
 
 /* ────────────────────────────────────────────────────────────
    Stages
@@ -2550,6 +2571,7 @@ async function runStage1ApiBreakdown(rawText) {
     providerKey,
     profile,
     content: rawText,
+    conference: state.currentDoc?.conference || 'ICLR',
   });
 }
 
@@ -2586,9 +2608,10 @@ async function runStage2RefineOneResponse(responseId) {
       responseId: resp.id,
       title: resp.title || '',
       source: resp.source || '',
-      sourceId: resp.source_id || '',
+      source_id: resp.source_id || '',
       quotedIssue: resp.quoted_issue || '',
       outline: draftCell.outline || '',
+      conference: state.currentDoc?.conference || 'ICLR',
     });
     draftCell.draft = refined?.draft || draftCell.draft;
     stage2Map[resp.id] = draftCell;
@@ -2650,9 +2673,10 @@ async function runStage2RefineForResponses() {
         responseId: resp.id,
         title: resp.title || '',
         source: resp.source || '',
-        sourceId: resp.source_id || '',
+        source_id: resp.source_id || '',
         quotedIssue: resp.quoted_issue || '',
         outline: draftCell.outline || '',
+        conference: state.currentDoc?.conference || 'ICLR',
       });
       draftCell.draft = refined?.draft || draftCell.draft;
       stage2Map[resp.id] = draftCell;
