@@ -103,7 +103,7 @@ npm start
 
 ### Why Contribute?
 
-This project was built from scratch in **a single weekend (~15 hours) (cuz i ran out of my claude quota on Antigravity XD)** by a solo developer with **zero prior experience** in web design or app development, powered by [Antigravity](https://deepmind.google/) and [Codex](https://openai.com/codex/). There is *so much* room for improvement, and we need your help.
+This project was built from scratch in **a single weekend (~15 hours)** by a solo developer with **zero prior experience** in web design or app development. There is *so much* room for improvement, and we need your help.
 
 ### 📝 Technical Report & Authorship
 
