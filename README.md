@@ -124,6 +124,19 @@ We deeply appreciate every contributor's effort — **you deserve this credit**.
 
 ---
 
+## 👥 Contributors
+
+<p align="center">
+  <a href="https://github.com/runtsang">
+    <img src="https://avatars.githubusercontent.com/u/70456146?v=4" alt="runtsang" width="56" height="56" style="border-radius: 50%;" />
+  </a>
+  <a href="https://github.com/robinzixuan">
+    <img src="https://avatars.githubusercontent.com/u/32207883?v=4" alt="robinzixuan" width="56" height="56" style="border-radius: 50%;" />
+  </a>
+</p>
+
+---
+
 ## ⭐ Star History
 
 <p align="center">

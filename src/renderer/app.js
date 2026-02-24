@@ -261,6 +261,7 @@ const apiBaseUrlHelpEl = document.getElementById('apiBaseUrlHelp');
 const apiModelHintEl = document.getElementById('apiModelHint');
 const apiModelSelectEl = document.getElementById('apiModelSelect');
 const detectModelsBtnEl = document.getElementById('detectModelsBtn');
+const activeModelBadgeEl = document.getElementById('activeModelBadge');
 
 // Stage advance modal
 const stageAdvanceModalEl = document.getElementById('stageAdvanceModal');
@@ -2972,6 +2973,32 @@ function getActiveApiProfile(providerKey = state.apiSettings.activeApiProvider) 
   return state.apiSettings.apiProfiles[providerKey];
 }
 
+function isLocalModelProfile(profile = {}) {
+  const baseUrl = `${profile.baseUrl || ''}`.trim();
+  if (!baseUrl) return false;
+  try {
+    const host = `${new URL(baseUrl).hostname || ''}`.toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '::1' || host.endsWith('.local');
+  } catch {
+    return /localhost|127\.0\.0\.1|0\.0\.0\.0|::1/i.test(baseUrl);
+  }
+}
+
+function getActiveModelBadgeText() {
+  const profile = getActiveApiProfile(state.apiSettings.activeApiProvider);
+  if (!profile) return '';
+  if (isLocalModelProfile(profile)) return 'local model';
+  return `${profile.model || ''}`.trim();
+}
+
+function renderActiveModelBadge() {
+  if (!activeModelBadgeEl) return;
+  const text = getActiveModelBadgeText();
+  activeModelBadgeEl.textContent = text;
+  activeModelBadgeEl.title = text;
+  activeModelBadgeEl.classList.toggle('hidden', !text);
+}
+
 function renderApiForm(providerKey = state.apiSettings.activeApiProvider) {
   const profile = getActiveApiProfile(providerKey);
   if (!profile) return;
@@ -3080,6 +3107,7 @@ async function openApiSettingsModal() {
   apiSettingsErrorEl.textContent = '';
   const latest = await window.studioApi.getApiSettings();
   state.apiSettings = latest;
+  renderActiveModelBadge();
   renderApiForm();
   openModal('apiModal');
 }
@@ -3112,6 +3140,7 @@ async function saveApiSettings() {
     apiProfiles: nextApiProfiles,
   });
   state.apiSettings = saved;
+  renderActiveModelBadge();
   closeModal('apiModal');
 }
 
@@ -3255,6 +3284,7 @@ async function init() {
   await loadStage5SampleTemplate();
   state.appSettings = await window.studioApi.getAppSettings();
   state.apiSettings = await window.studioApi.getApiSettings();
+  renderActiveModelBadge();
   autosaveInput.value = state.appSettings.defaultAutosaveIntervalSeconds;
   await loadProjects();
   renderWorkspace();

@@ -401,6 +401,23 @@ select {
   align-items: center;
 }
 
+.active-model-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 220px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.74rem;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .brand-btn {
   border: none;
   background: transparent;
