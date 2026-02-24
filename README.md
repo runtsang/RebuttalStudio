@@ -45,6 +45,17 @@ Through this principled pipeline, we aim to help academic researchers **focus on
 
 ---
 
+## 📚 Documents
+
+- [中文文档总览](documents/ch/README.md) | [English Docs Overview](documents/en/README.md)
+- Stage 1: [Breakdown (EN)](documents/en/stage1-breakdown.md) | [阶段一：Breakdown（中文）](documents/ch/stage1-breakdown.md)
+- Stage 2: [Reply (EN)](documents/en/stage2-reply.md) | [阶段二：Reply（中文）](documents/ch/stage2-reply.md)
+- Stage 3: [First Round (EN)](documents/en/stage3-first-round.md) | [阶段三：First Round（中文）](documents/ch/stage3-first-round.md)
+- Stage 4: [Multi Rounds (EN)](documents/en/stage4-multi-rounds.md) | [阶段四：Multi Rounds（中文）](documents/ch/stage4-multi-rounds.md)
+- Stage 5: [Conclusion (EN)](documents/en/stage5-conclusion.md) | [阶段五：Conclusion（中文）](documents/ch/stage5-conclusion.md)
+
+---
+
 ## 🚀 How to Use
 
 ```bash
@@ -174,7 +185,7 @@ If you find Rebuttal Studio useful in your research, please consider citing our 
   month        = 02,
   year         = 2026,
   publisher    = {Github},
-  version      = {v0.0.1},
+  version      = {v0.0.2},
   url          = {https://github.com/runtsang/RebuttalStudio}
 }
 ```
