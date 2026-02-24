@@ -404,18 +404,47 @@ select {
 .active-model-badge {
   display: inline-flex;
   align-items: center;
-  max-width: 220px;
-  padding: 5px 10px;
-  border: 1px solid var(--border);
+  gap: 8px;
+  max-width: 340px;
+  padding: 6px 12px;
+  border: 1px solid #f26921;
   border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--text);
+  background: linear-gradient(90deg, rgba(242, 105, 33, 0.24) 0%, rgba(242, 105, 33, 0.12) 100%);
+  color: #ffd8c2;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.74rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.25px;
   line-height: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  box-shadow: 0 0 0 1px rgba(242, 105, 33, 0.18), 0 4px 14px rgba(242, 105, 33, 0.22);
+}
+
+.active-model-badge::before {
+  content: 'MODEL';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(242, 105, 33, 0.35);
+  color: #fff3ea;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+
+[data-theme="light"] .active-model-badge {
+  background: linear-gradient(90deg, rgba(242, 105, 33, 0.18) 0%, rgba(242, 105, 33, 0.1) 100%);
+  color: #8f3d0f;
+  box-shadow: 0 0 0 1px rgba(242, 105, 33, 0.25), 0 3px 10px rgba(242, 105, 33, 0.16);
+}
+
+[data-theme="light"] .active-model-badge::before {
+  background: rgba(242, 105, 33, 0.22);
+  color: #6f2b05;
 }
 
 .brand-btn {

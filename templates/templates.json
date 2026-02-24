@@ -4,13 +4,13 @@
         "types": [
             {
                 "key": "nudge_reply",
-                "label": "Nudge Reply",
+                "label": "Nudge First-Round Involvement",
                 "title": "Looking forward to the discussion",
                 "body": "Dear Reviewer {{reviewerId}},\n\nWe deeply appreciate the time and effort you've taken to review our work, especially given your busy schedule. As the authors-reviewer discussion phase draws to a close, we would be grateful for the opportunity to engage in dialogue with you. Our goal is to ensure we've adequately addressed your concerns and welcome any additional questions or points of discussion you'd like to raise.\n\nThank you for your thoughtful consideration.\n\nBest regards,\n\nThe Authors of Submission {{submissionId}}"
             },
             {
-                "key": "nudge_discussion",
-                "label": "Follow-up Discussion",
+                "key": "nudge_multi",
+                "label": "Encourage Multi-Rounds Participation",
                 "title": "Follow-up on remaining concerns",
                 "body": "Dear Reviewer {{reviewerId}},\n\nWe deeply appreciate the time and effort you've taken to review our work, especially given your busy schedule. As the authors-reviewer discussion phase draws to a close, we would be grateful to know whether we have adequately addressed your follow-up concerns and welcome any additional questions or points of discussion you'd like to raise.\n\nThank you for your thoughtful consideration.\n\nBest regards,\n\nThe Authors of Submission {{submissionId}}"
             }
@@ -20,10 +20,10 @@
         "label": "Area Chair",
         "types": [
             {
-                "key": "status_update",
-                "label": "Status Update",
-                "title": "Status update request",
-                "body": "Dear Area Chair,\n\nThank you for overseeing our submission {{submissionId}}. We would appreciate your guidance on whether any additional clarification is needed from our side before the discussion phase ends.\n\nBest regards,\n\nThe Authors"
+                "key": "report_reviewer",
+                "label": "Confidential: Report Irresponsible Reviewer",
+                "title": "Confidential concern regarding Reviewer {{reviewerId}}",
+                "body": "Dear Area Chair,\n\nWe are writing to you confidentially regarding our submission {{submissionId}}. We have significant concerns about the engagement and quality of the review provided by Reviewer {{reviewerId}}.\n\nDespite our detailed rebuttal and efforts to engage in constructive dialogue, Reviewer {{reviewerId}} has [briefly state the issue: e.g., remained unresponsive / provided comments that show a lack of attendance to the paper's core contributions / refused to acknowledge direct responses to their questions]. \n\nWe understand the demanding nature of the review process, but we feel this situation may compromise the fairness of the evaluation for our submission. We would be grateful if you could look into this matter and provide any guidance on how to proceed.\n\nThank you for your time and continued service to the conference.\n\nBest regards,\n\nThe Authors of Submission {{submissionId}}"
             }
         ]
     }

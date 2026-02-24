@@ -5,7 +5,7 @@
       "label": "Run’s Template",
       "supportsThemeColor": true,
       "template": {
-        "title": "R{{responseIndex}}: {{responseTitle}}",
+        "title": "Response {{responseIndex}}: {{responseTitle}}",
         "quoteLabel": "{{issueTypeLabel}}-{{issueIndex}}:",
         "quoteContent": "{{quotedIssue}}",
         "responseLabel": "Response {{issueCode}}:",
