@@ -189,11 +189,21 @@ async function listProviderModels(providerKey, profile = {}) {
   }
 }
 
-function buildStage1IclrPrompt(content) {
-  return `You are executing the rebuttalstudio_skill -> stage1/iclr/SKILL.md workflow.
+function buildStage1Prompt(content, conference = 'ICLR') {
+  const conf = (conference || 'ICLR').toUpperCase();
+  const skillPath = `stage1/${conf.toLowerCase()}/skill.md`;
+
+  const scoreKeys = conf === 'ICML'
+    ? ['rating', 'confidence', 'soundness', 'presentation', 'significance', 'originality']
+    : ['rating', 'confidence', 'soundness', 'presentation', 'contribution'];
+
+  const scoresSchema = {};
+  scoreKeys.forEach(k => scoresSchema[k] = "");
+
+  return `You are executing the rebuttalstudio_skill -> ${skillPath} workflow.
 
 Follow these requirements exactly:
-1) Extract scores: rating, confidence, soundness, presentation, contribution (numbers only where found; empty string if missing).
+1) Extract scores: ${scoreKeys.join(', ')} (numbers only where found; empty string if missing).
 2) Preserve summary and strength text as verbatim as possible.
 3) Split weakness and question/questions into atomic issues.
 4) Build responses Response1..N with fields title, source, source_id, quoted_issue.
@@ -201,7 +211,7 @@ Follow these requirements exactly:
 
 Return JSON ONLY (no markdown fences) with this schema:
 {
-  "scores": {"rating":"","confidence":"","soundness":"","presentation":"","contribution":""},
+  "scores": ${JSON.stringify(scoresSchema)},
   "sections": {"summary":"","strength":"","weakness":"","questions":""},
   "atomicIssues": [
     {"id":"weakness1","source":"weakness","text":"..."},
@@ -216,7 +226,7 @@ Reviewer content:
 ${content}`;
 }
 
-async function runGeminiStage1Breakdown(profile = {}, content = '') {
+async function runGeminiStage1Breakdown(profile = {}, content = '', conference = 'ICLR') {
   const apiKey = (profile.apiKey || '').trim();
   const baseUrl = (profile.baseUrl || '').trim().replace(/\/$/, '') || 'https://generativelanguage.googleapis.com/v1beta';
   const model = (profile.model || '').trim() || 'gemini-3-flash-preview';
@@ -236,7 +246,7 @@ async function runGeminiStage1Breakdown(profile = {}, content = '') {
     contents: [
       {
         role: 'user',
-        parts: [{ text: buildStage1IclrPrompt(content) }],
+        parts: [{ text: buildStage1Prompt(content, conference) }],
       },
     ],
   };
@@ -266,16 +276,20 @@ async function runGeminiStage1Breakdown(profile = {}, content = '') {
     parsed = JSON.parse(cleaned);
   }
 
-  return normalizeStage1Breakdown(parsed);
+  return normalizeStage1Breakdown(parsed, conference);
 }
 
-function normalizeStage1Breakdown(payload = {}) {
+function normalizeStage1Breakdown(payload = {}, conference = 'ICLR') {
   const scoresIn = payload.scores || {};
   const sectionsIn = payload.sections || {};
   const atomicIssuesIn = Array.isArray(payload.atomicIssues) ? payload.atomicIssues : [];
   const responsesIn = Array.isArray(payload.responses) ? payload.responses : [];
 
-  const scoreKeys = ['rating', 'confidence', 'soundness', 'presentation', 'contribution'];
+  const conf = (conference || 'ICLR').toUpperCase();
+  const scoreKeys = conf === 'ICML'
+    ? ['rating', 'confidence', 'soundness', 'presentation', 'significance', 'originality']
+    : ['rating', 'confidence', 'soundness', 'presentation', 'contribution'];
+
   const scores = {};
   for (const key of scoreKeys) {
     scores[key] = `${scoresIn[key] ?? ''}`.trim();
@@ -317,8 +331,11 @@ function normalizeStage1Breakdown(payload = {}) {
 
 
 
-function buildStage2IclrPrompt(payload = {}) {
-  return `You are executing the rebuttalstudio_skill -> stage2/iclr/SKILL.md workflow.
+function buildStage2Prompt(payload = {}, conference = 'ICLR') {
+  const conf = (conference || 'ICLR').toUpperCase();
+  const skillPath = `stage2/${conf.toLowerCase()}/SKILL.md`;
+
+  return `You are executing the rebuttalstudio_skill -> ${skillPath} workflow.
 
 Task:
 - Expand a user outline into a concise, academic rebuttal draft.
@@ -328,7 +345,7 @@ Task:
 
 JSON schema:
 {
-  "draft": "..."
+  "draft": "> **Reviewer's Comment**: [quoted_issue]\\n\\n**Response**: [polished rebuttal prose]"
 }
 
 Context:
@@ -343,7 +360,7 @@ User Outline:
 ${payload.outline || ''}`;
 }
 
-async function runGeminiStage2Refine(profile = {}, payload = {}) {
+async function runGeminiStage2Refine(profile = {}, payload = {}, conference = 'ICLR') {
   const apiKey = (profile.apiKey || '').trim();
   const baseUrl = (profile.baseUrl || '').trim().replace(/\/$/, '') || 'https://generativelanguage.googleapis.com/v1beta';
   const model = (profile.model || '').trim() || 'gemini-3-flash-preview';
@@ -363,7 +380,7 @@ async function runGeminiStage2Refine(profile = {}, payload = {}) {
     contents: [
       {
         role: 'user',
-        parts: [{ text: buildStage2IclrPrompt(payload) }],
+        parts: [{ text: buildStage2Prompt(payload, conference) }],
       },
     ],
   };
@@ -714,6 +731,191 @@ async function runGeminiTemplateRephrase(profile = {}, content = '') {
   return { text: out, raw: parsed };
 }
 
+async function runOpenAICompatibleRequest(profile = {}, prompt = '', responseMimeType = 'text/plain') {
+  const apiKey = (profile.apiKey || '').trim();
+  const baseUrl = (profile.baseUrl || '').trim().replace(/\/$/, '') || 'https://api.openai.com/v1';
+  const model = (profile.model || '').trim() || 'gpt-3.5-turbo';
+
+  const endpoint = `${baseUrl}/chat/completions`;
+  const body = {
+    model,
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.1,
+  };
+
+  if (responseMimeType === 'application/json') {
+    body.response_format = { type: 'json_object' };
+  }
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`OpenAI-compatible request failed (${res.status}): ${detail.slice(0, 240)}`);
+  }
+
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content?.trim();
+  if (!text) {
+    throw new Error('OpenAI-compatible provider returned empty content.');
+  }
+
+  return text;
+}
+
+function extractJsonFromText(text = '') {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  function tryRepair(candidate) {
+    // 1. First pass: Escape unescaped newlines in strings
+    let out = '';
+    let inString = false;
+    let escaped = false;
+    for (let i = 0; i < candidate.length; i++) {
+      const c = candidate[i];
+      if (c === '"' && !escaped) {
+        inString = !inString;
+      }
+      if (inString && (c === '\n' || c === '\r')) {
+        out += c === '\n' ? '\\n' : '\\r';
+      } else {
+        out += c;
+      }
+      escaped = (c === '\\' && !escaped);
+    }
+
+    // 2. Second pass: Fix missing commas between properties
+    let lines = out.split('\n');
+    for (let i = 0; i < lines.length - 1; i++) {
+      const line = lines[i].trim();
+      const next = lines[i + 1] ? lines[i + 1].trim() : '';
+      // If line ends with a probable value end and next line starts with a property name
+      if (line.match(/(?:"|\d|true|false|null|}|\])$/) && !line.endsWith(',') && next.startsWith('"')) {
+        lines[i] = lines[i] + ',';
+      }
+    }
+    let combined = lines.join('\n');
+
+    // 3. Third pass: Remove trailing commas
+    combined = combined.replace(/,\s*([\]}])/g, '$1');
+
+    return combined;
+  }
+
+  function tryParse(candidate) {
+    try {
+      return JSON.parse(candidate);
+    } catch (e) {
+      try {
+        const repaired = tryRepair(candidate);
+        return JSON.parse(repaired);
+      } catch (e2) {
+        throw e;
+      }
+    }
+  }
+
+  const start = trimmed.indexOf('{');
+  const end = trimmed.lastIndexOf('}');
+
+  if (start !== -1 && end !== -1 && end > start) {
+    const candidate = trimmed.slice(start, end + 1);
+    try {
+      return tryParse(candidate);
+    } catch (e) {
+      const cleaned = candidate
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/```$/, '')
+        .trim();
+      try {
+        return tryParse(cleaned);
+      } catch (e4) {
+        throw new Error(`JSON parse error: ${e4.message}. Body head: ${candidate.slice(0, 100).replace(/\n/g, ' ')}...`);
+      }
+    }
+  }
+
+  throw new Error(`No JSON object found in response. Body head: ${trimmed.slice(0, 100).replace(/\n/g, ' ')}...`);
+}
+
+async function runOpenAIStage1Breakdown(profile = {}, content = '', conference = 'ICLR') {
+  const prompt = buildStage1Prompt(content, conference);
+  const text = await runOpenAICompatibleRequest(profile, prompt, 'application/json');
+  const parsed = extractJsonFromText(text);
+  return normalizeStage1Breakdown(parsed, conference);
+}
+
+async function runOpenAIStage2Refine(profile = {}, payload = {}, conference = 'ICLR') {
+  const prompt = buildStage2Prompt(payload, conference);
+  const text = await runOpenAICompatibleRequest(profile, prompt, 'application/json');
+  const parsed = extractJsonFromText(text);
+
+  const draft = `${parsed?.draft ?? parsed?.response ?? ''}`.trim();
+  if (!draft) {
+    throw new Error('Stage2 refine did not return a valid draft field.');
+  }
+
+  return { draft, raw: parsed };
+}
+
+async function runOpenAIStage4Condense(profile = {}, allSource = '') {
+  const prompt = buildStage4CondensePrompt(allSource);
+  const text = await runOpenAICompatibleRequest(profile, prompt, 'application/json');
+  const parsed = extractJsonFromText(text);
+
+  const condensedMarkdown = `${parsed?.condensedMarkdown ?? parsed?.summary ?? ''}`.trim();
+  if (!condensedMarkdown) {
+    throw new Error('Stage4 condense did not return condensedMarkdown.');
+  }
+
+  return { condensedMarkdown, raw: parsed };
+}
+
+async function runOpenAIStage4Refine(profile = {}, payload = {}) {
+  const prompt = buildStage4RefinePrompt(payload);
+  const text = await runOpenAICompatibleRequest(profile, prompt, 'application/json');
+  const parsed = extractJsonFromText(text);
+
+  const refinedText = `${parsed?.refinedText ?? parsed?.draft ?? parsed?.response ?? ''}`.trim();
+  if (!refinedText) {
+    throw new Error('Stage4 refine did not return refinedText.');
+  }
+
+  return { refinedText, raw: parsed };
+}
+
+async function runOpenAIStage5FinalRemarks(profile = {}, payload = {}) {
+  const prompt = buildStage5FinalRemarksPrompt(payload);
+  const text = await runOpenAICompatibleRequest(profile, prompt, 'application/json');
+  const parsed = extractJsonFromText(text);
+
+  const filledMarkdown = `${parsed?.filledMarkdown ?? parsed?.finalRemarks ?? parsed?.text ?? ''}`.trim();
+  if (!filledMarkdown) {
+    throw new Error('Stage5 final remarks did not return filledMarkdown.');
+  }
+
+  return { filledMarkdown, raw: parsed };
+}
+
+async function runOpenAITemplateRephrase(profile = {}, content = '') {
+  const prompt = buildTemplateRephrasePrompt(content);
+  const text = await runOpenAICompatibleRequest(profile, prompt, 'application/json');
+  const parsed = extractJsonFromText(text);
+
+  const out = `${parsed?.text ?? parsed?.draft ?? ''}`.trim();
+  if (!out) throw new Error('Template rephrase did not return text.');
+  return { text: out, raw: parsed };
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1800,
@@ -770,30 +972,38 @@ ipcMain.handle('app:stage1:breakdown', async (_event, payload) => {
   const providerKey = payload?.providerKey;
   const profile = payload?.profile || {};
   const content = `${payload?.content || ''}`;
+  const conference = payload?.conference || 'ICLR';
 
-  if (providerKey !== 'gemini') {
-    throw new Error('Stage1 breakdown currently requires Gemini provider.');
+  if (providerKey === 'gemini') {
+    return runGeminiStage1Breakdown(profile, content, conference);
+  } else if (['openai', 'deepseek', 'azureOpenai'].includes(providerKey)) {
+    return runOpenAIStage1Breakdown(profile, content, conference);
+  } else {
+    throw new Error(`Stage1 breakdown does not support provider: ${providerKey}`);
   }
-
-  return runGeminiStage1Breakdown(profile, content);
 });
 
 ipcMain.handle('app:stage2:refine', async (_event, payload) => {
   const providerKey = payload?.providerKey;
   const profile = payload?.profile || {};
+  const conference = payload?.conference || 'ICLR';
 
-  if (providerKey !== 'gemini') {
-    throw new Error('Stage2 refine currently requires Gemini provider.');
-  }
-
-  return runGeminiStage2Refine(profile, {
+  const body = {
     responseId: `${payload?.responseId || ''}`,
     title: `${payload?.title || ''}`,
     source: `${payload?.source || ''}`,
-    sourceId: `${payload?.sourceId || ''}`,
+    sourceId: `${payload?.source_id || payload?.sourceId || ''}`,
     quotedIssue: `${payload?.quotedIssue || ''}`,
     outline: `${payload?.outline || ''}`,
-  });
+  };
+
+  if (providerKey === 'gemini') {
+    return runGeminiStage2Refine(profile, body, conference);
+  } else if (['openai', 'deepseek', 'azureOpenai'].includes(providerKey)) {
+    return runOpenAIStage2Refine(profile, body, conference);
+  } else {
+    throw new Error(`Stage2 refine does not support provider: ${providerKey}`);
+  }
 });
 
 ipcMain.handle('app:stage4:condense', async (_event, payload) => {
@@ -801,11 +1011,13 @@ ipcMain.handle('app:stage4:condense', async (_event, payload) => {
   const profile = payload?.profile || {};
   const allSource = `${payload?.allSource || ''}`;
 
-  if (providerKey !== 'gemini') {
-    throw new Error('Stage4 condense currently requires Gemini provider.');
+  if (providerKey === 'gemini') {
+    return runGeminiStage4Condense(profile, allSource);
+  } else if (['openai', 'deepseek', 'azureOpenai'].includes(providerKey)) {
+    return runOpenAIStage4Condense(profile, allSource);
+  } else {
+    throw new Error(`Stage4 condense does not support provider: ${providerKey}`);
   }
-
-  return runGeminiStage4Condense(profile, allSource);
 });
 
 ipcMain.handle('app:stage4:saveCondensed', async (_event, payload) => {
@@ -820,15 +1032,19 @@ ipcMain.handle('app:stage4:refine', async (_event, payload) => {
   const providerKey = payload?.providerKey;
   const profile = payload?.profile || {};
 
-  if (providerKey !== 'gemini') {
-    throw new Error('Stage4 refine currently requires Gemini provider.');
-  }
-
-  return runGeminiStage4Refine(profile, {
+  const body = {
     condensedMarkdown: `${payload?.condensedMarkdown || ''}`,
     followupQuestion: `${payload?.followupQuestion || ''}`,
     draft: `${payload?.draft || ''}`,
-  });
+  };
+
+  if (providerKey === 'gemini') {
+    return runGeminiStage4Refine(profile, body);
+  } else if (['openai', 'deepseek', 'azureOpenai'].includes(providerKey)) {
+    return runOpenAIStage4Refine(profile, body);
+  } else {
+    throw new Error(`Stage4 refine does not support provider: ${providerKey}`);
+  }
 });
 
 ipcMain.handle('app:stage5:saveCondensed', async (_event, payload) => {
@@ -845,14 +1061,19 @@ ipcMain.handle('app:stage5:finalize', async (_event, payload) => {
   const templateSource = `${payload?.templateSource || ''}`;
   const reviewerSummaries = Array.isArray(payload?.reviewerSummaries) ? payload.reviewerSummaries : [];
 
-  if (providerKey !== 'gemini') {
-    throw new Error('Stage5 final remarks currently requires Gemini provider.');
+  if (providerKey === 'gemini') {
+    return runGeminiStage5FinalRemarks(profile, {
+      templateSource,
+      reviewerSummaries,
+    });
+  } else if (['openai', 'deepseek', 'azureOpenai'].includes(providerKey)) {
+    return runOpenAIStage5FinalRemarks(profile, {
+      templateSource,
+      reviewerSummaries,
+    });
+  } else {
+    throw new Error(`Stage5 final remarks does not support provider: ${providerKey}`);
   }
-
-  return runGeminiStage5FinalRemarks(profile, {
-    templateSource,
-    reviewerSummaries,
-  });
 });
 
 
@@ -861,11 +1082,13 @@ ipcMain.handle('app:template:rephrase', async (_event, payload) => {
   const profile = payload?.profile || {};
   const content = `${payload?.content || ''}`;
 
-  if (providerKey !== 'gemini') {
-    throw new Error('Template AI polish currently requires Gemini provider.');
+  if (providerKey === 'gemini') {
+    return runGeminiTemplateRephrase(profile, content);
+  } else if (['openai', 'deepseek', 'azureOpenai'].includes(providerKey)) {
+    return runOpenAITemplateRephrase(profile, content);
+  } else {
+    throw new Error(`Template AI polish does not support provider: ${providerKey}`);
   }
-
-  return runGeminiTemplateRephrase(profile, content);
 });
 
 ipcMain.handle('app:api:listModels', async (_event, payload) => {
