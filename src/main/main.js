@@ -920,6 +920,11 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1800,
     height: 1280,
+    transparent: true,
+    vibrancy: 'under-window',
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 16, y: 20 },
+    backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
