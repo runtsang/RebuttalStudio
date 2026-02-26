@@ -127,6 +127,7 @@ async function loadStage5SampleTemplate() {
 const state = {
   appSettings: { defaultAutosaveIntervalSeconds: 60 },
   projects: [],
+  projectSortMode: 'date-desc', // 'date-desc' | 'date-asc' | 'az' | 'za'
   currentFolderName: null,
   currentDoc: null,
   apiSettings: { activeApiProvider: 'openai', apiProfiles: {} },
@@ -539,8 +540,19 @@ function openTemplateModal() {
    ──────────────────────────────────────────────────────────── */
 function renderProjectList() {
   const search = projectSearchEl.value.trim().toLowerCase();
-  const html = state.projects
-    .filter((p) => (p.projectName || '').toLowerCase().includes(search))
+  let list = state.projects.filter((p) => (p.projectName || '').toLowerCase().includes(search));
+
+  // Sort
+  const mode = state.projectSortMode || 'date-desc';
+  list = [...list].sort((a, b) => {
+    if (mode === 'az') return (a.projectName || '').localeCompare(b.projectName || '');
+    if (mode === 'za') return (b.projectName || '').localeCompare(a.projectName || '');
+    const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+    const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+    return mode === 'date-asc' ? ta - tb : tb - ta;
+  });
+
+  const html = list
     .map((p) => {
       if (p.unavailable) {
         return `<button class="project-item unavailable" disabled>Unavailable (${p.projectName})<span class="project-meta">${p.error}</span></button>`;
@@ -551,6 +563,13 @@ function renderProjectList() {
 
   projectListEl.innerHTML = html;
   drawerProjectListEl.innerHTML = html;
+
+  // Update sort button tooltip
+  const sortBtn = document.getElementById('sortProjectsBtn');
+  if (sortBtn) {
+    const labels = { 'date-desc': 'Newest first', 'date-asc': 'Oldest first', az: 'A → Z', za: 'Z → A' };
+    sortBtn.title = `Sort: ${labels[mode] || mode}`;
+  }
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -3295,6 +3314,11 @@ async function init() {
    Event listeners
    ──────────────────────────────────────────────────────────── */
 document.getElementById('newBtn').addEventListener('click', beginProjectCreation);
+document.getElementById('sortProjectsBtn')?.addEventListener('click', () => {
+  const cycle = { 'date-desc': 'date-asc', 'date-asc': 'az', az: 'za', za: 'date-desc' };
+  state.projectSortMode = cycle[state.projectSortMode] || 'date-desc';
+  renderProjectList();
+});
 document.getElementById('brandBtn').addEventListener('click', () => {
   state.pendingCreate = false;
   state.currentDoc = null;

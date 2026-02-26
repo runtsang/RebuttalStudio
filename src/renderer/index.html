@@ -25,7 +25,12 @@
       <!-- Default mode: project list -->
       <div id="sidebarProjects" class="sidebar-projects-mode">
         <div>
-          <h2 class="sidebar-title">Projects</h2>
+          <div class="sidebar-section-header">
+            <h2 class="sidebar-title">Projects</h2>
+            <button id="sortProjectsBtn" class="icon-btn" title="Sort: Newest first" aria-label="Sort projects">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/></svg>
+            </button>
+          </div>
           <div id="projectList" class="project-nav"></div>
         </div>
         <button id="settingsBtn" class="settings-nav-item" aria-label="Open settings">
