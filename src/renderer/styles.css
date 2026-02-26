@@ -146,6 +146,105 @@ select {
   color: var(--text);
 }
 
+/* ── Documentation action buttons in sidebar ── */
+.sidebar-doc-actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--space-2);
+}
+
+.doc-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.doc-action-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* ── Docs Reader Panel ── */
+.docs-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--space-4);
+  gap: var(--space-3);
+  overflow: hidden;
+}
+
+.docs-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.docs-file-select {
+  flex: 1;
+}
+
+.docs-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  line-height: 1.7;
+  font-size: 0.9rem;
+}
+
+.docs-content h1, .docs-content h2, .docs-content h3 {
+  color: var(--text);
+  margin-top: 1.2em;
+}
+
+.docs-content h1 { font-size: 1.4rem; }
+.docs-content h2 { font-size: 1.15rem; }
+.docs-content h3 { font-size: 1rem; }
+
+.docs-content code {
+  background: var(--panel-muted);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85em;
+}
+
+.docs-content pre {
+  background: var(--panel-muted);
+  border-radius: 6px;
+  padding: var(--space-3);
+  overflow-x: auto;
+}
+
+.docs-content pre code {
+  background: none;
+  padding: 0;
+}
+
+.docs-content a { color: var(--accent); }
+.docs-content hr { border-color: var(--border); }
+.docs-content blockquote {
+  border-left: 3px solid var(--accent);
+  margin-left: 0;
+  padding-left: var(--space-3);
+  color: var(--text-muted);
+}
+
 .project-nav {
   display: grid;
   gap: 4px;

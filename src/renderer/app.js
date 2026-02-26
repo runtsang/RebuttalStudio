@@ -121,6 +121,17 @@ async function loadStage5SampleTemplate() {
   }
 }
 
+/* ── Docs panel state ── */
+const DOCS_FILES = [
+  { label: 'README', path: '../../documents/en/README.md' },
+  { label: 'Stage 1 — Breakdown', path: '../../documents/en/stage1-breakdown.md' },
+  { label: 'Stage 2 — Reply', path: '../../documents/en/stage2-reply.md' },
+  { label: 'Stage 3 — First Round', path: '../../documents/en/stage3-first-round.md' },
+  { label: 'Stage 4 — Multi Rounds', path: '../../documents/en/stage4-multi-rounds.md' },
+  { label: 'Stage 5 — Conclusion', path: '../../documents/en/stage5-conclusion.md' },
+];
+let docsCurrentPath = DOCS_FILES[0].path;
+
 /* ────────────────────────────────────────────────────────────
    State
    ──────────────────────────────────────────────────────────── */
@@ -569,6 +580,42 @@ function renderProjectList() {
   if (sortBtn) {
     const labels = { 'date-desc': 'Newest first', 'date-asc': 'Oldest first', az: 'A → Z', za: 'Z → A' };
     sortBtn.title = `Sort: ${labels[mode] || mode}`;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────
+   Docs Panel
+   ──────────────────────────────────────────────────────────── */
+async function renderDocsPanel(filePath) {
+  const docsPanelEl = document.getElementById('docsPanel');
+  const docsContentEl = document.getElementById('docsContent');
+  const docsFileSelectEl = document.getElementById('docsFileSelect');
+
+  // Populate selector if first open
+  if (!docsFileSelectEl.options.length) {
+    docsFileSelectEl.innerHTML = DOCS_FILES.map((f) =>
+      `<option value="${f.path}">${f.label}</option>`
+    ).join('');
+  }
+
+  docsCurrentPath = filePath || docsCurrentPath;
+  docsFileSelectEl.value = docsCurrentPath;
+
+  // Show panel, hide others
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('workspace').classList.add('hidden');
+  document.getElementById('namingPanel').classList.add('hidden');
+  const skillsPanelEl = document.getElementById('skillsPanel');
+  if (skillsPanelEl) skillsPanelEl.classList.add('hidden');
+  docsPanelEl.classList.remove('hidden');
+
+  try {
+    const resp = await fetch(docsCurrentPath);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const raw = await resp.text();
+    docsContentEl.innerHTML = DOMPurify.sanitize(marked.parse(raw));
+  } catch (err) {
+    docsContentEl.textContent = `Failed to load: ${err.message}`;
   }
 }
 
@@ -3319,6 +3366,27 @@ document.getElementById('sortProjectsBtn')?.addEventListener('click', () => {
   state.projectSortMode = cycle[state.projectSortMode] || 'date-desc';
   renderProjectList();
 });
+
+// Documentation buttons
+document.getElementById('openDocsExternalBtn')?.addEventListener('click', async () => {
+  const url = new URL('../../documents/en/README.md', window.location.href);
+  const absPath = decodeURIComponent(url.pathname);
+  await window.studioApi.openPath(absPath);
+});
+
+document.getElementById('openDocsReaderBtn')?.addEventListener('click', () => {
+  renderDocsPanel(DOCS_FILES[0].path);
+});
+
+document.getElementById('docsFileSelect')?.addEventListener('change', (e) => {
+  renderDocsPanel(e.target.value);
+});
+
+document.getElementById('docsCloseBtn')?.addEventListener('click', () => {
+  document.getElementById('docsPanel').classList.add('hidden');
+  document.getElementById('emptyState').classList.remove('hidden');
+});
+
 document.getElementById('brandBtn').addEventListener('click', () => {
   state.pendingCreate = false;
   state.currentDoc = null;
