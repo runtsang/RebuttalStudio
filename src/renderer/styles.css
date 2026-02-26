@@ -431,7 +431,8 @@ select {
 .topbar input,
 .topbar a,
 .topbar .active-model-badge,
-.topbar select {
+.topbar select,
+.topbar-actions-group {
   -webkit-app-region: no-drag;
 }
 
