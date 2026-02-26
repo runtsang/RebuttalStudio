@@ -683,12 +683,15 @@ function renderSkillsPanel() {
           </button>
         `).join('')}
       </div>
+    </div>
+  `).join('') + `
+    <div style="margin-top: var(--space-4);">
       <button class="skills-propose-btn" data-propose>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        提出你的 Skills
+        Propose a Skill
       </button>
     </div>
-  `).join('');
+  `;
 }
 
 async function openSkillModal(path, label) {

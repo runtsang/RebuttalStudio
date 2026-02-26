@@ -8,7 +8,7 @@
   --block-size: 11px;
   --block-gap: 2px;
   --letter-gap: 10px;
-  --sidebar-width: 240px;
+  --sidebar-width: 280px;
   --sidebar-collapsed: 0px;
   --sidebar-transition: 360ms cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -16,29 +16,28 @@
 /* Dark theme (default) — Codex vibe */
 [data-theme="dark"],
 :root {
-  --bg:           #0a0a0a;
-  --panel:        #141414;
-  --panel-muted:  #1a1a1a;
-  --text:         rgba(255, 255, 255, 0.88);
-  --text-muted:   rgba(255, 255, 255, 0.35);
-  --border:       rgba(255, 255, 255, 0.06);
-  --hover:        rgba(255, 255, 255, 0.06);
-  --accent:       #f26921;
-  --accent-soft:  rgba(242, 105, 33, 0.12);
+  --bg: #0a0a0a;
+  --panel: #141414;
+  --panel-muted: #1a1a1a;
+  --text: rgba(255, 255, 255, 0.88);
+  --text-muted: rgba(255, 255, 255, 0.35);
+  --border: rgba(255, 255, 255, 0.06);
+  --hover: rgba(255, 255, 255, 0.06);
+  --accent: #f26921;
+  --accent-soft: rgba(242, 105, 33, 0.12);
 }
 
 /* Light theme — Codex day mode */
 [data-theme="light"] {
-  --bg:           #ffffff;
-  --panel:        #f2f2f2;
-  --panel-muted:  #e8e8e8;
-  --text:         #0d0d0d;
-  --text-muted:   #8e8e93;
-  --border:       rgba(0, 0, 0, 0.08);
-  --hover:        rgba(0, 0, 0, 0.05);
-  --accent:       #f26921;
-  --accent-soft:  rgba(242, 105, 33, 0.10);
-  --sidebar-width: 280px;
+  --bg: #ffffff;
+  --panel: #f2f2f2;
+  --panel-muted: #e8e8e8;
+  --text: #0d0d0d;
+  --text-muted: #8e8e93;
+  --border: rgba(0, 0, 0, 0.08);
+  --hover: rgba(0, 0, 0, 0.05);
+  --accent: #f26921;
+  --accent-soft: rgba(242, 105, 33, 0.10);
 }
 
 /* ────────────────────── Global ────────────────────── */
@@ -207,14 +206,24 @@ select {
   font-size: 0.9rem;
 }
 
-.docs-content h1, .docs-content h2, .docs-content h3 {
+.docs-content h1,
+.docs-content h2,
+.docs-content h3 {
   color: var(--text);
   margin-top: 1.2em;
 }
 
-.docs-content h1 { font-size: 1.4rem; }
-.docs-content h2 { font-size: 1.15rem; }
-.docs-content h3 { font-size: 1rem; }
+.docs-content h1 {
+  font-size: 1.4rem;
+}
+
+.docs-content h2 {
+  font-size: 1.15rem;
+}
+
+.docs-content h3 {
+  font-size: 1rem;
+}
 
 .docs-content code {
   background: var(--panel-muted);
@@ -236,8 +245,14 @@ select {
   padding: 0;
 }
 
-.docs-content a { color: var(--accent); }
-.docs-content hr { border-color: var(--border); }
+.docs-content a {
+  color: var(--accent);
+}
+
+.docs-content hr {
+  border-color: var(--border);
+}
+
 .docs-content blockquote {
   border-left: 3px solid var(--accent);
   margin-left: 0;
@@ -297,24 +312,25 @@ select {
 }
 
 .skills-cards-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
 }
 
 .skill-card {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
+  gap: 12px;
+  padding: 16px 20px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--panel);
   color: var(--text);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  justify-content: flex-start;
 }
 
 .skill-card:hover {
@@ -324,7 +340,7 @@ select {
 }
 
 .skill-card-icon {
-  font-size: 1rem;
+  font-size: 1.3rem;
   line-height: 1;
 }
 
@@ -349,12 +365,12 @@ select {
   color: var(--accent);
 }
 
-/* ── Skill Modal ── */
 .skill-modal {
-  max-width: 760px;
-  width: 90vw;
-  max-height: 80vh;
-  display: flex;
+  max-width: 1000px !important;
+  width: 95vw !important;
+  max-height: 85vh !important;
+  height: 85vh !important;
+  display: flex !important;
   flex-direction: column;
   overflow: hidden;
 }
@@ -378,12 +394,22 @@ select {
   overflow-y: auto;
   font-size: 0.88rem;
   line-height: 1.7;
-  padding-right: 4px;
+  padding-right: 12px;
+  min-height: 0;
 }
 
-.skill-modal-content h1 { font-size: 1.2rem; margin-top: 0; }
-.skill-modal-content h2 { font-size: 1rem; }
-.skill-modal-content h3 { font-size: 0.92rem; }
+.skill-modal-content h1 {
+  font-size: 1.2rem;
+  margin-top: 0;
+}
+
+.skill-modal-content h2 {
+  font-size: 1rem;
+}
+
+.skill-modal-content h3 {
+  font-size: 0.92rem;
+}
 
 .skill-modal-content code {
   background: var(--panel-muted);
@@ -405,8 +431,14 @@ select {
   padding: 0;
 }
 
-.skill-modal-content a { color: var(--accent); }
-.skill-modal-content hr { border-color: var(--border); }
+.skill-modal-content a {
+  color: var(--accent);
+}
+
+.skill-modal-content hr {
+  border-color: var(--border);
+}
+
 .skill-modal-content blockquote {
   border-left: 3px solid var(--accent);
   margin-left: 0;
@@ -416,13 +448,13 @@ select {
 
 .project-nav {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .project-item {
   border: 1px solid transparent;
   border-radius: 4px;
-  padding: 9px 10px;
+  padding: 6px 10px;
   background: transparent;
   color: var(--text);
   text-align: left;
@@ -453,7 +485,7 @@ select {
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 8px 10px;
+  padding: 6px 10px;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
@@ -673,7 +705,7 @@ select {
 
 .drawer-panel {
   pointer-events: all;
-  width: 240px;
+  width: var(--sidebar-width);
   background: var(--panel);
   border-right: 1px solid var(--border);
   padding: 52px var(--space-3) var(--space-4);
@@ -688,7 +720,7 @@ select {
 }
 
 .project-drawer.open .drawer-toggle {
-  left: 240px;
+  left: var(--sidebar-width);
 }
 
 /* ────────────────────── Main Area ────────────────────── */
@@ -863,10 +895,15 @@ select {
   background: transparent;
   padding: 7px 14px;
   font-size: 0.84rem;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--text);
 }
 
-.topbar-btn + .topbar-btn {
+[data-theme="dark"] .topbar-btn {
+  color: #ffffff;
+}
+
+.topbar-btn+.topbar-btn {
   border-left: 1px solid var(--border);
 }
 
