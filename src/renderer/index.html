@@ -50,14 +50,39 @@
 
           <div class="sidebar-section-header">
             <h2 class="sidebar-title">Projects</h2>
-            <button id="sortProjectsBtn" class="icon-btn" title="Sort: Newest first" aria-label="Sort projects">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="15" y2="12" />
-                <line x1="3" y1="18" x2="9" y2="18" />
-              </svg>
-            </button>
+            <div style="display: flex; gap: 4px;">
+              <button id="searchProjectsToggleBtn" class="icon-btn" title="Search projects"
+                aria-label="Search projects">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </button>
+              <div style="position: relative;">
+                <button id="sortProjectsBtn" class="icon-btn" title="Sort Projects" aria-label="Sort projects">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="15" y2="12" />
+                    <line x1="3" y1="18" x2="9" y2="18" />
+                  </svg>
+                </button>
+                <div id="sortProjectsPopup" class="sort-popup hidden">
+                  <div class="sort-popup-section">Alphabetical</div>
+                  <button class="sort-popup-item" data-sort="az">A → Z</button>
+                  <button class="sort-popup-item" data-sort="za">Z → A</button>
+                  <div class="sort-popup-section">Creation Time</div>
+                  <button class="sort-popup-item" data-sort="date-desc">Newest First</button>
+                  <button class="sort-popup-item" data-sort="date-asc">Oldest First</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="projectSearchContainer" class="hidden" style="margin-bottom: var(--space-2);">
+            <input id="projectSearch" class="search-input"
+              style="width: 100%; border: 1px solid var(--border); background: var(--panel); border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; color: var(--text);"
+              placeholder="Search projects" aria-label="Search projects" />
           </div>
           <div id="projectList" class="project-nav"></div>
         </div>
@@ -99,7 +124,6 @@
           <button id="brandBtn" class="brand-btn" aria-label="Go to projects home">
             <img src="../../img/rebuttalstudio_hori.png" alt="Rebuttal Studio" class="brand-logo" />
           </button>
-          <input id="projectSearch" class="search-input" placeholder="Search projects" aria-label="Search projects" />
         </div>
         <div class="topbar-right">
           <span id="activeModelBadge" class="active-model-badge hidden" aria-live="polite"></span>

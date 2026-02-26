@@ -1,5 +1,5 @@
 ---
-name: rebuttalstudio_skill
+name: skills
 description: Multi-stage rebuttal analysis skill for RebuttalStudio. Use when organizing reviewer comments into stage-specific conference workflows, including stage1 breakdown, stage2 refinement, stage4 multi-round follow-up, and stage5 conclusion generation.
 ---
 

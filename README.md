@@ -185,7 +185,7 @@ If you find Rebuttal Studio useful in your research, please consider citing our 
   month        = 02,
   year         = 2026,
   publisher    = {Github},
-  version      = {v0.0.2},
+  version      = {v0.1.0},
   url          = {https://github.com/runtsang/RebuttalStudio}
 }
 ```

@@ -137,34 +137,34 @@ const SKILLS_CATALOG = [
   {
     stage: 'Stage 1 — Breakdown',
     skills: [
-      { label: 'ICLR', icon: '🔬', path: '../../rebuttalstudio_skill/stage1/iclr/SKILL.md' },
-      { label: 'ICML', icon: '🔬', path: '../../rebuttalstudio_skill/stage1/icml/SKILL.md' },
+      { label: 'ICLR', icon: '🔬', path: '../../skills/stage1/iclr/SKILL.md' },
+      { label: 'ICML', icon: '🔬', path: '../../skills/stage1/icml/SKILL.md' },
     ],
   },
   {
     stage: 'Stage 2 — Reply',
     skills: [
-      { label: 'ICLR', icon: '✍️', path: '../../rebuttalstudio_skill/stage2/iclr/SKILL.md' },
-      { label: 'ICML', icon: '✍️', path: '../../rebuttalstudio_skill/stage2/icml/SKILL.md' },
+      { label: 'ICLR', icon: '✍️', path: '../../skills/stage2/iclr/SKILL.md' },
+      { label: 'ICML', icon: '✍️', path: '../../skills/stage2/icml/SKILL.md' },
     ],
   },
   {
     stage: 'Stage 4 — Multi Rounds',
     skills: [
-      { label: 'Condense', icon: '🗜️', path: '../../rebuttalstudio_skill/stage4/condense/SKILL.md' },
-      { label: 'Refine', icon: '🪄', path: '../../rebuttalstudio_skill/stage4/refine/SKILL.md' },
+      { label: 'Condense', icon: '🗜️', path: '../../skills/stage4/condense/SKILL.md' },
+      { label: 'Refine', icon: '🪄', path: '../../skills/stage4/refine/SKILL.md' },
     ],
   },
   {
     stage: 'Stage 5 — Conclusion',
     skills: [
-      { label: 'Final Remarks', icon: '🎯', path: '../../rebuttalstudio_skill/stage5/final-remarks/SKILL.md' },
+      { label: 'Final Remarks', icon: '🎯', path: '../../skills/stage5/final-remarks/SKILL.md' },
     ],
   },
   {
     stage: 'Utility',
     skills: [
-      { label: 'Polish', icon: '✨', path: '../../rebuttalstudio_skill/polish/SKILL.md' },
+      { label: 'Polish', icon: '✨', path: '../../skills/polish/SKILL.md' },
     ],
   },
 ];
@@ -239,6 +239,8 @@ const reviewerInput = document.getElementById('reviewerInput');
 const autosaveInput = document.getElementById('autosaveInput');
 const settingsError = document.getElementById('settingsError');
 const projectSearchEl = document.getElementById('projectSearch');
+const searchProjectsToggleBtn = document.getElementById('searchProjectsToggleBtn');
+const projectSearchContainer = document.getElementById('projectSearchContainer');
 
 const sidebarEl = document.getElementById('sidebar');
 const sidebarProjectsEl = document.getElementById('sidebarProjects');
@@ -465,10 +467,26 @@ function renderSidebarStages() {
     </button>`;
   }).join('');
 
+  const docsPanelEl = document.getElementById('docsPanel');
+  const isDocsActive = docsPanelEl && !docsPanelEl.classList.contains('hidden');
+  const docsActiveCls = isDocsActive ? ' active' : '';
+
   sidebarStageListEl.insertAdjacentHTML('beforeend', `
+    <button class="sidebar-template-trigger${docsActiveCls}" type="button" data-docs-open="${cur + 1}" aria-label="Open Stage Documents" style="margin-bottom: 8px;">
+      <span class="sidebar-template-icon" style="display:flex; align-items:center; justify-content:center;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <line x1="10" y1="9" x2="8" y2="9"></line>
+        </svg>
+      </span>
+      <span class="sidebar-template-text">Documents</span>
+    </button>
     <button class="sidebar-template-trigger" type="button" data-template-open="1" aria-label="Open template center">
       <span class="sidebar-template-icon">✦</span>
-      <span class="sidebar-template-text">template</span>
+      <span class="sidebar-template-text">Template</span>
     </button>
   `);
 }
@@ -614,12 +632,10 @@ function renderProjectList() {
   projectListEl.innerHTML = html;
   drawerProjectListEl.innerHTML = html;
 
-  // Update sort button tooltip
-  const sortBtn = document.getElementById('sortProjectsBtn');
-  if (sortBtn) {
-    const labels = { 'date-desc': 'Newest first', 'date-asc': 'Oldest first', az: 'A → Z', za: 'Z → A' };
-    sortBtn.title = `Sort: ${labels[mode] || mode}`;
-  }
+  // Update the active state in the popup menu
+  document.querySelectorAll('.sort-popup-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sort === mode);
+  });
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -655,6 +671,11 @@ async function renderDocsPanel(filePath) {
     docsContentEl.innerHTML = DOMPurify.sanitize(marked.parse(raw));
   } catch (err) {
     docsContentEl.textContent = `Failed to load: ${err.message}`;
+  }
+
+  // Ensure sidebar reflects active state
+  if (state.currentDoc) {
+    renderSidebarStages();
   }
 }
 
@@ -3328,6 +3349,13 @@ function beginProjectCreation() {
 
 function selectStage(label) {
   if (!state.currentDoc) return;
+
+  const docsPanelEl = document.getElementById('docsPanel');
+  if (docsPanelEl && !docsPanelEl.classList.contains('hidden')) {
+    docsPanelEl.classList.add('hidden');
+    document.getElementById('workspace').classList.remove('hidden');
+  }
+
   state.currentDoc.currentStage = label;
   queueStateSync();
   renderSidebarStages();
@@ -3463,11 +3491,30 @@ async function init() {
    Event listeners
    ──────────────────────────────────────────────────────────── */
 document.getElementById('newBtn').addEventListener('click', beginProjectCreation);
-document.getElementById('sortProjectsBtn')?.addEventListener('click', () => {
-  const cycle = { 'date-desc': 'date-asc', 'date-asc': 'az', az: 'za', za: 'date-desc' };
-  state.projectSortMode = cycle[state.projectSortMode] || 'date-desc';
-  renderProjectList();
+document.getElementById('sortProjectsBtn')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const popup = document.getElementById('sortProjectsPopup');
+  if (popup) {
+    popup.classList.toggle('hidden');
+  }
 });
+
+// Hide sort popup when clicking outside
+document.addEventListener('click', (e) => {
+  const popup = document.getElementById('sortProjectsPopup');
+  if (popup && !popup.classList.contains('hidden') && !e.target.closest('#sortProjectsBtn')) {
+    popup.classList.add('hidden');
+  }
+});
+
+document.querySelectorAll('.sort-popup-item').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    state.projectSortMode = e.target.dataset.sort;
+    renderProjectList();
+    document.getElementById('sortProjectsPopup')?.classList.add('hidden');
+  });
+});
+
 
 // Documentation buttons
 document.getElementById('openDocsExternalBtn')?.addEventListener('click', async () => {
@@ -3545,6 +3592,16 @@ projectNameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') cre
 
 projectSearchEl.addEventListener('input', renderProjectList);
 
+searchProjectsToggleBtn.addEventListener('click', () => {
+  projectSearchContainer.classList.toggle('hidden');
+  if (!projectSearchContainer.classList.contains('hidden')) {
+    projectSearchEl.focus();
+  } else {
+    projectSearchEl.value = '';
+    renderProjectList();
+  }
+});
+
 // Project list click (main sidebar)
 projectListEl.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-folder]');
@@ -3561,8 +3618,17 @@ drawerProjectListEl.addEventListener('click', (e) => {
 sidebarStageListEl.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-stage]');
   const templateBtn = e.target.closest('[data-template-open]');
+  const docsBtn = e.target.closest('[data-docs-open]');
+
   if (templateBtn) {
     openTemplateModal();
+    return;
+  }
+  if (docsBtn) {
+    const docIdx = parseInt(docsBtn.dataset.docsOpen, 10);
+    if (DOCS_FILES[docIdx]) {
+      renderDocsPanel(DOCS_FILES[docIdx].path);
+    }
     return;
   }
   if (!btn || btn.disabled) return;

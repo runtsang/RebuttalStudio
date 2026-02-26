@@ -200,7 +200,7 @@ function buildStage1Prompt(content, conference = 'ICLR') {
   const scoresSchema = {};
   scoreKeys.forEach(k => scoresSchema[k] = "");
 
-  return `You are executing the rebuttalstudio_skill -> ${skillPath} workflow.
+  return `You are executing the skills -> ${skillPath} workflow.
 
 Follow these requirements exactly:
 1) Extract scores: ${scoreKeys.join(', ')} (numbers only where found; empty string if missing).
@@ -335,7 +335,7 @@ function buildStage2Prompt(payload = {}, conference = 'ICLR') {
   const conf = (conference || 'ICLR').toUpperCase();
   const skillPath = `stage2/${conf.toLowerCase()}/SKILL.md`;
 
-  return `You are executing the rebuttalstudio_skill -> ${skillPath} workflow.
+  return `You are executing the skills -> ${skillPath} workflow.
 
 Task:
 - Expand a user outline into a concise, academic rebuttal draft.
@@ -419,7 +419,7 @@ async function runGeminiStage2Refine(profile = {}, payload = {}, conference = 'I
 }
 
 function buildStage4CondensePrompt(allSource) {
-  return `You are executing the rebuttalstudio_skill -> stage4/condense/SKILL.md workflow.
+  return `You are executing the skills -> stage4/condense/SKILL.md workflow.
 
 Task:
 - Condense the prior Stage 3 "All" discussion into a compact markdown context file.
@@ -501,7 +501,7 @@ async function runGeminiStage4Condense(profile = {}, allSource = '') {
 }
 
 function buildStage4RefinePrompt(payload = {}) {
-  return `You are executing the rebuttalstudio_skill -> stage4/refine/SKILL.md workflow.
+  return `You are executing the skills -> stage4/refine/SKILL.md workflow.
 
 Task:
 - Generate a polished follow-up response for a multi-round reviewer discussion.
@@ -588,7 +588,7 @@ async function runGeminiStage4Refine(profile = {}, payload = {}) {
 
 function buildStage5FinalRemarksPrompt(payload = {}) {
   const reviewerSummaries = Array.isArray(payload.reviewerSummaries) ? payload.reviewerSummaries : [];
-  return `You are executing the rebuttalstudio_skill -> stage5/final-remarks/SKILL.md workflow.
+  return `You are executing the skills -> stage5/final-remarks/SKILL.md workflow.
 
 Task:
 - Fill a Stage5 conclusion template using all reviewers' condensed discussion markdown.
@@ -672,7 +672,7 @@ async function runGeminiStage5FinalRemarks(profile = {}, payload = {}) {
 
 
 function buildTemplateRephrasePrompt(content) {
-  return `You are executing the rebuttalstudio_skill -> polish/SKILL.md workflow.
+  return `You are executing the skills -> polish/SKILL.md workflow.
 
 Rephrase the following rebuttal-related message for clarity and naturalness.
 
