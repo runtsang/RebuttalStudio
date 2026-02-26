@@ -548,6 +548,34 @@ select {
   opacity: 0.85;
 }
 
+/* Grouped action buttons in topbar */
+.topbar-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel-muted);
+}
+
+.topbar-btn {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 7px 14px;
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+.topbar-btn + .topbar-btn {
+  border-left: 1px solid var(--border);
+}
+
+.topbar-btn:hover {
+  background: var(--hover);
+}
+
 .content {
   padding: var(--space-4);
   display: grid;
