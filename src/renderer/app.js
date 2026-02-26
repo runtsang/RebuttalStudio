@@ -2885,6 +2885,7 @@ function toggleDrawer() {
    Workspace
    ──────────────────────────────────────────────────────────── */
 function renderWorkspace() {
+  document.getElementById('docsPanel')?.classList.add('hidden');
   const hasProject = Boolean(state.currentDoc);
   workspaceEl.classList.toggle('hidden', !hasProject);
   emptyStateEl.classList.toggle('hidden', hasProject || state.pendingCreate);
@@ -3384,7 +3385,7 @@ document.getElementById('docsFileSelect')?.addEventListener('change', (e) => {
 
 document.getElementById('docsCloseBtn')?.addEventListener('click', () => {
   document.getElementById('docsPanel').classList.add('hidden');
-  document.getElementById('emptyState').classList.remove('hidden');
+  renderWorkspace();
 });
 
 document.getElementById('brandBtn').addEventListener('click', () => {
