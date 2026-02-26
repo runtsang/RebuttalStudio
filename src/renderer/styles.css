@@ -150,21 +150,34 @@ select {
   margin-top: 2px;
 }
 
-.settings-btn {
-  border: 1px solid var(--border);
-  background: var(--panel-muted);
-  border-radius: 4px;
-  width: 32px;
-  height: 32px;
-  cursor: pointer;
+/* settings-nav-item: full-width row, icon + label */
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
   color: var(--text-muted);
-  font-size: 1rem;
-  transition: background 0.15s;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
   flex-shrink: 0;
 }
 
-.settings-btn:hover {
+.settings-nav-item:hover {
   background: var(--hover);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* In stages mode the settings item sits next to "Next Stage" btn — keep it compact */
+.settings-nav-item--compact {
+  width: auto;
+  padding: 7px 10px;
 }
 
 /* ────────────────────── Sidebar Stages Mode ────────────────────── */
