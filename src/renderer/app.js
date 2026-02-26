@@ -132,6 +132,45 @@ const DOCS_FILES = [
 ];
 let docsCurrentPath = DOCS_FILES[0].path;
 
+/* ── Skills catalog ── */
+const SKILLS_CATALOG = [
+  {
+    stage: 'Stage 1 — Breakdown',
+    skills: [
+      { label: 'ICLR', icon: '🔬', path: '../../rebuttalstudio_skill/stage1/iclr/SKILL.md' },
+      { label: 'ICML', icon: '🔬', path: '../../rebuttalstudio_skill/stage1/icml/SKILL.md' },
+    ],
+  },
+  {
+    stage: 'Stage 2 — Reply',
+    skills: [
+      { label: 'ICLR', icon: '✍️', path: '../../rebuttalstudio_skill/stage2/iclr/SKILL.md' },
+      { label: 'ICML', icon: '✍️', path: '../../rebuttalstudio_skill/stage2/icml/SKILL.md' },
+    ],
+  },
+  {
+    stage: 'Stage 4 — Multi Rounds',
+    skills: [
+      { label: 'Condense', icon: '🗜️', path: '../../rebuttalstudio_skill/stage4/condense/SKILL.md' },
+      { label: 'Refine', icon: '🪄', path: '../../rebuttalstudio_skill/stage4/refine/SKILL.md' },
+    ],
+  },
+  {
+    stage: 'Stage 5 — Conclusion',
+    skills: [
+      { label: 'Final Remarks', icon: '🎯', path: '../../rebuttalstudio_skill/stage5/final-remarks/SKILL.md' },
+    ],
+  },
+  {
+    stage: 'Utility',
+    skills: [
+      { label: 'Polish', icon: '✨', path: '../../rebuttalstudio_skill/polish/SKILL.md' },
+    ],
+  },
+];
+
+const GITHUB_PR_URL = 'https://github.com/runtsang/RebuttalStudio/pulls';
+
 /* ────────────────────────────────────────────────────────────
    State
    ──────────────────────────────────────────────────────────── */
@@ -617,6 +656,64 @@ async function renderDocsPanel(filePath) {
   } catch (err) {
     docsContentEl.textContent = `Failed to load: ${err.message}`;
   }
+}
+
+/* ────────────────────────────────────────────────────────────
+   Skills Panel
+   ──────────────────────────────────────────────────────────── */
+function renderSkillsPanel() {
+  const skillsPanelEl = document.getElementById('skillsPanel');
+  const skillsGridEl = document.getElementById('skillsGrid');
+
+  // Show panel, hide others
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('workspace').classList.add('hidden');
+  document.getElementById('namingPanel').classList.add('hidden');
+  document.getElementById('docsPanel').classList.add('hidden');
+  skillsPanelEl.classList.remove('hidden');
+
+  skillsGridEl.innerHTML = SKILLS_CATALOG.map((group) => `
+    <div class="skills-stage-group">
+      <p class="skills-stage-label">${group.stage}</p>
+      <div class="skills-cards-row">
+        ${group.skills.map((s) => `
+          <button class="skill-card" data-skill-path="${s.path}" data-skill-label="${group.stage} / ${s.label}">
+            <span class="skill-card-icon">${s.icon}</span>
+            <span>${s.label}</span>
+          </button>
+        `).join('')}
+      </div>
+      <button class="skills-propose-btn" data-propose>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        提出你的 Skills
+      </button>
+    </div>
+  `).join('');
+}
+
+async function openSkillModal(path, label) {
+  const modalEl = document.getElementById('skillModal');
+  const titleEl = document.getElementById('skillModalTitle');
+  const contentEl = document.getElementById('skillModalContent');
+
+  titleEl.textContent = label;
+  contentEl.innerHTML = '<p style="color:var(--text-muted)">Loading…</p>';
+  modalEl.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const resp = await fetch(path);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const raw = await resp.text();
+    contentEl.innerHTML = DOMPurify.sanitize(marked.parse(raw));
+  } catch (err) {
+    contentEl.textContent = `Failed to load skill: ${err.message}`;
+  }
+}
+
+function closeSkillModal() {
+  document.getElementById('skillModal').classList.add('hidden');
+  document.body.style.overflow = '';
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -2886,6 +2983,7 @@ function toggleDrawer() {
    ──────────────────────────────────────────────────────────── */
 function renderWorkspace() {
   document.getElementById('docsPanel')?.classList.add('hidden');
+  document.getElementById('skillsPanel')?.classList.add('hidden');
   const hasProject = Boolean(state.currentDoc);
   workspaceEl.classList.toggle('hidden', !hasProject);
   emptyStateEl.classList.toggle('hidden', hasProject || state.pendingCreate);
@@ -3388,6 +3486,32 @@ document.getElementById('docsCloseBtn')?.addEventListener('click', () => {
   renderWorkspace();
 });
 
+// Skills nav button
+document.getElementById('skillsNavBtn')?.addEventListener('click', () => {
+  renderSkillsPanel();
+});
+
+// Skills panel: click skill card or propose button (event delegation)
+document.getElementById('skillsGrid')?.addEventListener('click', async (e) => {
+  const card = e.target.closest('[data-skill-path]');
+  if (card) {
+    await openSkillModal(card.dataset.skillPath, card.dataset.skillLabel);
+    return;
+  }
+  const propose = e.target.closest('[data-propose]');
+  if (propose) {
+    await window.studioApi.openExternal(GITHUB_PR_URL);
+  }
+});
+
+// Skill modal close button
+document.getElementById('skillModalCloseBtn')?.addEventListener('click', closeSkillModal);
+
+// Skill modal backdrop click to close
+document.getElementById('skillModal')?.addEventListener('click', (e) => {
+  if (e.target === document.getElementById('skillModal')) closeSkillModal();
+});
+
 document.getElementById('brandBtn').addEventListener('click', () => {
   state.pendingCreate = false;
   state.currentDoc = null;
@@ -3739,6 +3863,11 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    const skillModalEl = document.getElementById('skillModal');
+    if (skillModalEl && !skillModalEl.classList.contains('hidden')) {
+      closeSkillModal();
+      return;
+    }
     hideStage2ContextMenu();
     hideStage3SourceMenu();
   }

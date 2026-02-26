@@ -245,6 +245,175 @@ select {
   color: var(--text-muted);
 }
 
+/* ── Skills Panel ── */
+.skills-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--space-4);
+  gap: var(--space-3);
+  overflow-y: auto;
+}
+
+.skills-panel-header {
+  margin-bottom: var(--space-2);
+}
+
+.skills-panel-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: var(--text);
+}
+
+.skills-panel-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.skills-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.skills-stage-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.skills-stage-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  margin: 0;
+}
+
+.skills-cards-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skill-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.skill-card:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-soft);
+}
+
+.skill-card-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.skills-propose-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--space-2);
+  padding: 8px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.skills-propose-btn:hover {
+  background: var(--hover);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Skill Modal ── */
+.skill-modal {
+  max-width: 760px;
+  width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.skill-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+  flex-shrink: 0;
+}
+
+.skill-modal-header h3 {
+  margin: 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1rem;
+}
+
+.skill-modal-content {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  padding-right: 4px;
+}
+
+.skill-modal-content h1 { font-size: 1.2rem; margin-top: 0; }
+.skill-modal-content h2 { font-size: 1rem; }
+.skill-modal-content h3 { font-size: 0.92rem; }
+
+.skill-modal-content code {
+  background: var(--panel-muted);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.82em;
+}
+
+.skill-modal-content pre {
+  background: var(--panel-muted);
+  border-radius: 6px;
+  padding: var(--space-3);
+  overflow-x: auto;
+}
+
+.skill-modal-content pre code {
+  background: none;
+  padding: 0;
+}
+
+.skill-modal-content a { color: var(--accent); }
+.skill-modal-content hr { border-color: var(--border); }
+.skill-modal-content blockquote {
+  border-left: 3px solid var(--accent);
+  margin-left: 0;
+  padding-left: var(--space-3);
+  color: var(--text-muted);
+}
+
 .project-nav {
   display: grid;
   gap: 4px;
