@@ -89,7 +89,7 @@ select {
   border-right: 1px solid var(--border);
   background: transparent;
   padding: 0;
-  padding-top: 20px;
+  padding-top: 25px;
   display: flex;
   flex-direction: column;
   transition: border-color 0.3s ease, width var(--sidebar-transition), min-width var(--sidebar-transition), opacity var(--sidebar-transition);
@@ -105,7 +105,7 @@ select {
   flex-direction: column;
   justify-content: space-between;
   flex: 1;
-  padding: var(--space-4) var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) 6px;
   min-height: 0;
   overflow: hidden;
 }
@@ -119,6 +119,7 @@ select {
 
 .sidebar-title {
   margin: 0 0 var(--space-2);
+  padding-left: 10px;
   color: var(--text-muted);
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.8rem;
@@ -512,6 +513,9 @@ select {
 }
 
 .project-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
   border: 1px solid transparent;
   border-radius: 4px;
   padding: 6px 10px;
@@ -537,6 +541,41 @@ select {
   color: var(--text-muted);
   font-size: 0.75rem;
   margin-top: 2px;
+}
+
+.project-item-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.project-export-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 1;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+
+.project-export-btn:hover {
+  background: var(--hover);
+  color: var(--accent);
+  transform: scale(1.1);
+}
+
+#exportProjectPopup {
+  width: 150px;
+  max-width: var(--sidebar-width);
+}
+
+.project-export-btn:hover {
+  background: var(--border);
+  color: var(--text);
 }
 
 /* settings-nav-item: full-width row, icon + label */
@@ -589,7 +628,7 @@ select {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 10px 8px;
+  padding: 10px 10px;
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s;
@@ -2177,7 +2216,7 @@ select {
   background: transparent;
   color: var(--text-muted);
   border-radius: 8px;
-  padding: 10px 8px;
+  padding: 10px 10px;
   display: flex;
   align-items: center;
   justify-content: center;

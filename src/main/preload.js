@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('studioApi', {
   listProjects: () => ipcRenderer.invoke('projects:list'),
+  exportFirstRound: (payload) => ipcRenderer.invoke('projects:exportFirstRound', payload),
   getAppSettings: () => ipcRenderer.invoke('app:settings:get'),
   updateDefaultInterval: (seconds) => ipcRenderer.invoke('app:settings:updateDefaultInterval', seconds),
   getApiSettings: () => ipcRenderer.invoke('app:api:getSettings'),

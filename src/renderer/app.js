@@ -209,6 +209,7 @@ let stage4RefineRuntime = { running: false, reviewerIdx: -1 };
 let stage5AutoFillRuntime = { running: false };
 let stage2OutlineContext = { responseId: null, x: 0, y: 0 };
 let stage3SourceContext = { responseId: null, x: 0, y: 0, start: 0, end: 0 };
+let exportTargetFolder = null;
 let stage2ModalTargetResponseId = null;
 let stage2TableRows = 3;
 let stage2TableCols = 3;
@@ -241,6 +242,7 @@ const settingsError = document.getElementById('settingsError');
 const projectSearchEl = document.getElementById('projectSearch');
 const searchProjectsToggleBtn = document.getElementById('searchProjectsToggleBtn');
 const projectSearchContainer = document.getElementById('projectSearchContainer');
+const exportProjectPopup = document.getElementById('exportProjectPopup');
 
 const sidebarEl = document.getElementById('sidebar');
 const sidebarProjectsEl = document.getElementById('sidebarProjects');
@@ -625,7 +627,19 @@ function renderProjectList() {
       if (p.unavailable) {
         return `<button class="project-item unavailable" disabled>Unavailable (${p.projectName})<span class="project-meta">${p.error}</span></button>`;
       }
-      return `<button class="project-item" data-folder="${p.folderName}">${p.projectName}<span class="project-meta">${p.conference || 'ICLR'} · ${fmtDate(p.updatedAt)}</span></button>`;
+      return `<button class="project-item" data-folder="${p.folderName}">
+        <div class="project-item-info">
+          <div class="project-item-name">${escapeHTML(p.projectName)}</div>
+          <span class="project-meta">${escapeHTML(p.conference || 'ICLR')} · ${fmtDate(p.updatedAt)}</span>
+        </div>
+        <div class="project-export-btn" data-export-folder="${p.folderName}" title="Export First Round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          </svg>
+        </div>
+      </button>`;
     })
     .join('');
 
@@ -1953,6 +1967,47 @@ function buildAllDocument(reviewerId) {
   const safeReviewerIdx = Number.isFinite(reviewerIdx) ? reviewerIdx : state.activeReviewerIdx;
   const units = buildStage3UnitsForReviewer(safeReviewerIdx);
   return units.map((unit) => unit.text).join('\n\n');
+}
+
+function compileFirstRoundForExport(doc) {
+  const reviewers = doc.reviewers || [];
+  const breakdownData = doc.breakdownData || {};
+  const stage2Replies = doc.stage2Replies || {};
+  const stage3Settings = doc.stage3Settings || { style: 'standard', color: '#f26921' };
+  const stage3Drafts = doc.stage3Drafts || {};
+  const color = stage3Settings.color || '#f26921';
+
+  const segments = [];
+
+  reviewers.forEach((r, rIdx) => {
+    const rName = r.name || `Reviewer ${rIdx + 1}`;
+    const rData = breakdownData[rIdx] || {};
+    const responses = Array.isArray(rData.responses) ? rData.responses : [];
+    const rStage2 = stage2Replies[rIdx] || {};
+    const rStage3 = stage3Drafts[rIdx] || {};
+
+    segments.push(`# Response to Reviewer ${rName}`);
+
+    // Opening
+    segments.push(STAGE3_ALL_OPENING_PARAGRAPH);
+
+    responses.forEach(resp => {
+      const draft = rStage3[resp.id] || { markdownSource: '' };
+      const refined = rStage2[resp.id]?.draft || '';
+      const text = enforceStrictStage3Source(draft.markdownSource, resp, responses, refined, color);
+      segments.push(text);
+    });
+
+    segments.push(STAGE3_ALL_CLOSING_PARAGRAPH);
+    if (rIdx < reviewers.length - 1) {
+      segments.push('\n---\n');
+    }
+  });
+
+  const markdown = segments.join('\n\n');
+  const html = renderStage3Markdown(markdown);
+
+  return { markdown, html };
 }
 
 function splitByUnits(units, L) {
@@ -3490,7 +3545,13 @@ async function init() {
 /* ────────────────────────────────────────────────────────────
    Event listeners
    ──────────────────────────────────────────────────────────── */
-document.getElementById('newBtn').addEventListener('click', beginProjectCreation);
+// New Project (Global Sidebar handling or Delegate)
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-new-project-open]')) {
+    beginProjectCreation();
+  }
+});
+
 document.getElementById('sortProjectsBtn')?.addEventListener('click', (e) => {
   e.stopPropagation();
   const popup = document.getElementById('sortProjectsPopup');
@@ -3604,12 +3665,24 @@ searchProjectsToggleBtn.addEventListener('click', () => {
 
 // Project list click (main sidebar)
 projectListEl.addEventListener('click', (e) => {
+  const exportBtn = e.target.closest('.project-export-btn');
+  if (exportBtn) {
+    const folder = exportBtn.dataset.exportFolder;
+    showExportPopup(exportBtn, folder);
+    return;
+  }
   const btn = e.target.closest('[data-folder]');
   if (btn) openProject(btn.dataset.folder);
 });
 
 // Project list click (drawer)
 drawerProjectListEl.addEventListener('click', (e) => {
+  const exportBtn = e.target.closest('.project-export-btn');
+  if (exportBtn) {
+    const folder = exportBtn.dataset.exportFolder;
+    showExportPopup(exportBtn, folder);
+    return;
+  }
   const btn = e.target.closest('[data-folder]');
   if (btn) openProject(btn.dataset.folder);
 });
@@ -3637,6 +3710,90 @@ sidebarStageListEl.addEventListener('click', (e) => {
 
 // Drawer toggle
 drawerToggleEl.addEventListener('click', toggleDrawer);
+
+// Export Popup Logic
+function showExportPopup(btn, folder) {
+  exportTargetFolder = folder;
+  exportProjectPopup.classList.remove('hidden');
+
+  const rect = btn.getBoundingClientRect();
+  const popupRect = exportProjectPopup.getBoundingClientRect();
+
+  // Align right edge of popup with right edge of button
+  let left = rect.right - popupRect.width;
+  let top = rect.bottom + 5;
+
+  // Stay within sidebar if sidebar reference is available
+  const sidebarRect = sidebarEl?.getBoundingClientRect();
+  if (sidebarRect && left < sidebarRect.left + 5) left = sidebarRect.left + 5;
+
+  if (top + popupRect.height > window.innerHeight) {
+    top = rect.top - popupRect.height - 5;
+  }
+
+  exportProjectPopup.style.position = 'fixed';
+  exportProjectPopup.style.top = `${top}px`;
+  exportProjectPopup.style.left = `${left}px`;
+  exportProjectPopup.style.zIndex = '10000';
+}
+
+function hideExportPopup() {
+  exportProjectPopup.classList.add('hidden');
+  exportTargetFolder = null;
+}
+
+// Global click to close popups
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.project-export-btn') && !e.target.closest('#exportProjectPopup')) {
+    hideExportPopup();
+  }
+  if (!e.target.closest('#sortProjectsBtn') && !e.target.closest('#sortProjectsPopup')) {
+    const popup = document.getElementById('sortProjectsPopup');
+    if (popup) popup.classList.add('hidden');
+  }
+});
+
+exportProjectPopup.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-export-type]');
+  if (!btn) return;
+  const type = btn.dataset.exportType;
+  hideExportPopup();
+  await handleProjectExport(type);
+});
+
+async function handleProjectExport(format) {
+  const folder = exportTargetFolder;
+  if (!folder) return;
+
+  try {
+    console.log(`Starting export: ${folder} as ${format}`);
+    let doc;
+    if (state.currentDoc && state.currentFolderName === folder) {
+      doc = state.currentDoc;
+    } else {
+      const res = await window.studioApi.openProject(folder);
+      doc = res.doc;
+    }
+
+    if (!doc) throw new Error('Project data could not be loaded.');
+
+    const { markdown, html } = compileFirstRoundForExport(doc);
+    const exportRes = await window.studioApi.exportFirstRound({
+      folderName: folder,
+      format,
+      markdown,
+      htmlStr: html
+    });
+
+    if (exportRes && exportRes.success) {
+      console.log('Export success');
+      alert('Project exported successfully!');
+    }
+  } catch (err) {
+    console.error('Export failed:', err);
+    alert(`Export failed: ${err.message}`);
+  }
+}
 
 // Reviewer tabs
 reviewerTabsEl.addEventListener('click', (e) => {
