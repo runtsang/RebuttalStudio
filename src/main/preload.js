@@ -20,4 +20,6 @@ contextBridge.exposeInMainWorld('studioApi', {
   updateProjectState: (payload) => ipcRenderer.invoke('projects:updateState', payload),
   setAutosaveInterval: (seconds) => ipcRenderer.invoke('projects:setAutosaveInterval', seconds),
   saveNow: () => ipcRenderer.invoke('projects:saveNow'),
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+  openPath: (filePath) => ipcRenderer.invoke('shell:openPath', filePath),
 });

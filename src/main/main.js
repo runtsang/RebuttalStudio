@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs/promises');
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const {
   createProject,
   listProjects,
@@ -1148,4 +1148,16 @@ ipcMain.handle('projects:setAutosaveInterval', async (_event, seconds) => {
   await persistNow();
   startAutosaveScheduler();
   return { intervalSeconds: interval, doc: autosaveState.currentDoc };
+});
+
+ipcMain.handle('shell:openExternal', async (_event, url) => {
+  if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
+    await shell.openExternal(url);
+  }
+});
+
+ipcMain.handle('shell:openPath', async (_event, filePath) => {
+  if (typeof filePath === 'string') {
+    await shell.openPath(filePath);
+  }
 });
