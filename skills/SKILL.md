@@ -23,4 +23,13 @@ Follow this dispatcher structure:
 
 - `polish/SKILL.md`: Polish (rephrase) a rebuttal message template for clarity and professionalism while preserving the original structure, tone, and intent.
 
+## Available stage-general utility skills
+
+These skills apply across multiple stages and provide strategic, stylistic, and quality guidance:
+
+- `utility/stage/review-response/SKILL.md`: Comment classification (Major/Minor/Misunderstanding/Typo) and response strategy selection (Accept/Defend/Clarify/Experiment). Use when planning how to respond to any reviewer concern.
+- `utility/stage/writing-anti-ai/SKILL.md`: Remove AI-generated writing patterns from rebuttal prose. Use after Stage 2 refinement or Stage 4 follow-up when text reads formulaic or robotic.
+- `utility/stage/rebuttal-self-review/SKILL.md`: Pre-submission quality checklist covering coverage, tone, factual accuracy, structure, and clarity. Use after Stage 3 compilation or Stage 5 final remarks.
+- `utility/stage/citation-verification/SKILL.md`: Verification workflow for any new citation added during rebuttal writing. Use when LLM-suggested references appear in Stage 2 drafts.
+
 If a requested stage/conference does not exist, stop and ask for missing spec before inventing format.
