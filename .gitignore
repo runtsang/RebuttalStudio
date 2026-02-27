@@ -1,5 +1,6 @@
 node_modules/
 projects/*
+!projects/RebuttalStudio
 .DS_Store
 .claude
 docs
