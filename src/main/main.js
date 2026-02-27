@@ -1126,7 +1126,7 @@ ipcMain.handle('projects:open', async (_event, folderName) => {
 });
 
 ipcMain.handle('projects:exportFirstRound', async (event, { folderName, format, markdown, htmlStr }) => {
-  const win = BrowserWindow.getFocusedWindow();
+  const win = BrowserWindow.fromWebContents(event.sender);
   try {
     if (format === 'md') {
       const { filePath } = await dialog.showSaveDialog(win, {
@@ -1145,7 +1145,12 @@ ipcMain.handle('projects:exportFirstRound', async (event, { folderName, format, 
         filters: [{ name: 'Word Document', extensions: ['docx'] }]
       });
       if (filePath) {
-        const docxBuffer = await HTMLtoDOCX(htmlStr, null, {
+        const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Rebuttal</title></head>
+<body>${htmlStr}</body>
+</html>`;
+        const docxBuffer = await HTMLtoDOCX(fullHtml, null, {
           margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
         });
         await fs.writeFile(filePath, docxBuffer);

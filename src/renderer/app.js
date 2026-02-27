@@ -3757,12 +3757,12 @@ exportProjectPopup.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-export-type]');
   if (!btn) return;
   const type = btn.dataset.exportType;
+  const folder = exportTargetFolder;
   hideExportPopup();
-  await handleProjectExport(type);
+  await handleProjectExport(type, folder);
 });
 
-async function handleProjectExport(format) {
-  const folder = exportTargetFolder;
+async function handleProjectExport(format, folder) {
   if (!folder) return;
 
   try {

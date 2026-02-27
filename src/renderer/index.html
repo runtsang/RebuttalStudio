@@ -105,13 +105,6 @@
 
       <!-- Stage breakdown mode (shown when inside a project) -->
       <div id="sidebarStages" class="sidebar-stages-mode hidden">
-        <div style="margin-bottom: var(--space-2); display: flex; flex-direction: column; gap: 2px;">
-          <button class="settings-nav-item" data-new-project-open aria-label="Create New Project">
-            <span
-              style="display: flex; align-items: center; justify-content: center; width: 15px; height: 15px; font-size: 16px; font-weight: bold;">+</span>
-            <span>New Projects</span>
-          </button>
-        </div>
         <div class="stages-header">
           <h2 class="sidebar-title">Stages</h2>
         </div>
@@ -662,7 +655,7 @@
   <div id="exportProjectPopup" class="sort-popup hidden" style="z-index: 9999; margin-top: 5px;">
     <div class="sort-popup-section" id="exportProjectPopupTitle">Export First Round</div>
     <button class="sort-popup-item" data-export-type="md">Markdown Document (.md)</button>
-    <button class="sort-popup-item" data-export-type="docx">Word Document (.docx)</button>
+    <button class="sort-popup-item" disabled style="opacity:0.4;cursor:not-allowed;">Word Document (.docx) (Not supported yet)</button>
   </div>
 
   <script src="../../node_modules/marked/lib/marked.umd.js"></script>
