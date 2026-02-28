@@ -56,7 +56,7 @@ const STAGES = [
   { key: 'stage2', label: 'Reply', desc: 'Draft point-by-point replies to each concern' },
   { key: 'stage3', label: 'First Round', desc: 'Compile the first round rebuttal document' },
   { key: 'stage4', label: 'Multi Rounds', desc: 'Handle follow-up rounds of discussion' },
-  { key: 'stage5', label: 'Conclusion', desc: 'Finalize and summarize the rebuttal outcome' },
+  { key: 'stage5', label: 'Final Remarks', desc: 'Finalize and summarize the rebuttal outcome' },
 ];
 
 
@@ -128,7 +128,7 @@ const DOCS_FILES = [
   { label: 'Stage 2 — Reply', path: '../../documents/en/stage2-reply.md' },
   { label: 'Stage 3 — First Round', path: '../../documents/en/stage3-first-round.md' },
   { label: 'Stage 4 — Multi Rounds', path: '../../documents/en/stage4-multi-rounds.md' },
-  { label: 'Stage 5 — Conclusion', path: '../../documents/en/stage5-conclusion.md' },
+  { label: 'Stage 5 — Final Remarks', path: '../../documents/en/stage5-final-remarks.md' },
 ];
 let docsCurrentPath = DOCS_FILES[0].path;
 
@@ -156,7 +156,7 @@ const SKILLS_CATALOG = [
     ],
   },
   {
-    stage: 'Stage 5 — Conclusion',
+    stage: 'Stage 5 — Final Remarks',
     skills: [
       { label: 'Final Remarks', icon: '🎯', path: '../../skills/stage5/final-remarks/SKILL.md' },
     ],
@@ -288,7 +288,7 @@ const stage4CopyPopupCloseBtnEl = document.getElementById('stage4CopyPopupCloseB
 const convertColumnEl = document.querySelector('.convert-column');
 
 
-const API_PROVIDER_KEYS = ['openai', 'anthropic', 'gemini', 'deepseek', 'azureOpenai'];
+const API_PROVIDER_KEYS = ['openai', 'anthropic', 'gemini', 'deepseek', 'azureOpenai', 'qwen', 'custom'];
 
 
 const API_PROVIDER_GUIDE = {
@@ -316,6 +316,16 @@ const API_PROVIDER_GUIDE = {
     baseUrl: '',
     model: 'your-deployment-name',
     baseUrlHelp: 'Fill your Azure resource endpoint, e.g. https://YOUR-RESOURCE.openai.azure.com/openai',
+  },
+  qwen: {
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    model: 'qwen-plus',
+    baseUrlHelp: 'Alibaba DashScope compatible-mode endpoint. Get your API key from console.aliyun.com. Common models: qwen-turbo, qwen-plus, qwen-max.',
+  },
+  custom: {
+    baseUrl: '',
+    model: '',
+    baseUrlHelp: 'Enter any OpenAI-compatible base URL (e.g. https://api.moonshot.cn/v1, http://localhost:11434/v1 for Ollama). Use "Detect models" to list available models.',
   },
 };
 
@@ -1938,7 +1948,7 @@ function renderStage5Panels() {
   const selectedTemplate = getStage5TemplateEntry(stage5.styleKey);
 
   if (!stage5.templateConfirmed || !selectedTemplate?.entry) {
-    stage2LeftEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Conclusion Template</h4><p class="breakdown-placeholder">Please select a Stage5 template first.</p></div></div>`;
+    stage2LeftEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Final Remarks Template</h4><p class="breakdown-placeholder">Please select a Stage5 template first.</p></div></div>`;
     breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Rendered Preview</h4><p class="breakdown-placeholder">Nothing to preview yet.</p></div></div>`;
     if (stage5TemplateModalEl?.classList.contains('hidden')) {
       openStage5TemplateModal();
@@ -3439,11 +3449,11 @@ function renderActiveModelBadge() {
 
 function renderApiForm(providerKey = state.apiSettings.activeApiProvider) {
   const profile = getActiveApiProfile(providerKey);
-  if (!profile) return;
+  const guide = API_PROVIDER_GUIDE[providerKey] || {};
   apiProviderSelectEl.value = providerKey;
-  apiBaseUrlInputEl.value = profile.baseUrl || '';
-  apiModelInputEl.value = profile.model || '';
-  apiInputEl.value = profile.apiKey || '';
+  apiBaseUrlInputEl.value = profile?.baseUrl ?? guide.baseUrl ?? '';
+  apiModelInputEl.value = profile?.model ?? guide.model ?? '';
+  apiInputEl.value = profile?.apiKey ?? '';
   // Reset model selector to text input mode
   apiModelSelectEl.classList.add('hidden');
   apiModelInputEl.classList.remove('hidden');
@@ -3645,7 +3655,7 @@ function syncStageUi() {
         ? 'Preview'
         : (isStage4
           ? 'Final Refined Output'
-          : (isStage5 ? 'Final Conclusion Preview' : 'Structured Breakdown')));
+          : (isStage5 ? 'Final Remarks Preview' : 'Structured Breakdown')));
   }
 
   // Toggle left panel: reviewer input vs outline panel
@@ -3695,8 +3705,8 @@ function syncStageUi() {
     const iconSpan = stage2AutoFitBtn.querySelector('.convert-icon');
     if (isStage5) {
       if (labelEl) labelEl.textContent = 'Auto Fill';
-      stage2AutoFitBtn.title = 'Auto fill conclusion';
-      stage2AutoFitBtn.setAttribute('aria-label', 'Auto fill conclusion');
+      stage2AutoFitBtn.title = 'Auto fill final remarks';
+      stage2AutoFitBtn.setAttribute('aria-label', 'Auto fill final remarks');
       if (iconSpan) {
         iconSpan.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>';
       }

@@ -5,7 +5,7 @@ Stage 4 处理 Reviewer 在首轮 Rebuttal 之后、讨论期间发起的追问�
 ## 在整体流程中的位置
 
 ```
-... → Stage 3: First Round → Stage 4: Multi Rounds（可选）→ Stage 5: Conclusion
+... → Stage 3: First Round → Stage 4: Multi Rounds（可选）→ Stage 5: Final Remarks
 ```
 
 Stage 4 是可选阶段，只在 Reviewer 于讨论期发起追问时才需要使用。对同一位 Reviewer 可以多次使用，支持第二轮、第三轮等多轮讨论。
@@ -97,8 +97,8 @@ Stage 4 是可选阶段，只在 Reviewer 于讨论期发起追问时才需要�
 
 ## 下一步
 
-所有讨论线程处理完毕后，进入 **[Stage 5 — Conclusion](./stage5-conclusion.md)** 撰写给 AC 的 Final Remarks，对整轮 Rebuttal 做总结性陈述。
+所有讨论线程处理完毕后，进入 **[Stage 5 — Final Remarks](./stage5-final-remarks.md)** 撰写给 AC 的 Final Remarks，对整轮 Rebuttal 做总结性陈述。
 
 ---
 
-[← Stage 3 — First Round](./stage3-first-round.md) | [Stage 5 — Conclusion →](./stage5-conclusion.md)
+[← Stage 3 — First Round](./stage3-first-round.md) | [Stage 5 — Final Remarks →](./stage5-final-remarks.md)

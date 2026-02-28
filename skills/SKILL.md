@@ -1,6 +1,6 @@
 ---
 name: skills
-description: Multi-stage rebuttal analysis skill for RebuttalStudio. Use when organizing reviewer comments into stage-specific conference workflows, including stage1 breakdown, stage2 refinement, stage4 multi-round follow-up, and stage5 conclusion generation.
+description: Multi-stage rebuttal analysis skill for RebuttalStudio. Use when organizing reviewer comments into stage-specific conference workflows, including stage1 breakdown, stage2 refinement, stage4 multi-round follow-up, and stage5 final remarks generation.
 ---
 
 # RebuttalStudio Multi-Stage Skill
@@ -17,7 +17,7 @@ Follow this dispatcher structure:
 - `stage2/iclr/SKILL.md`: Refine Stage2 outline drafts into reviewer-facing rebuttal prose.
 - `stage4/condense/SKILL.md`: Condense Stage 3 combined discussion into reusable markdown context.
 - `stage4/refine/SKILL.md`: Refine follow-up response using condensed context + follow-up question + user draft.
-- `stage5/final-remarks/SKILL.md`: Fill Stage 5 conclusion template from all reviewers' condensed markdown context.
+- `stage5/final-remarks/SKILL.md`: Fill Stage 5 final remarks template from all reviewers' condensed markdown context.
 
 ## Available utility workflows
 

@@ -14,7 +14,7 @@ This section contains the user-facing workflow guides for Rebuttal Studio. Each 
 | **2** | **Reply** | Write outline drafts for each issue; refine with LLM into polished paragraphs | A reviewed Refined Draft for every atomic issue |
 | **3** | **First Round** | Assemble drafts into a formatted, submission-ready document; check word count | Copy-ready rebuttal text (single block or split chunks) |
 | **4** | **Multi Rounds** *(optional)* | Handle follow-up reviewer questions during the discussion period | Context-aware, concise follow-up responses |
-| **5** | **Conclusion** | Generate Final Remarks addressed to Area Chairs | Structured AC summary with strengths, concerns table, and revision commitments |
+| **5** | **Final Remarks** | Generate Final Remarks addressed to Area Chairs | Structured AC summary with strengths, concerns table, and revision commitments |
 
 ---
 
@@ -26,7 +26,7 @@ This section contains the user-facing workflow guides for Rebuttal Studio. Each 
 | 2 | [Reply](./stage2-reply.md) | Draft and refine point-by-point responses to every concern |
 | 3 | [First Round](./stage3-first-round.md) | Assemble and format the full first-round rebuttal for submission |
 | 4 | [Multi Rounds](./stage4-multi-rounds.md) | Handle follow-up questions that arrive during the discussion period |
-| 5 | [Conclusion](./stage5-conclusion.md) | Generate the Final Remarks for Area Chairs |
+| 5 | [Final Remarks](./stage5-final-remarks.md) | Generate the Final Remarks for Area Chairs |
 
 ---
 

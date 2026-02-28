@@ -95,7 +95,7 @@ Key lessons distilled from analyzing accepted papers' rebuttals:
 | **Stage 1 — Breakdown** | After receiving reviewer text, apply the classification table to categorize each atomic issue before writing titles |
 | **Stage 2 — Reply** | Use the Accept/Defend/Clarify/Experiment framework when drafting outlines; choose the strategy that matches each issue type |
 | **Stage 4 — Multi-Round** | Re-apply classification to follow-up comments; use "Clarify" or "Experiment" strategy for reviewer persistence |
-| **Stage 5 — Conclusion** | Summarize the response strategies used for each reviewer in the final remarks |
+| **Stage 5 — Final Remarks** | Summarize the response strategies used for each reviewer in the final remarks |
 
 ---
 

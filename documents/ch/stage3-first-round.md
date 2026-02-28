@@ -5,7 +5,7 @@ Stage 3 将 Stage 2 中每条问题的回复草稿组装成一份完整的、格
 ## 在整体流程中的位置
 
 ```
-... → Stage 2: Reply → Stage 3: First Round → Stage 4: Multi Rounds（可选）→ Stage 5: Conclusion
+... → Stage 2: Reply → Stage 3: First Round → Stage 4: Multi Rounds（可选）→ Stage 5: Final Remarks
 ```
 
 Stage 3 以 Stage 2 的逐条 Refined Draft 为输入，为每位 Reviewer 生成一份结构完整的 Rebuttal 文档。输出是可直接复制提交的文本。
@@ -93,7 +93,7 @@ Stage 3 以 Stage 2 的逐条 Refined Draft 为输入，为每位 Reviewer 生�
 
 如果 Reviewer 在讨论期提出了追问，进入 **[Stage 4 — Multi Rounds](./stage4-multi-rounds.md)** 处理后续讨论。
 
-如果讨论期结束没有追问，或追问全部处理完毕，进入 **[Stage 5 — Conclusion](./stage5-conclusion.md)** 撰写给 AC 的 Final Remarks。
+如果讨论期结束没有追问，或追问全部处理完毕，进入 **[Stage 5 — Final Remarks](./stage5-final-remarks.md)** 撰写给 AC 的 Final Remarks。
 
 ---
 

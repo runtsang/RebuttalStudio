@@ -5,7 +5,7 @@ Stage 4 handles follow-up questions that arrive after your initial rebuttal duri
 ## In the Pipeline
 
 ```
-... → Stage 3: First Round → Stage 4: Multi Rounds (optional) → Stage 5: Conclusion
+... → Stage 3: First Round → Stage 4: Multi Rounds (optional) → Stage 5: Final Remarks
 ```
 
 Stage 4 is optional — you only need it if reviewers engage during the discussion period with follow-up questions or clarifications. It can be used multiple times for the same reviewer if the discussion spans multiple rounds.
@@ -98,8 +98,8 @@ A good Stage 4 follow-up response:
 
 ## Next Steps
 
-Once all active discussion threads are resolved, move to **[Stage 5 — Conclusion](./stage5-conclusion.md)** to write the Final Remarks for Area Chairs summarizing the full rebuttal outcome.
+Once all active discussion threads are resolved, move to **[Stage 5 — Final Remarks](./stage5-final-remarks.md)** to write the Final Remarks for Area Chairs summarizing the full rebuttal outcome.
 
 ---
 
-[← Stage 3 — First Round](./stage3-first-round.md) | [Stage 5 — Conclusion →](./stage5-conclusion.md)
+[← Stage 3 — First Round](./stage3-first-round.md) | [Stage 5 — Final Remarks →](./stage5-final-remarks.md)

@@ -14,7 +14,7 @@
 | **2** | **Reply** | 为每条问题写大纲草稿；Refine 润色为正式段落 | 每条原子问题对应一份经过人工核查的 Refined Draft |
 | **3** | **First Round** | 组装格式化文档；检查字数；复制提交 | 可直接粘贴提交的 Rebuttal 文本（单块或分段） |
 | **4** | **Multi Rounds**（可选）| 处理讨论期 Reviewer 的追问 | 基于前文上下文的简洁跟进回复 |
-| **5** | **Conclusion** | 生成给 AC 的 Final Remarks | 含优点总结、关注点表格和修改承诺的结构化 AC 总结 |
+| **5** | **Final Remarks** | 生成给 AC 的 Final Remarks | 含优点总结、关注点表格和修改承诺的结构化 AC 总结 |
 
 ---
 
@@ -26,7 +26,7 @@
 | 2 | [Reply](./stage2-reply.md) | 撰写并润色每条问题的逐条回复 |
 | 3 | [First Round](./stage3-first-round.md) | 组装格式化的首轮 Rebuttal 并准备提交 |
 | 4 | [Multi Rounds](./stage4-multi-rounds.md) | 处理讨论期的追问 |
-| 5 | [Conclusion](./stage5-conclusion.md) | 生成写给 AC 的 Final Remarks |
+| 5 | [Final Remarks](./stage5-final-remarks.md) | 生成写给 AC 的 Final Remarks |
 
 ---
 

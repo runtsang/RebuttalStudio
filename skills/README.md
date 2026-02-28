@@ -21,7 +21,7 @@ skills/
 ├── stage4/                           ← Stage 4: Multi-round follow-up
 │   ├── condense/
 │   └── refine/
-├── stage5/                           ← Stage 5: Final conclusion
+├── stage5/                           ← Stage 5: Final Remarks
 │   └── final-remarks/
 │       └── references/
 └── utility/                          ← Stage-general utility skills
@@ -126,11 +126,11 @@ The app calls the LLM with a system prompt built from the relevant `SKILL.md` co
 
 ---
 
-### Stage 5 — Final Conclusion
+### Stage 5 — Final Remarks
 
 **File**: `stage5/final-remarks/SKILL.md`
 
-**Purpose**: Fill a Stage 5 conclusion template from condensed discussion data across all reviewers.
+**Purpose**: Fill a Stage 5 final remarks template from condensed discussion data across all reviewers.
 
 **Implementation logic**:
 - Inputs: `template_markdown` (placeholder-based template), `reviewer_summaries` (array of per-reviewer records with `reviewerId`, `condensedMarkdown`, optional `originalRating`, `finalRating`)
@@ -211,7 +211,7 @@ These skills do not produce structured JSON output for the app pipeline. They se
 - Stage-specific guidance (when to run after Stage 3 vs Stage 5)
 - Post-review submission steps
 
-**When to consult**: After Stage 3 compilation before first-round submission; after Stage 5 conclusion writing; optionally after each Stage 4 follow-up response.
+**When to consult**: After Stage 3 compilation before first-round submission; after Stage 5 final remarks writing; optionally after each Stage 4 follow-up response.
 
 **Source**: Adapted from Claude Scholar [`skills/paper-self-review/SKILL.md`](https://github.com/Galaxy-Dawn/claude-scholar/blob/main/skills/paper-self-review/SKILL.md). The 6-area review structure and multi-pass process are adapted from the original paper review framework; all checklist items have been rewritten for the rebuttal context.
 

@@ -5,7 +5,7 @@ Stage 3 assembles your per-issue response drafts from Stage 2 into a single, for
 ## In the Pipeline
 
 ```
-... → Stage 2: Reply → Stage 3: First Round → Stage 4: Multi Rounds (optional) → Stage 5: Conclusion
+... → Stage 2: Reply → Stage 3: First Round → Stage 4: Multi Rounds (optional) → Stage 5: Final Remarks
 ```
 
 Stage 3 takes the Refined Drafts from Stage 2 and composes them into a coherent, per-reviewer rebuttal document. The output is copy-ready text formatted to meet conference presentation conventions.
@@ -93,7 +93,7 @@ A complete Stage 3 for each reviewer produces:
 
 If reviewers respond with follow-up questions during the discussion period, proceed to **[Stage 4 — Multi Rounds](./stage4-multi-rounds.md)**.
 
-If the discussion period ends without follow-ups, or after resolving all follow-ups, proceed to **[Stage 5 — Conclusion](./stage5-conclusion.md)** to write the Final Remarks for Area Chairs.
+If the discussion period ends without follow-ups, or after resolving all follow-ups, proceed to **[Stage 5 — Final Remarks](./stage5-final-remarks.md)** to write the Final Remarks for Area Chairs.
 
 ---
 

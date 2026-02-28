@@ -1,12 +1,12 @@
 ---
 name: stage5-final-remarks
-description: Fill a Stage5 conclusion template using condensed discussion markdown from all reviewers and optional rating changes. Use when generating final remarks/conclusion after Stage3/Stage4 discussion.
+description: Fill a Stage5 final remarks template using condensed discussion markdown from all reviewers and optional rating changes. Use when generating final remarks after Stage3/Stage4 discussion.
 ---
 
 # Stage5 Final Remarks Skill
 
 ## Goal
-Generate a complete Stage5 conclusion markdown by filling template placeholders from multi-reviewer evidence.
+Generate a complete Stage5 final remarks markdown by filling template placeholders from multi-reviewer evidence.
 
 ## Inputs
 - `template_markdown`: placeholder-based template source.

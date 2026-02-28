@@ -21,6 +21,11 @@
   <b>A rebuttal editor for researchers to craft high-quality academic rebuttals — so you can focus on <i>what</i> to say, not <i>how</i> to format it.</b>
 </p>
 
+
+<p align="center">
+  <img src="img/teaser.png" alt="Rebuttal Studio Teaser" width="800"/>
+</p>
+
 ---
 
 ## 📖 Introduction
@@ -39,7 +44,7 @@ Our workflow is organized into **5 stages**:
 | **2** | **Reply** | Draft point-by-point replies to each concern with an outline-first approach. Then refine your outlines into polished, publication-ready paragraphs using LLM-powered skills. |
 | **3** | **First Round** | Compile the first-round rebuttal document in the required conference format, ready to submit. |
 | **4** | **Multi Rounds** *(Optional)* | Handle follow-up rounds of discussion during the rebuttal period, when reviewers ask for clarifications or raise new concerns. |
-| **5** | **Conclusion** | Finalize and summarize the rebuttal outcome. |
+| **5** | **Final Remarks** | Finalize and summarize the rebuttal outcome. |
 
 Through this principled pipeline, we aim to help academic researchers **focus on the rebuttal content itself**, rather than getting bogged down by formatting minutiae and the mechanical overhead of organizing responses.
 
@@ -52,7 +57,7 @@ Through this principled pipeline, we aim to help academic researchers **focus on
 - Stage 2: [Reply (EN)](documents/en/stage2-reply.md) | [阶段二：Reply（中文）](documents/ch/stage2-reply.md)
 - Stage 3: [First Round (EN)](documents/en/stage3-first-round.md) | [阶段三：First Round（中文）](documents/ch/stage3-first-round.md)
 - Stage 4: [Multi Rounds (EN)](documents/en/stage4-multi-rounds.md) | [阶段四：Multi Rounds（中文）](documents/ch/stage4-multi-rounds.md)
-- Stage 5: [Conclusion (EN)](documents/en/stage5-conclusion.md) | [阶段五：Conclusion（中文）](documents/ch/stage5-conclusion.md)
+- Stage 5: [Final Remarks (EN)](documents/en/stage5-final-remarks.md) | [阶段五：Final Remarks（中文）](documents/ch/stage5-final-remarks.md)
 
 ---
 

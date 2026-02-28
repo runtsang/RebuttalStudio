@@ -1,6 +1,6 @@
 ---
 name: rebuttal-self-review
-description: Systematic quality check for a completed rebuttal document before submission. Use after Stage 3 document compilation or after Stage 5 conclusion writing to verify completeness, tone, factual accuracy, and structural integrity. Catches common rebuttal errors before they reach reviewers.
+description: Systematic quality check for a completed rebuttal document before submission. Use after Stage 3 document compilation or after Stage 5 final remarks writing to verify completeness, tone, factual accuracy, and structural integrity. Catches common rebuttal errors before they reach reviewers.
 tags: [Rebuttal, Quality, Review, Pre-Submission]
 version: 1.0.0
 source: Adapted from Claude Scholar (https://github.com/Galaxy-Dawn/claude-scholar), skills/paper-self-review/SKILL.md.
@@ -21,7 +21,7 @@ Unlike a paper, a rebuttal has a strict deadline, tight word limits, and must di
 
 **Recommended timing:**
 - After Stage 3 compilation (before first-round submission)
-- After Stage 5 final remarks (before conclusion submission)
+- After Stage 5 final remarks (before final remarks submission)
 - After each multi-round Stage 4 response (optional but recommended)
 
 ---
@@ -138,7 +138,7 @@ Follow these steps for a systematic pass:
 Once all checks pass:
 
 1. **For Stage 3**: Copy the compiled document to the submission portal. Respect word/character limits.
-2. **For Stage 5**: Copy the final remarks to the conclusion box.
+2. **For Stage 5**: Copy the final remarks to the final remarks box.
 3. **Keep a local copy**: The project.json autosaves, but export a Markdown backup before submitting.
 
 ---

@@ -69,6 +69,25 @@ select {
   display: none !important;
 }
 
+/* ────────────────────── Custom Scrollbar ────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.65);
+}
+
 /* ────────────────────── Layout ────────────────────── */
 .app {
   display: grid;

@@ -1,11 +1,11 @@
-# Stage 5 — Conclusion
+# Stage 5 — Final Remarks
 
 Stage 5 生成写给 Area Chair（AC）的 **Final Remarks**——一份结构化的、面向 AC 的高层总结，帮助 AC 在了解整轮 Rebuttal 全貌的基础上做出决策。与 Stage 3 针对每位 Reviewer 的逐条回复不同，Final Remarks 直接面向 AC：总结论文的核心优点、Reviewer 提出的主要关切、你如何应对这些关切，以及你承诺在修订版中做出的具体改动。
 
 ## 在整体流程中的位置
 
 ```
-... → Stage 3: First Round → Stage 4: Multi Rounds（可选）→ Stage 5: Conclusion [结束]
+... → Stage 3: First Round → Stage 4: Multi Rounds（可选）→ Stage 5: Final Remarks [结束]
 ```
 
 Stage 5 是整个流程的最后一步，对先前所有阶段的信息——Reviewer 的关切、你的回复、讨论结果——进行综合汇总。
@@ -21,7 +21,7 @@ Stage 5 是整个流程的最后一步，对先前所有阶段的信息——Rev
 ## 界面说明
 
 **Template 按钮**
-打开结论模板弹窗，包含样式选择器。应用模板后，Stage 5 编辑器会重置为所选模板的骨架结构，其中包含占位符标记。
+打开 Final Remarks 模板弹窗，包含样式选择器。应用模板后，Stage 5 编辑器会重置为所选模板的骨架结构，其中包含占位符标记。
 
 **左侧面板——原始 Markdown 编辑器**
 预填有模板结构的 Markdown 编辑器，可以直接修改。模板分四个部分：

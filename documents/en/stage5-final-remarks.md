@@ -1,11 +1,11 @@
-# Stage 5 — Conclusion
+# Stage 5 — Final Remarks
 
 Stage 5 generates the **Final Remarks** addressed to Area Chairs (ACs) — a structured, high-level summary of the entire rebuttal that helps the AC make an informed decision. Unlike the per-reviewer responses in Stage 3, the Final Remarks speak to the AC directly: they summarize the key strengths of your work, the main concerns that were raised, how you addressed them, and the concrete revisions you have committed to making.
 
 ## In the Pipeline
 
 ```
-... → Stage 3: First Round → Stage 4: Multi Rounds (optional) → Stage 5: Conclusion [End]
+... → Stage 3: First Round → Stage 4: Multi Rounds (optional) → Stage 5: Final Remarks [End]
 ```
 
 Stage 5 is the final stage. It synthesizes information from all prior stages — the reviewer concerns, your responses, and any discussion outcomes — into a single document.
@@ -21,7 +21,7 @@ Stage 5 is the final stage. It synthesizes information from all prior stages —
 ## Interface Overview
 
 **"Template" button**
-Opens the Conclusion Template modal with a style selector. Applying a template resets the Stage 5 editor to the selected template skeleton. The template contains four numbered sections with placeholder tokens.
+Opens the Final Remarks Template modal with a style selector. Applying a template resets the Stage 5 editor to the selected template skeleton. The template contains four numbered sections with placeholder tokens.
 
 **Left panel — Raw source editor**
 A Markdown editor pre-filled with the template structure. You can edit this directly. The four sections of the template are:
