@@ -672,6 +672,79 @@ async function runGeminiStage5FinalRemarks(profile = {}, payload = {}) {
 }
 
 
+function buildWritingAntiAIPrompt(content) {
+  return `You are executing the skills -> utility/stage/writing-anti-ai/SKILL.md workflow.
+
+Remove AI-generated writing patterns from the following rebuttal text to make it sound natural, direct, and authentically human-authored.
+
+Rules (follow strictly):
+1. Cut filler phrases: remove openers like "It is worth noting that", "It is important to highlight that", "In order to address this", "Due to the fact that", "We would like to clarify that", "It goes without saying that".
+2. Remove overused AI vocabulary: replace "leverage" → "use", "utilize" → "use", "demonstrate" → "show", "facilitate" → "help/enable", "comprehensive" → specific description, "novel" → describe what is actually new.
+3. Cut "additionally" and "furthermore" when used as sentence openers — restructure the sentence instead.
+4. Break formulaic structures: avoid negative parallelisms ("It's not just X, it's Y"), unnecessary rule-of-three lists, em-dash reveals ("X — which shows Y").
+5. Trust the reader: state conclusions first, remove over-explanation and hand-holding.
+6. Vary rhythm: mix short and long sentences; avoid ending every paragraph with a punchy one-liner summary.
+7. Preserve ALL technical claims, experimental numbers, citation references, and placeholder tokens verbatim.
+8. Do NOT alter the rebuttal format structure (e.g. "> **Reviewer's Comment**:" and "**Response**:" labels must stay intact if present).
+9. Keep the same number of paragraphs and the same core meaning.
+10. Do NOT rewrite from scratch — make targeted edits only.
+
+Return JSON only (no markdown fences) with schema: {"text":"...cleaned text..."}.
+
+Text:
+${content}`;
+}
+
+async function runGeminiWritingAntiAI(profile = {}, content = '') {
+  const apiKey = (profile.apiKey || '').trim();
+  const baseUrl = (profile.baseUrl || '').trim().replace(/\/$/, '') || 'https://generativelanguage.googleapis.com/v1beta';
+  const model = (profile.model || '').trim() || 'gemini-3-flash-preview';
+  if (!apiKey) throw new Error('Gemini API key is required.');
+  if (!`${content}`.trim()) throw new Error('Text content is empty.');
+
+  const endpoint = `${baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body = {
+    generationConfig: { temperature: 0.4, responseMimeType: 'application/json' },
+    contents: [{ role: 'user', parts: [{ text: buildWritingAntiAIPrompt(content) }] }],
+  };
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Writing Anti-AI failed (${res.status}): ${detail.slice(0, 240)}`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text || '').join('')?.trim();
+  if (!text) throw new Error('Gemini returned empty content for Writing Anti-AI.');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/, '').trim();
+    parsed = JSON.parse(cleaned);
+  }
+
+  const out = `${parsed?.text ?? parsed?.draft ?? ''}`.trim();
+  if (!out) throw new Error('Writing Anti-AI did not return text.');
+  return { text: out };
+}
+
+async function runOpenAIWritingAntiAI(profile = {}, content = '') {
+  const prompt = buildWritingAntiAIPrompt(content);
+  const raw = await runOpenAICompatibleRequest(profile, prompt, 'application/json');
+  const parsed = extractJsonFromText(raw);
+  const out = `${parsed?.text ?? parsed?.draft ?? ''}`.trim();
+  if (!out) throw new Error('Writing Anti-AI did not return text.');
+  return { text: out };
+}
+
 function buildTemplateRephrasePrompt(content) {
   return `You are executing the skills -> polish/SKILL.md workflow.
 
@@ -1094,6 +1167,20 @@ ipcMain.handle('app:template:rephrase', async (_event, payload) => {
     return runOpenAITemplateRephrase(profile, content);
   } else {
     throw new Error(`Template AI polish does not support provider: ${providerKey}`);
+  }
+});
+
+ipcMain.handle('app:text:antiAI', async (_event, payload) => {
+  const providerKey = payload?.providerKey;
+  const profile = payload?.profile || {};
+  const content = `${payload?.content || ''}`;
+
+  if (providerKey === 'gemini') {
+    return runGeminiWritingAntiAI(profile, content);
+  } else if (['openai', 'deepseek', 'azureOpenai'].includes(providerKey)) {
+    return runOpenAIWritingAntiAI(profile, content);
+  } else {
+    throw new Error(`Writing Anti-AI does not support provider: ${providerKey}`);
   }
 });
 

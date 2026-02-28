@@ -2843,3 +2843,103 @@ select {
 [data-theme="dark"] .stage5-openreview-preview code {
   background: rgba(255, 255, 255, 0.1);
 }
+
+/* ────────────────────── Writing Anti-AI Context Menu ────────────────────── */
+
+.writing-anti-ai-menu {
+  position: fixed;
+  z-index: 500;
+  min-width: 190px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+}
+
+.writing-anti-ai-menu.hidden {
+  display: none;
+}
+
+.writing-anti-ai-menu-item {
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-family: 'IBM Plex Mono', monospace;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.writing-anti-ai-menu-item:hover {
+  background: var(--hover);
+}
+
+.anti-ai-menu-dots {
+  margin-left: auto;
+}
+
+/* ────────────────────── Writing Anti-AI Undo Toast ────────────────────── */
+
+.anti-ai-toast {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 600;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 230px;
+  max-width: 380px;
+  font-size: 0.84rem;
+  font-family: 'IBM Plex Mono', monospace;
+  animation: anti-ai-toast-in 0.17s ease;
+}
+
+.anti-ai-toast.hidden {
+  display: none;
+}
+
+.anti-ai-toast--error {
+  border-color: rgba(220, 70, 60, 0.45);
+}
+
+.anti-ai-toast-msg {
+  flex: 1;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.anti-ai-toast-undo-btn {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.79rem;
+  font-family: 'IBM Plex Mono', monospace;
+  cursor: pointer;
+  padding: 4px 10px;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+
+.anti-ai-toast-undo-btn:hover {
+  background: var(--hover);
+}
+
+@keyframes anti-ai-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}

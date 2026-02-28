@@ -209,6 +209,18 @@ let stage4RefineRuntime = { running: false, reviewerIdx: -1 };
 let stage5AutoFillRuntime = { running: false };
 let stage2OutlineContext = { responseId: null, x: 0, y: 0 };
 let stage3SourceContext = { responseId: null, x: 0, y: 0, start: 0, end: 0 };
+
+// Writing Anti-AI context menu state
+const antiAIState = {
+  element: null,
+  type: null,          // 'textarea' | 'contenteditable'
+  selectedText: '',
+  selStart: 0,         // textarea only
+  selEnd: 0,           // textarea only
+  savedRange: null,    // contenteditable only (cloned Range)
+  originalValue: '',   // full content before replacement (for undo)
+  undoTimerId: null,
+};
 let exportTargetFolder = null;
 let stage2ModalTargetResponseId = null;
 let stage2TableRows = 3;
@@ -1187,6 +1199,188 @@ function hideStage3SourceMenu() {
   const menu = document.getElementById('stage3SourceMenu');
   if (!menu) return;
   menu.classList.add('hidden');
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Writing Anti-AI — context menu, toast, and replacement logic
+   ────────────────────────────────────────────────────────────── */
+
+function ensureAntiAIMenu() {
+  let menu = document.getElementById('writingAntiAIMenu');
+  if (menu) return menu;
+  menu = document.createElement('div');
+  menu.id = 'writingAntiAIMenu';
+  menu.className = 'writing-anti-ai-menu hidden';
+  menu.innerHTML = `
+    <button class="writing-anti-ai-menu-item" id="writingAntiAIBtn">
+      <span class="writing-anti-ai-btn-label">✦ Writing Anti-AI</span>
+    </button>
+  `;
+  document.body.appendChild(menu);
+  menu.querySelector('#writingAntiAIBtn').addEventListener('click', () => {
+    hideAntiAIMenu();
+    runAntiAIReplacement();
+  });
+  return menu;
+}
+
+function hideAntiAIMenu() {
+  const menu = document.getElementById('writingAntiAIMenu');
+  if (menu) menu.classList.add('hidden');
+}
+
+function showAntiAIMenu(e, editableEl) {
+  if (editableEl.tagName === 'TEXTAREA') {
+    if (editableEl.selectionStart === editableEl.selectionEnd) return;
+    antiAIState.element = editableEl;
+    antiAIState.type = 'textarea';
+    antiAIState.selectedText = editableEl.value.substring(editableEl.selectionStart, editableEl.selectionEnd);
+    antiAIState.selStart = editableEl.selectionStart;
+    antiAIState.selEnd = editableEl.selectionEnd;
+    antiAIState.originalValue = editableEl.value;
+    antiAIState.savedRange = null;
+  } else {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    antiAIState.element = editableEl;
+    antiAIState.type = 'contenteditable';
+    antiAIState.selectedText = sel.toString();
+    antiAIState.selStart = 0;
+    antiAIState.selEnd = 0;
+    antiAIState.savedRange = sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
+    antiAIState.originalValue = editableEl.innerHTML;
+  }
+  if (!antiAIState.selectedText.trim()) return;
+
+  e.preventDefault();
+  const menu = ensureAntiAIMenu();
+  // Position: keep menu within viewport
+  const menuW = 200;
+  const menuH = 46;
+  const x = Math.min(e.clientX, window.innerWidth - menuW - 8);
+  const y = Math.min(e.clientY, window.innerHeight - menuH - 8);
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+  menu.classList.remove('hidden');
+  hideStage2ContextMenu();
+  hideStage3SourceMenu();
+}
+
+// ── Toast helpers ──
+
+function _getOrCreateAntiAIToast() {
+  let toast = document.getElementById('antiAIToast');
+  if (toast) return toast;
+  toast = document.createElement('div');
+  toast.id = 'antiAIToast';
+  toast.className = 'anti-ai-toast hidden';
+  document.body.appendChild(toast);
+  return toast;
+}
+
+function _clearAntiAITimer() {
+  if (antiAIState.undoTimerId) {
+    clearTimeout(antiAIState.undoTimerId);
+    antiAIState.undoTimerId = null;
+  }
+}
+
+function showAntiAILoadingToast() {
+  const toast = _getOrCreateAntiAIToast();
+  toast.className = 'anti-ai-toast';
+  toast.innerHTML = `<span class="anti-ai-toast-msg">✦ Removing AI patterns…</span>`;
+  _clearAntiAITimer();
+}
+
+function showAntiAIUndoToast(element, type, originalValue, selStart, selEnd) {
+  const toast = _getOrCreateAntiAIToast();
+  toast.className = 'anti-ai-toast';
+  toast.innerHTML = `
+    <span class="anti-ai-toast-msg">✦ Writing Anti-AI applied</span>
+    <button class="anti-ai-toast-undo-btn" id="antiAIUndoBtn">Undo</button>
+  `;
+  _clearAntiAITimer();
+
+  document.getElementById('antiAIUndoBtn').addEventListener('click', () => {
+    if (type === 'textarea') {
+      element.value = originalValue;
+      element.selectionStart = selStart;
+      element.selectionEnd = selEnd;
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    } else {
+      element.innerHTML = originalValue;
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    hideAntiAIToast();
+  });
+
+  antiAIState.undoTimerId = setTimeout(hideAntiAIToast, 10000);
+}
+
+function showAntiAIErrorToast(msg) {
+  const toast = _getOrCreateAntiAIToast();
+  toast.className = 'anti-ai-toast anti-ai-toast--error';
+  toast.innerHTML = `<span class="anti-ai-toast-msg">${escapeHTML(String(msg))}</span>`;
+  _clearAntiAITimer();
+  antiAIState.undoTimerId = setTimeout(hideAntiAIToast, 5000);
+}
+
+function hideAntiAIToast() {
+  const toast = document.getElementById('antiAIToast');
+  if (toast) toast.classList.add('hidden');
+  _clearAntiAITimer();
+}
+
+// ── Core replacement ──
+
+async function runAntiAIReplacement() {
+  const { element, type, selectedText, selStart, selEnd, savedRange, originalValue } = antiAIState;
+  if (!element || !selectedText.trim()) return;
+
+  const providerKey = state.apiSettings.activeApiProvider;
+  const profile = getActiveApiProfile(providerKey);
+  if (!profile || !profile.apiKey) {
+    showAntiAIErrorToast('Please configure API Settings first.');
+    return;
+  }
+
+  showAntiAILoadingToast();
+
+  try {
+    const result = await window.studioApi.runWritingAntiAI({ providerKey, profile, content: selectedText });
+    const newText = `${result?.text || ''}`.trim();
+    if (!newText) throw new Error('Empty response from Writing Anti-AI.');
+
+    if (type === 'textarea') {
+      const before = originalValue.substring(0, selStart);
+      const after = originalValue.substring(selEnd);
+      element.value = before + newText + after;
+      element.selectionStart = selStart;
+      element.selectionEnd = selStart + newText.length;
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    } else {
+      // contenteditable: restore saved selection and replace
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      if (savedRange) sel.addRange(savedRange);
+      if (sel.rangeCount === 0) {
+        // savedRange was null — append at end as fallback
+        element.append(document.createTextNode(newText));
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        showAntiAIUndoToast(element, type, originalValue, selStart, selEnd);
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(document.createTextNode(newText));
+      sel.collapseToEnd();
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    showAntiAIUndoToast(element, type, originalValue, selStart, selEnd);
+  } catch (err) {
+    showAntiAIErrorToast(err.message || 'Writing Anti-AI failed.');
+  }
 }
 
 function stage3SelectionTouchesStrictLines(text, start, end) {
@@ -4012,6 +4206,11 @@ stage2LeftPanelEl.addEventListener('input', (e) => {
 stage2LeftPanelEl.addEventListener('contextmenu', (e) => {
   const target = e.target;
   if (target?.dataset?.stage2Field === 'outline') {
+    // When text is selected, show Writing Anti-AI instead of insert menu
+    if (target.selectionStart !== target.selectionEnd) {
+      showAntiAIMenu(e, target);
+      return;
+    }
     e.preventDefault();
     const responseId = target.dataset.responseId;
     stage2OutlineContext = { responseId, x: e.clientX, y: e.clientY };
@@ -4020,10 +4219,16 @@ stage2LeftPanelEl.addEventListener('contextmenu', (e) => {
     menu.style.top = `${e.clientY}px`;
     menu.classList.remove('hidden');
     hideStage3SourceMenu();
+    hideAntiAIMenu();
     return;
   }
 
   if (target?.dataset?.stage3Field === 'markdownSource') {
+    // When text is selected, show Writing Anti-AI instead of formatting menu
+    if (target.selectionStart !== target.selectionEnd) {
+      showAntiAIMenu(e, target);
+      return;
+    }
     e.preventDefault();
     const responseId = target.dataset.responseId;
     stage3SourceContext = {
@@ -4038,12 +4243,18 @@ stage2LeftPanelEl.addEventListener('contextmenu', (e) => {
     menu.style.top = `${e.clientY}px`;
     menu.classList.remove('hidden');
     hideStage2ContextMenu();
+    hideAntiAIMenu();
   }
 });
 
 breakdownContentEl.addEventListener('contextmenu', (e) => {
   const outlineEl = e.target.closest('textarea[data-stage2-field="outline"]');
   if (!outlineEl) return;
+  // When text is selected, show Writing Anti-AI instead of insert menu
+  if (outlineEl.selectionStart !== outlineEl.selectionEnd) {
+    showAntiAIMenu(e, outlineEl);
+    return;
+  }
   e.preventDefault();
   const menu = ensureStage2ContextMenu();
   stage2OutlineContext = {
@@ -4054,9 +4265,37 @@ breakdownContentEl.addEventListener('contextmenu', (e) => {
   menu.style.left = `${stage2OutlineContext.x}px`;
   menu.style.top = `${stage2OutlineContext.y}px`;
   menu.classList.remove('hidden');
+  hideAntiAIMenu();
+});
+
+// Global contextmenu handler for Writing Anti-AI on any editable element with a selection
+document.addEventListener('contextmenu', (e) => {
+  const target = e.target;
+
+  // Determine whether right-click is inside an editable element
+  const isTextarea = target.tagName === 'TEXTAREA' && !target.readOnly && !target.disabled;
+  const contentEditableEl = !isTextarea ? target.closest('[contenteditable="true"]') : null;
+
+  if (isTextarea) {
+    if (target.selectionStart === target.selectionEnd) return; // no selection
+    // Stage2/Stage3 textareas with selection are already handled above — let those handlers call showAntiAIMenu
+    // For all other textareas (stage4, stage5, modal textareas, reviewerInput-style textareas) handle here
+    const alreadyHandled = target.dataset.stage2Field === 'outline' || target.dataset.stage3Field === 'markdownSource';
+    if (alreadyHandled) return;
+    showAntiAIMenu(e, target);
+  } else if (contentEditableEl) {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) return;
+    showAntiAIMenu(e, contentEditableEl);
+  }
 });
 
 document.addEventListener('click', (e) => {
+  // Dismiss Anti-AI menu on any outside click
+  if (!e.target.closest('#writingAntiAIMenu')) {
+    hideAntiAIMenu();
+  }
+
   const stage3Fmt = e.target.closest('[data-stage3-format]');
   if (stage3Fmt) {
     const action = stage3Fmt.dataset.stage3Format;
@@ -4096,6 +4335,8 @@ document.addEventListener('keydown', (e) => {
     }
     hideStage2ContextMenu();
     hideStage3SourceMenu();
+    hideAntiAIMenu();
+    hideAntiAIToast();
   }
 });
 

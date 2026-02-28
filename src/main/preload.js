@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('studioApi', {
   saveStage5CondensedMarkdown: (payload) => ipcRenderer.invoke('app:stage5:saveCondensed', payload),
   runStage5FinalRemarks: (payload) => ipcRenderer.invoke('app:stage5:finalize', payload),
   runTemplateRephrase: (payload) => ipcRenderer.invoke('app:template:rephrase', payload),
+  runWritingAntiAI: (payload) => ipcRenderer.invoke('app:text:antiAI', payload),
   createProject: (payload) => ipcRenderer.invoke('projects:create', payload),
   openProject: (folderName) => ipcRenderer.invoke('projects:open', folderName),
   updateProjectState: (payload) => ipcRenderer.invoke('projects:updateState', payload),
