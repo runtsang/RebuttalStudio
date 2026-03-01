@@ -294,23 +294,24 @@
         </div>
 
         <div id="emptyState" class="empty-state">
-          <div class="home-landing">
-            <pre class="ascii-art ascii-red">██████╗ ███████╗██████╗ ██╗   ██╗████████╗████████╗ █████╗ ██╗     
-██╔══██╗██╔════╝██╔══██╗██║   ██║╚══██╔══╝╚══██╔══╝██╔══██╗██║     
-██████╔╝█████╗  ██████╔╝██║   ██║   ██║      ██║   ███████║██║     
-██╔══██╗██╔══╝  ██╔══██╗██║   ██║   ██║      ██║   ██╔══██║██║     
-██║  ██║███████╗██████╔╝╚██████╔╝   ██║      ██║   ██║  ██║███████╗
-╚═╝  ╚═╝╚══════╝╚═════╝  ╚═════╝    ╚═╝      ╚═╝   ╚═╝  ╚═╝╚══════╝</pre>
-            <pre class="ascii-art ascii-blue">███████╗████████╗██╗   ██╗██████╗ ██╗ ██████╗
-██╔════╝╚══██╔══╝██║   ██║██╔══██╗██║██╔═══██╗
-███████╗   ██║   ██║   ██║██║  ██║██║██║   ██║
-╚════██║   ██║   ██║   ██║██║  ██║██║██║   ██║
-███████║   ██║   ╚██████╔╝██████╔╝██║╚██████╔╝
-╚══════╝   ╚═╝    ╚═════╝ ╚═════╝ ╚═╝ ╚═════╝</pre>
-            <div class="creator-box">
-              <div class="creator-label">CREATOR</div>
-              <div class="creator-name">Run</div>
-              <div class="creator-email">run@mail.rit.edu</div>
+          <div id="pixelLanding" class="feedback-home">
+            <div class="feedback-logo-line">
+              <span id="homeWordRebuttal" class="feedback-logo-rebuttal"></span>
+              <span class="feedback-logo-studio">Studio</span>
+            </div>
+
+            <div class="feedback-dialog">
+              <div class="feedback-input-wrap">
+                <textarea id="homeFeedbackInput" class="feedback-input" rows="1"
+                  placeholder="Provide any feedback for this project"></textarea>
+                <button id="homeSendBtn" class="feedback-send-btn" type="button" aria-label="Send feedback">↗</button>
+              </div>
+
+              <div class="feedback-actions-row">
+                <button id="homeHowToBtn" class="feedback-mini-btn" type="button">How to use it <span>▾</span></button>
+                <button id="homeBehindBtn" class="feedback-mini-btn" type="button">Behind Rebuttal Studio <span>▾</span></button>
+                <button id="homeStartBtn" class="feedback-mini-btn" type="button">Start Now <span>▾</span></button>
+              </div>
             </div>
           </div>
         </div>

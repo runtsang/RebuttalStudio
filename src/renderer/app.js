@@ -230,6 +230,10 @@ const STAGE3_PRESET_COLORS = ['#ff0000', '#ff7f00', '#ffff00', '#00aa00', '#0077
 const STAGE3_ALL_TAB_ID = '__all__';
 const STAGE3_ALL_OPENING_PARAGRAPH = 'Thank you for acknowledging the A, B, and C of our method. We sincerely appreciate your time and effort in reviewing our paper and providing valuable comments. We provide explanations to your questions point-by-point in the following.';
 const STAGE3_ALL_CLOSING_PARAGRAPH = '**We appreciate your thoughtful comments. We hope our response addresses your concerns. Please let us know if there are any additional questions, and we will be happy to discuss further.**';
+const REBUTTAL_TYPOS = ['Rrbuttal', 'Rebuttle', 'Rebttal', 'Rebutall', 'Rebuttal'];
+const homeIntroRuntime = {
+  timeouts: [],
+};
 
 function normalizePositiveInt(value, fallback, min = 1, max = 20) {
   const n = Number(value);
@@ -286,6 +290,10 @@ const stage4CopyPopupEl = document.getElementById('stage4CopyPopup');
 const stage4CopyPopupCopyBtnEl = document.getElementById('stage4CopyPopupCopyBtn');
 const stage4CopyPopupCloseBtnEl = document.getElementById('stage4CopyPopupCloseBtn');
 const convertColumnEl = document.querySelector('.convert-column');
+const pixelLandingEl = document.getElementById('pixelLanding');
+const homeWordRebuttalEl = document.getElementById('homeWordRebuttal');
+const homeFeedbackInputEl = document.getElementById('homeFeedbackInput');
+const homeSendBtnEl = document.getElementById('homeSendBtn');
 
 
 const API_PROVIDER_KEYS = ['openai', 'anthropic', 'gemini', 'deepseek', 'azureOpenai', 'qwen', 'custom'];
@@ -678,6 +686,7 @@ function renderProjectList() {
    Docs Panel
    ──────────────────────────────────────────────────────────── */
 async function renderDocsPanel(filePath) {
+  clearHomeIntroTimers();
   const docsPanelEl = document.getElementById('docsPanel');
   const docsContentEl = document.getElementById('docsContent');
   const docsFileSelectEl = document.getElementById('docsFileSelect');
@@ -719,6 +728,7 @@ async function renderDocsPanel(filePath) {
    Skills Panel
    ──────────────────────────────────────────────────────────── */
 function renderSkillsPanel() {
+  clearHomeIntroTimers();
   const skillsPanelEl = document.getElementById('skillsPanel');
   const skillsGridEl = document.getElementById('skillsGrid');
 
@@ -774,6 +784,129 @@ async function openSkillModal(path, label) {
 function closeSkillModal() {
   document.getElementById('skillModal').classList.add('hidden');
   document.body.style.overflow = '';
+}
+
+/* ────────────────────────────────────────────────────────────
+   Home Intro Animation (one-shot)
+   ──────────────────────────────────────────────────────────── */
+function clearHomeIntroTimers() {
+  homeIntroRuntime.timeouts.forEach((id) => clearTimeout(id));
+  homeIntroRuntime.timeouts = [];
+}
+
+function queueHomeIntro(fn, delayMs) {
+  const id = setTimeout(() => {
+    homeIntroRuntime.timeouts = homeIntroRuntime.timeouts.filter((t) => t !== id);
+    fn();
+  }, delayMs);
+  homeIntroRuntime.timeouts.push(id);
+}
+
+function setRebuttalWord(word) {
+  if (!homeWordRebuttalEl) return;
+  homeWordRebuttalEl.textContent = word;
+}
+
+function typeDelayForChar(stepIdx, ch, isLast) {
+  const pattern = [72, 126, 84, 146, 90, 116];
+  let delay = pattern[stepIdx % pattern.length] + Math.floor(Math.random() * 40) - 10;
+  if (stepIdx === 0) delay += 70;
+  if (stepIdx % 3 === 2) delay += 24;
+  if ('aeiouAEIOU'.includes(ch)) delay += 18;
+  if (isLast) delay += 30;
+  return Math.max(56, delay);
+}
+
+function deleteDelayForChar(stepIdx, ch) {
+  const pattern = [168, 120, 214, 146, 188, 134];
+  let delay = pattern[stepIdx % pattern.length] + Math.floor(Math.random() * 52) - 12;
+  if (stepIdx % 2 === 0) delay += 16;
+  if ('aeiouAEIOU'.includes(ch)) delay += 22;
+  return Math.max(106, delay);
+}
+
+function autoResizeHomeFeedbackInput() {
+  if (!homeFeedbackInputEl) return;
+  const style = window.getComputedStyle(homeFeedbackInputEl);
+  const lineHeight = parseFloat(style.lineHeight) || 22;
+  const paddingTop = parseFloat(style.paddingTop) || 0;
+  const paddingBottom = parseFloat(style.paddingBottom) || 0;
+  const maxHeight = lineHeight * 4 + paddingTop + paddingBottom;
+  homeFeedbackInputEl.style.height = 'auto';
+  const nextHeight = Math.min(homeFeedbackInputEl.scrollHeight, maxHeight);
+  homeFeedbackInputEl.style.height = `${Math.max(lineHeight + paddingTop + paddingBottom, nextHeight)}px`;
+  homeFeedbackInputEl.style.overflowY = homeFeedbackInputEl.scrollHeight > maxHeight ? 'auto' : 'hidden';
+}
+
+function animateTypeWord(word, done) {
+  let cursor = 0;
+  setRebuttalWord('');
+  const step = () => {
+    cursor += 1;
+    const current = word.slice(0, cursor);
+    setRebuttalWord(current);
+    if (cursor < word.length) {
+      const nextChar = word[cursor] || '';
+      const delay = typeDelayForChar(cursor - 1, nextChar, cursor + 1 >= word.length);
+      queueHomeIntro(step, delay);
+      return;
+    }
+    if (done) done();
+  };
+  queueHomeIntro(step, 110);
+}
+
+function animateDeleteWord(word, done) {
+  let cursor = word.length;
+  let stepIdx = 0;
+  const step = () => {
+    const removingChar = word[cursor - 1] || '';
+    cursor -= 1;
+    stepIdx += 1;
+    setRebuttalWord(word.slice(0, cursor));
+    if (cursor > 0) {
+      const delay = deleteDelayForChar(stepIdx, removingChar);
+      queueHomeIntro(step, delay);
+      return;
+    }
+    if (done) done();
+  };
+  queueHomeIntro(step, 140);
+}
+
+function runRebuttalTypoLoop(attemptIdx = 0) {
+  if (!homeWordRebuttalEl) return;
+  const current = REBUTTAL_TYPOS[attemptIdx] || 'Rebuttal';
+  const isFinal = attemptIdx === REBUTTAL_TYPOS.length - 1;
+  animateTypeWord(current, () => {
+    const holdMs = isFinal ? 2600 : 360;
+    queueHomeIntro(() => {
+      animateDeleteWord(current, () => {
+        runRebuttalTypoLoop(isFinal ? 0 : attemptIdx + 1);
+      });
+    }, holdMs);
+  });
+}
+
+function buildFeedbackIssueUrl(rawFeedback = '') {
+  const cleaned = `${rawFeedback}`.trim();
+  const compact = cleaned.replace(/\s+/g, ' ');
+  const titleCore = compact ? compact.slice(0, 72) : 'Feedback about Rebuttal Studio';
+  const title = `[Feedback] ${titleCore}`;
+  const description = cleaned || '(No additional description provided.)';
+  const body = `## DESCRIPTION\n${description}\n\n## SOURCE\nSubmitted from Rebuttal Studio home feedback box.`;
+  const issueUrl = new URL('https://github.com/runtsang/RebuttalStudio/issues/new');
+  issueUrl.searchParams.set('title', title);
+  issueUrl.searchParams.set('body', body);
+  return issueUrl.toString();
+}
+
+function renderHomeLanding() {
+  if (!pixelLandingEl || !homeWordRebuttalEl) return;
+  clearHomeIntroTimers();
+  setRebuttalWord('');
+  autoResizeHomeFeedbackInput();
+  queueHomeIntro(() => runRebuttalTypoLoop(0), 120);
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -3268,11 +3401,13 @@ function renderWorkspace() {
   document.getElementById('docsPanel')?.classList.add('hidden');
   document.getElementById('skillsPanel')?.classList.add('hidden');
   const hasProject = Boolean(state.currentDoc);
+  const showingHomeLanding = !hasProject && !state.pendingCreate;
   workspaceEl.classList.toggle('hidden', !hasProject);
-  emptyStateEl.classList.toggle('hidden', hasProject || state.pendingCreate);
+  emptyStateEl.classList.toggle('hidden', !showingHomeLanding);
   namingPanelEl.classList.toggle('hidden', !state.pendingCreate);
 
   if (hasProject) {
+    clearHomeIntroTimers();
     stage4RefineRuntime = { running: false, reviewerIdx: -1 };
     stage5AutoFillRuntime = { running: false };
     // Load reviewer data from project
@@ -3325,6 +3460,11 @@ function renderWorkspace() {
     closeStage5TemplateModal();
     exitProjectMode();
     syncStageUi();
+    if (showingHomeLanding) {
+      renderHomeLanding();
+    } else {
+      clearHomeIntroTimers();
+    }
   }
 }
 
@@ -3804,6 +3944,35 @@ document.getElementById('docsCloseBtn')?.addEventListener('click', () => {
 // Skills nav button
 document.getElementById('skillsNavBtn')?.addEventListener('click', () => {
   renderSkillsPanel();
+});
+
+homeSendBtnEl?.addEventListener('click', async () => {
+  const issueUrl = buildFeedbackIssueUrl(homeFeedbackInputEl?.value || '');
+  await window.studioApi.openExternal(issueUrl);
+});
+
+homeFeedbackInputEl?.addEventListener('input', () => {
+  autoResizeHomeFeedbackInput();
+});
+
+homeFeedbackInputEl?.addEventListener('keydown', async (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    const issueUrl = buildFeedbackIssueUrl(homeFeedbackInputEl?.value || '');
+    await window.studioApi.openExternal(issueUrl);
+  }
+});
+
+document.getElementById('homeHowToBtn')?.addEventListener('click', () => {
+  renderDocsPanel(DOCS_FILES[0].path);
+});
+
+document.getElementById('homeBehindBtn')?.addEventListener('click', () => {
+  renderSkillsPanel();
+});
+
+document.getElementById('homeStartBtn')?.addEventListener('click', () => {
+  beginProjectCreation();
 });
 
 // Skills panel: click skill card or propose button (event delegation)
