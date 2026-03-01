@@ -222,6 +222,7 @@ const antiAIState = {
   undoTimerId: null,
 };
 let exportTargetFolder = null;
+let pendingProjectRenameResolver = null;
 let stage2ModalTargetResponseId = null;
 let stage2TableRows = 3;
 let stage2TableCols = 3;
@@ -259,6 +260,12 @@ const projectSearchEl = document.getElementById('projectSearch');
 const searchProjectsToggleBtn = document.getElementById('searchProjectsToggleBtn');
 const projectSearchContainer = document.getElementById('projectSearchContainer');
 const exportProjectPopup = document.getElementById('exportProjectPopup');
+const projectContextMenuEl = document.getElementById('projectContextMenu');
+const projectRenameModalEl = document.getElementById('projectRenameModal');
+const projectRenameInputEl = document.getElementById('projectRenameInput');
+const projectRenameErrorEl = document.getElementById('projectRenameError');
+const confirmProjectRenameBtnEl = document.getElementById('confirmProjectRenameBtn');
+const cancelProjectRenameBtnEl = document.getElementById('cancelProjectRenameBtn');
 
 const sidebarEl = document.getElementById('sidebar');
 const sidebarProjectsEl = document.getElementById('sidebarProjects');
@@ -693,6 +700,83 @@ function renderProjectList() {
   });
 }
 
+function getProjectByFolder(folderName) {
+  return state.projects.find((project) => project.folderName === folderName) || null;
+}
+
+async function renameProjectFromContext(folderName) {
+  const project = getProjectByFolder(folderName);
+  const currentName = project?.projectName || folderName;
+  const nextName = await promptProjectRename(currentName);
+  if (nextName === null) return;
+  const trimmed = nextName.trim();
+
+  const renamed = await window.studioApi.renameProject({
+    folderName,
+    nextProjectName: trimmed,
+  });
+  if (state.currentFolderName === folderName) {
+    state.currentFolderName = renamed.folderName;
+    state.currentDoc = renamed.doc;
+  }
+  await loadProjects();
+  renderWorkspace();
+}
+
+function promptProjectRename(defaultName = '') {
+  return new Promise((resolve) => {
+    pendingProjectRenameResolver = resolve;
+    projectRenameInputEl.value = defaultName;
+    projectRenameErrorEl.textContent = '';
+    projectRenameModalEl.classList.remove('hidden');
+    setTimeout(() => {
+      projectRenameInputEl.focus();
+      projectRenameInputEl.select();
+    }, 50);
+  });
+}
+
+function resolveProjectRename(value) {
+  if (!pendingProjectRenameResolver) return;
+  pendingProjectRenameResolver(value);
+  pendingProjectRenameResolver = null;
+}
+
+function confirmProjectRenameModal() {
+  const value = projectRenameInputEl.value.trim();
+  if (!value) {
+    projectRenameErrorEl.textContent = 'Project name cannot be empty.';
+    return;
+  }
+  projectRenameModalEl.classList.add('hidden');
+  resolveProjectRename(value);
+}
+
+function cancelProjectRenameModal() {
+  projectRenameModalEl.classList.add('hidden');
+  resolveProjectRename(null);
+}
+
+async function deleteProjectFromContext(folderName) {
+  const project = getProjectByFolder(folderName);
+  const displayName = project?.projectName || folderName;
+  const firstConfirm = window.confirm(`Delete project "${displayName}"?`);
+  if (!firstConfirm) return;
+  const secondConfirm = window.confirm(`This action cannot be undone. Confirm delete "${displayName}" again?`);
+  if (!secondConfirm) return;
+
+  await window.studioApi.deleteProject(folderName);
+  if (state.currentFolderName === folderName) {
+    state.currentDoc = null;
+    state.currentFolderName = null;
+    projectDrawerEl.classList.remove('open');
+    state.drawerOpen = false;
+    renderWorkspace();
+    syncStageUi();
+  }
+  await loadProjects();
+}
+
 /* ────────────────────────────────────────────────────────────
    Docs Panel
    ──────────────────────────────────────────────────────────── */
@@ -1035,10 +1119,20 @@ reviewerNameInputEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') confirmReviewerName();
   if (e.key === 'Escape') cancelReviewerName();
 });
+confirmProjectRenameBtnEl.addEventListener('click', confirmProjectRenameModal);
+cancelProjectRenameBtnEl.addEventListener('click', cancelProjectRenameModal);
+projectRenameInputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') confirmProjectRenameModal();
+  if (e.key === 'Escape') cancelProjectRenameModal();
+});
+projectRenameModalEl.addEventListener('click', (e) => {
+  if (e.target === projectRenameModalEl) cancelProjectRenameModal();
+});
 
 /* ── Reviewer Right-click Context Menu ── */
 const reviewerContextMenuEl = document.getElementById('reviewerContextMenu');
 let contextMenuReviewerIdx = null;
+let contextMenuProjectFolder = null;
 
 function showReviewerContextMenu(e, idx) {
   e.preventDefault();
@@ -1053,12 +1147,37 @@ function hideReviewerContextMenu() {
   contextMenuReviewerIdx = null;
 }
 
+function showProjectContextMenu(e, folderName) {
+  e.preventDefault();
+  contextMenuProjectFolder = folderName;
+  projectContextMenuEl.style.left = `${e.clientX}px`;
+  projectContextMenuEl.style.top = `${e.clientY}px`;
+  projectContextMenuEl.classList.remove('hidden');
+  const rect = projectContextMenuEl.getBoundingClientRect();
+  const maxLeft = Math.max(0, window.innerWidth - rect.width - 6);
+  const maxTop = Math.max(0, window.innerHeight - rect.height - 6);
+  projectContextMenuEl.style.left = `${Math.min(e.clientX, maxLeft)}px`;
+  projectContextMenuEl.style.top = `${Math.min(e.clientY, maxTop)}px`;
+}
+
+function hideProjectContextMenu() {
+  if (!projectContextMenuEl) return;
+  projectContextMenuEl.classList.add('hidden');
+  contextMenuProjectFolder = null;
+}
+
 // Dismiss context menu on any click outside
-document.addEventListener('click', () => hideReviewerContextMenu());
+document.addEventListener('click', () => {
+  hideReviewerContextMenu();
+  hideProjectContextMenu();
+});
 document.addEventListener('contextmenu', (e) => {
   // Only keep open if right-clicking on a reviewer tab (handled separately)
   if (!e.target.closest('.reviewer-tab')) {
     hideReviewerContextMenu();
+  }
+  if (!e.target.closest('.project-item[data-folder]')) {
+    hideProjectContextMenu();
   }
 });
 
@@ -1079,12 +1198,38 @@ reviewerContextMenuEl.addEventListener('click', (e) => {
   }
 });
 
+projectContextMenuEl.addEventListener('click', async (e) => {
+  const action = e.target.closest('[data-action]')?.dataset.action;
+  if (!action || !contextMenuProjectFolder) return;
+  const folderName = contextMenuProjectFolder;
+  hideProjectContextMenu();
+  try {
+    if (action === 'rename') {
+      await renameProjectFromContext(folderName);
+    } else if (action === 'delete') {
+      await deleteProjectFromContext(folderName);
+    }
+  } catch (error) {
+    alert(error.message || 'Project action failed.');
+  }
+});
+
 // Right-click on reviewer tabs
 reviewerTabsEl.addEventListener('contextmenu', (e) => {
   const tab = e.target.closest('[data-reviewer]');
   if (!tab) return;
   showReviewerContextMenu(e, Number(tab.dataset.reviewer));
 });
+
+function handleProjectListContextMenu(e) {
+  if (e.target.closest('.project-export-btn')) return;
+  const item = e.target.closest('.project-item[data-folder]');
+  if (!item || item.disabled || item.classList.contains('unavailable')) return;
+  showProjectContextMenu(e, item.dataset.folder);
+}
+
+projectListEl.addEventListener('contextmenu', handleProjectListContextMenu);
+drawerProjectListEl.addEventListener('contextmenu', handleProjectListContextMenu);
 
 function addReviewer() {
   // Save current content first

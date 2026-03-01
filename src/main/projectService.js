@@ -194,6 +194,48 @@ async function loadProject(folderName) {
   return parsed;
 }
 
+async function renameProject(folderName, nextProjectName) {
+  await ensureProjectsRoot();
+  const currentFolder = sanitizeProjectName(folderName || '');
+  if (!currentFolder) {
+    throw new Error('Current project folder is invalid.');
+  }
+  const targetFolder = sanitizeProjectName(nextProjectName || '');
+  if (!targetFolder) {
+    throw new Error('Project name cannot be empty after sanitization.');
+  }
+
+  const currentDir = path.join(PROJECTS_ROOT, currentFolder);
+  const targetDir = path.join(PROJECTS_ROOT, targetFolder);
+
+  await fs.access(currentDir);
+  if (currentFolder !== targetFolder) {
+    try {
+      await fs.access(targetDir);
+      throw new Error('A project with that name already exists.');
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    await fs.rename(currentDir, targetDir);
+  }
+
+  const doc = await loadProject(targetFolder);
+  doc.projectName = (nextProjectName || '').trim() || targetFolder;
+  const savedDoc = await saveProject(targetFolder, doc);
+  return { folderName: targetFolder, doc: savedDoc };
+}
+
+async function deleteProject(folderName) {
+  await ensureProjectsRoot();
+  const safeFolder = sanitizeProjectName(folderName || '');
+  if (!safeFolder) {
+    throw new Error('Project folder is invalid.');
+  }
+  const projectDir = path.join(PROJECTS_ROOT, safeFolder);
+  await fs.rm(projectDir, { recursive: true, force: false });
+  return { ok: true };
+}
+
 async function saveProject(folderName, projectDoc) {
   const now = new Date().toISOString();
   const nextDoc = {
@@ -230,6 +272,8 @@ module.exports = {
   createProject,
   listProjects,
   loadProject,
+  renameProject,
+  deleteProject,
   saveProject,
   loadAppSettings,
   saveAppSettings,

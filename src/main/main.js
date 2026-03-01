@@ -6,6 +6,8 @@ const {
   createProject,
   listProjects,
   loadProject,
+  renameProject,
+  deleteProject,
   saveProject,
   loadAppSettings,
   saveAppSettings,
@@ -1210,6 +1212,25 @@ ipcMain.handle('projects:open', async (_event, folderName) => {
   clearAutosaveTimers();
   startAutosaveScheduler();
   return { folderName, doc };
+});
+
+ipcMain.handle('projects:rename', async (_event, { folderName, nextProjectName }) => {
+  const result = await renameProject(folderName, nextProjectName);
+  if (autosaveState.currentFolder === folderName) {
+    autosaveState.currentFolder = result.folderName;
+    autosaveState.currentDoc = result.doc;
+  }
+  return result;
+});
+
+ipcMain.handle('projects:delete', async (_event, folderName) => {
+  await deleteProject(folderName);
+  if (autosaveState.currentFolder === folderName) {
+    clearAutosaveTimers();
+    autosaveState.currentFolder = null;
+    autosaveState.currentDoc = null;
+  }
+  return { ok: true };
 });
 
 ipcMain.handle('projects:exportFirstRound', async (event, { folderName, format, markdown, htmlStr }) => {

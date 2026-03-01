@@ -103,9 +103,11 @@
             <span>Settings</span>
           </button>
           <div class="sidebar-theme-switch" aria-label="Switch theme">
-            <button class="sidebar-theme-btn" type="button" data-theme-value="light" aria-label="Switch to light theme" aria-pressed="false">☀</button>
+            <button class="sidebar-theme-btn" type="button" data-theme-value="light" aria-label="Switch to light theme"
+              aria-pressed="false">☀</button>
             <span class="sidebar-theme-divider" aria-hidden="true">|</span>
-            <button class="sidebar-theme-btn" type="button" data-theme-value="dark" aria-label="Switch to dark theme" aria-pressed="false">☾</button>
+            <button class="sidebar-theme-btn" type="button" data-theme-value="dark" aria-label="Switch to dark theme"
+              aria-pressed="false">☾</button>
           </div>
         </div>
       </div>
@@ -117,20 +119,24 @@
         </div>
         <div id="sidebarStageList" class="sidebar-stage-list"></div>
         <div class="sidebar-bottom-row">
-          <button id="nextStageBtn" class="btn next-stage-btn">Next Stage →</button>
-          <button id="settingsBtnStage" class="settings-nav-item settings-nav-item--compact" aria-label="Open settings">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path
-                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-            <span>Settings</span>
-          </button>
-          <div class="sidebar-theme-switch" aria-label="Switch theme">
-            <button class="sidebar-theme-btn" type="button" data-theme-value="light" aria-label="Switch to light theme" aria-pressed="false">☀</button>
-            <span class="sidebar-theme-divider" aria-hidden="true">|</span>
-            <button class="sidebar-theme-btn" type="button" data-theme-value="dark" aria-label="Switch to dark theme" aria-pressed="false">☾</button>
+          <button id="nextStageBtn" class="btn next-stage-btn next-stage-btn--full">Next Stage →</button>
+          <div class="sidebar-settings-row">
+            <button id="settingsBtnStage" class="settings-nav-item settings-nav-item--compact" aria-label="Open settings">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path
+                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+              <span>Settings</span>
+            </button>
+            <div class="sidebar-theme-switch" aria-label="Switch theme">
+              <button class="sidebar-theme-btn" type="button" data-theme-value="light" aria-label="Switch to light theme"
+                aria-pressed="false">☀</button>
+              <span class="sidebar-theme-divider" aria-hidden="true">|</span>
+              <button class="sidebar-theme-btn" type="button" data-theme-value="dark" aria-label="Switch to dark theme"
+                aria-pressed="false">☾</button>
+            </div>
           </div>
         </div>
       </div>
@@ -320,10 +326,10 @@
               </div>
 
               <div class="feedback-actions-row">
-                <button id="homeHowToBtn" class="feedback-mini-btn" type="button">How to use it <span>▾</span></button>
-                <button id="homeBehindBtn" class="feedback-mini-btn" type="button">Behind Rebuttal Studio
-                  <span>▾</span></button>
-                <button id="homeStartBtn" class="feedback-mini-btn" type="button">Start Now <span>▾</span></button>
+                <button id="homeHowToBtn" class="feedback-mini-btn" type="button">> How to use it </button>
+                <button id="homeBehindBtn" class="feedback-mini-btn" type="button">> How we do it
+                </button>
+                <button id="homeStartBtn" class="feedback-mini-btn" type="button">> Start Now</button>
               </div>
             </div>
           </div>
@@ -441,9 +447,31 @@
     </div>
   </div>
 
+  <!-- Project Rename Modal -->
+  <div id="projectRenameModal" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="projectRenameTitle">
+      <h3 id="projectRenameTitle">Rename Project</h3>
+      <div class="settings-group">
+        <label for="projectRenameInput">Project Name</label>
+        <input id="projectRenameInput" class="text-input" maxlength="120" placeholder="Enter a new project name" />
+      </div>
+      <p id="projectRenameError" class="error"></p>
+      <div class="modal-actions">
+        <button id="cancelProjectRenameBtn" class="btn">Cancel</button>
+        <button id="confirmProjectRenameBtn" class="btn primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Right-click context menu for reviewer tabs -->
   <div id="reviewerContextMenu" class="context-menu hidden">
     <button class="context-menu-item" data-action="rename">✏️ Rename</button>
+  </div>
+
+  <!-- Right-click context menu for project items -->
+  <div id="projectContextMenu" class="context-menu hidden">
+    <button class="context-menu-item" data-action="rename">Rename</button>
+    <button class="context-menu-item" data-action="delete">Delete</button>
   </div>
 
   <!-- Add Response Modal -->
