@@ -401,6 +401,11 @@ function applyTheme(theme) {
   document.querySelectorAll('.theme-toggle-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.themeValue === theme);
   });
+  document.querySelectorAll('.sidebar-theme-btn').forEach((btn) => {
+    const active = btn.dataset.themeValue === theme;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
 }
 
 function loadTheme() {
@@ -410,6 +415,12 @@ function loadTheme() {
 
 document.getElementById('themeDarkBtn').addEventListener('click', () => applyTheme('dark'));
 document.getElementById('themeLightBtn').addEventListener('click', () => applyTheme('light'));
+document.querySelectorAll('.sidebar-theme-btn').forEach((btn) => {
+  btn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    applyTheme(btn.dataset.themeValue);
+  });
+});
 
 /* ────────────────────────────────────────────────────────────
    Helpers

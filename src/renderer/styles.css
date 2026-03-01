@@ -629,6 +629,65 @@ select {
   padding: 7px 10px;
 }
 
+.sidebar-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar-settings-row .settings-nav-item {
+  flex: 1;
+  width: auto;
+}
+
+.sidebar-theme-switch {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.sidebar-theme-btn {
+  background: transparent;
+  border: none;
+  color: #808080;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 0.92rem;
+  line-height: 1;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.sidebar-theme-btn:hover {
+  transform: translateY(-1px);
+}
+
+.sidebar-theme-btn.active {
+  color: #ffffff;
+}
+
+[data-theme="light"] .sidebar-theme-btn.active {
+  color: #000000;
+}
+
+[data-theme="light"] .sidebar-theme-btn:not(.active) {
+  color: #cfd4dc;
+}
+
+.sidebar-theme-divider {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  user-select: none;
+}
+
 /* ────────────────────── Sidebar Stages Mode ────────────────────── */
 .stages-header {
   display: flex;

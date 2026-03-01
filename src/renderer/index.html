@@ -92,15 +92,22 @@
           </div>
           <div id="projectList" class="project-nav"></div>
         </div>
-        <button id="settingsBtn" class="settings-nav-item" aria-label="Open settings">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path
-              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-          <span>Settings</span>
-        </button>
+        <div class="sidebar-settings-row">
+          <button id="settingsBtn" class="settings-nav-item" aria-label="Open settings">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+            <span>Settings</span>
+          </button>
+          <div class="sidebar-theme-switch" aria-label="Switch theme">
+            <button class="sidebar-theme-btn" type="button" data-theme-value="light" aria-label="Switch to light theme" aria-pressed="false">☀</button>
+            <span class="sidebar-theme-divider" aria-hidden="true">|</span>
+            <button class="sidebar-theme-btn" type="button" data-theme-value="dark" aria-label="Switch to dark theme" aria-pressed="false">☾</button>
+          </div>
+        </div>
       </div>
 
       <!-- Stage breakdown mode (shown when inside a project) -->
@@ -120,6 +127,11 @@
             </svg>
             <span>Settings</span>
           </button>
+          <div class="sidebar-theme-switch" aria-label="Switch theme">
+            <button class="sidebar-theme-btn" type="button" data-theme-value="light" aria-label="Switch to light theme" aria-pressed="false">☀</button>
+            <span class="sidebar-theme-divider" aria-hidden="true">|</span>
+            <button class="sidebar-theme-btn" type="button" data-theme-value="dark" aria-label="Switch to dark theme" aria-pressed="false">☾</button>
+          </div>
         </div>
       </div>
     </aside>
@@ -303,13 +315,14 @@
             <div class="feedback-dialog">
               <div class="feedback-input-wrap">
                 <textarea id="homeFeedbackInput" class="feedback-input" rows="1"
-                  placeholder="Provide any feedback for this project"></textarea>
+                  placeholder="Write down any feedback (or encouragement) for Rebuttal Studio ツ"></textarea>
                 <button id="homeSendBtn" class="feedback-send-btn" type="button" aria-label="Send feedback">↗</button>
               </div>
 
               <div class="feedback-actions-row">
                 <button id="homeHowToBtn" class="feedback-mini-btn" type="button">How to use it <span>▾</span></button>
-                <button id="homeBehindBtn" class="feedback-mini-btn" type="button">Behind Rebuttal Studio <span>▾</span></button>
+                <button id="homeBehindBtn" class="feedback-mini-btn" type="button">Behind Rebuttal Studio
+                  <span>▾</span></button>
                 <button id="homeStartBtn" class="feedback-mini-btn" type="button">Start Now <span>▾</span></button>
               </div>
             </div>
@@ -658,7 +671,8 @@
   <div id="exportProjectPopup" class="sort-popup hidden" style="z-index: 9999; margin-top: 5px;">
     <div class="sort-popup-section" id="exportProjectPopupTitle">Export First Round</div>
     <button class="sort-popup-item" data-export-type="md">Markdown Document (.md)</button>
-    <button class="sort-popup-item" disabled style="opacity:0.4;cursor:not-allowed;">Word Document (.docx) (Not supported yet)</button>
+    <button class="sort-popup-item" disabled style="opacity:0.4;cursor:not-allowed;">Word Document (.docx) (Not
+      supported yet)</button>
   </div>
 
   <script src="../../node_modules/marked/lib/marked.umd.js"></script>
