@@ -8,13 +8,17 @@ description: Multi-stage rebuttal analysis skill for RebuttalStudio. Use when or
 Follow this dispatcher structure:
 
 1. Identify stage first (`stage1`, `stage2`, `stage4`, or `stage5`).
-2. Inside that stage, select conference-specific skill.
+2. For `stage1` and `stage2`, apply the stage template first, then select conference-specific extension.
 3. Execute the conference skill instructions directly.
 
 ## Available stage workflows
 
+- `stage1/template/SKILL.md`: Shared Stage 1 breakdown template. Apply before conference overrides.
 - `stage1/iclr/SKILL.md`: Convert raw reviewer feedback into a structured breakdown for rebuttal drafting.
+- `stage1/icml/SKILL.md`: Convert raw reviewer feedback into a structured breakdown for rebuttal drafting (ICML mapping).
+- `stage2/template/SKILL.md`: Shared Stage 2 refine template. Apply before conference overrides.
 - `stage2/iclr/SKILL.md`: Refine Stage2 outline drafts into reviewer-facing rebuttal prose.
+- `stage2/icml/SKILL.md`: Refine Stage2 outline drafts into reviewer-facing rebuttal prose (ICML labeling).
 - `stage4/condense/SKILL.md`: Condense Stage 3 combined discussion into reusable markdown context.
 - `stage4/refine/SKILL.md`: Refine follow-up response using condensed context + follow-up question + user draft.
 - `stage5/final-remarks/SKILL.md`: Fill Stage 5 final remarks template from all reviewers' condensed markdown context.
@@ -33,3 +37,4 @@ These skills apply across multiple stages and provide strategic, stylistic, and 
 - `utility/stage/citation-verification/SKILL.md`: Verification workflow for any new citation added during rebuttal writing. Use when LLM-suggested references appear in Stage 2 drafts.
 
 If a requested stage/conference does not exist, stop and ask for missing spec before inventing format.
+When adding a new conference for Stage 1 or Stage 2, extend the stage template and edit only conference-specific differences.

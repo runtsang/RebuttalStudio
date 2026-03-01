@@ -39,6 +39,8 @@ This section contains the user-facing workflow guides for Rebuttal Studio. Each 
 
 Support for additional venues (NeurIPS, ACL, EMNLP, CVPR) is planned. For currently unsupported conferences, select the closer match and verify score fields manually.
 
+> Extension reminder: when adding new conferences later, always start from `skills/stage1/template/SKILL.md` and `skills/stage2/template/SKILL.md`, and change only conference-specific differences instead of rewriting from scratch.
+
 ---
 
 ## Quick Start

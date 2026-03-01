@@ -39,6 +39,8 @@
 
 其他会议（NeurIPS、ACL、EMNLP、CVPR 等）的支持已在计划中。当前不在支持列表的会议，选择更接近的一个并手动核对评分字段即可。
 
+> 扩展提醒：未来新增会议时，请先套用 `skills/stage1/template/SKILL.md` 和 `skills/stage2/template/SKILL.md`，只修改会议差异项，不要从零重写。
+
 ---
 
 ## 快速开始

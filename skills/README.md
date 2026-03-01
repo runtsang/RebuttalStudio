@@ -13,9 +13,11 @@ skills/
 ├── SKILL.md                          ← Root dispatcher (routes to stage or utility skills)
 ├── polish/                           ← Utility: template polishing
 ├── stage1/                           ← Stage 1: Reviewer comment breakdown
+│   ├── template/                     ← Base template (shared Stage 1 logic)
 │   ├── iclr/
 │   └── icml/
 ├── stage2/                           ← Stage 2: Reply drafting & refinement
+│   ├── template/                     ← Base template (shared Stage 2 logic)
 │   ├── iclr/
 │   └── icml/
 ├── stage4/                           ← Stage 4: Multi-round follow-up
@@ -54,7 +56,7 @@ The app calls the LLM with a system prompt built from the relevant `SKILL.md` co
 
 ### Stage 1 — Breakdown
 
-**Files**: `stage1/iclr/SKILL.md`, `stage1/icml/SKILL.md`
+**Files**: `stage1/template/SKILL.md`, `stage1/iclr/SKILL.md`, `stage1/icml/SKILL.md`
 
 **Purpose**: Parse one reviewer's raw text (from OpenReview or copy-paste) into a structured JSON breakdown.
 
@@ -69,13 +71,13 @@ The app calls the LLM with a system prompt built from the relevant `SKILL.md` co
 
 **Output format**: Structured Markdown with `## Scores`, `## Preserved Sections`, `## Atomic Issues`, `## Responses` blocks.
 
-**Conference differences**: The only difference between ICLR and ICML variants is the set of score fields extracted and the section names for weakness/question input.
+**Conference differences**: ICLR and ICML variants are template extensions. They only define conference-specific score mappings and section-name mappings.
 
 ---
 
 ### Stage 2 — Reply Drafting
 
-**Files**: `stage2/iclr/SKILL.md`, `stage2/icml/SKILL.md`
+**Files**: `stage2/template/SKILL.md`, `stage2/iclr/SKILL.md`, `stage2/icml/SKILL.md`
 
 **Purpose**: Transform a rough outline or bullet-point draft into polished, reviewer-facing rebuttal prose.
 
@@ -94,7 +96,7 @@ The app calls the LLM with a system prompt built from the relevant `SKILL.md` co
 
 **Hard constraints**: No fabrication, no new citations, no over-promises, no defensive language. Output is strict JSON: `{ "draft": "..." }`.
 
-**Conference differences**: ICLR and ICML variants are functionally identical; they share the same courtesy phrase bank and writing rules.
+**Conference differences**: ICLR and ICML variants are template extensions. Core refinement logic is shared in `stage2/template/SKILL.md`.
 
 ---
 
@@ -239,10 +241,13 @@ These skills do not produce structured JSON output for the app pipeline. They se
 
 To add a new stage-specific skill:
 
-1. Create the folder under the appropriate stage path: `stage{N}/{conference}/`
-2. Add a `SKILL.md` file using the same frontmatter format (`name`, `description`)
-3. Register it in the root `SKILL.md` dispatcher under `## Available stage workflows`
-4. Update this README
+1. Reuse the stage base template first (`stage1/template/SKILL.md` or `stage2/template/SKILL.md` when applicable).
+2. Create the folder under the appropriate stage path: `stage{N}/{conference}/`
+3. Add a `SKILL.md` file that keeps shared logic in the template and only writes conference-specific overrides.
+4. Add a clear reminder in the new file: future venue expansion must extend the template rather than rewriting from scratch.
+5. Add the same frontmatter format (`name`, `description`)
+6. Register it in the root `SKILL.md` dispatcher under `## Available stage workflows`
+7. Update this README
 
 To add a new utility skill:
 
