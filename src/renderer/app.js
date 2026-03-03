@@ -24,6 +24,37 @@ const CONFERENCE_TEMPLATES = {
     ],
     // Group sections into blocks: [ [summary, strength], [weakness, questions] ]
     blocks: [[0, 1], [2, 3]],
+    // Tooltips with ICLR scale definitions
+    tooltips: {
+      rating: `<strong>Rating (0–10 Scale)</strong><br>
+10 = Strong Accept: Outstanding contribution and quality, top paper.<br>
+8 = Accept: Good paper with solid contribution and execution.<br>
+6 = Borderline Accept: Marginally above acceptance threshold.<br>
+4 = Borderline Reject: Marginally below acceptance threshold.<br>
+2 = Reject: Significant weaknesses outweigh strengths.<br>
+0 = Clear Reject: Very serious issues or no contribution.`,
+      confidence: `<strong>Confidence (1–5 Scale)</strong><br>
+5 = Absolutely certain. Very familiar with related work and checked technical details carefully.<br>
+4 = Confident but not absolutely certain. Unlikely but possible you missed or misunderstood something.<br>
+3 = Fairly confident. Possible you didn't understand some parts or are unfamiliar with some related work.<br>
+2 = Willing to defend your assessment, but quite likely you missed central parts or are unfamiliar with related work.<br>
+1 = Not confident. You might have misunderstood significant parts or lack background in this area.`,
+      soundness: `<strong>Soundness (1–4 Scale)</strong><br>
+4 = Excellent: Very strong on this dimension; clear, sound, and well-executed.<br>
+3 = Good: Solid on this dimension with only minor or moderate issues.<br>
+2 = Fair: Mixed, notable weaknesses; partially convincing but important issues remain.<br>
+1 = Poor: Serious problems; methodology, writing, or contribution has major flaws.`,
+      presentation: `<strong>Presentation (1–4 Scale)</strong><br>
+4 = Excellent: Very clearly written, well organized, easy to follow for the target audience.<br>
+3 = Good: Generally clear and well structured, only minor presentation problems.<br>
+2 = Fair: Understandable overall but with notable issues in exposition, organization, or notation.<br>
+1 = Poor: Hard to follow, unclear writing or structure; important parts are confusing or missing.`,
+      contribution: `<strong>Contribution (1–4 Scale)</strong><br>
+4 = Excellent: Strong, well-justified contribution; clearly advances the state of knowledge or practice.<br>
+3 = Good: Clear, solid contribution with reasonable significance for the community.<br>
+2 = Fair: Some contribution but limited novelty, scope, or impact; important caveats remain.<br>
+1 = Poor: Little or no clear contribution; incremental or unconvincing impact.`,
+    },
   },
   ICML: {
     scores: [
@@ -37,13 +68,53 @@ const CONFERENCE_TEMPLATES = {
       { key: 'originality', label: 'Originality', default: 'F' },
     ],
     sections: [
-      { key: 'summary', label: 'Summary', placeholder: 'This is the summary.' },
-      { key: 'strength', label: 'Strength', placeholder: 'This is the strength.' },
-      { key: 'weakness', label: 'Weakness', placeholder: 'This is the weakness.' },
-      { key: 'questions', label: 'Questions', placeholder: 'This is the questions.' },
+      { key: 'summary', label: 'Summary', placeholder: 'Paper summary.' },
+      { key: 'strength', label: 'Strengths And Weaknesses', placeholder: 'Strengths and weaknesses of the paper.' },
+      { key: 'weakness', label: 'Key Questions For Authors', placeholder: 'Key questions or suggestions for authors.' },
+      { key: 'questions', label: 'Limitations', placeholder: 'Limitations of the work.' },
     ],
-    // Group sections into blocks: [ [summary, strength], [weakness, questions] ]
+    // Group sections into blocks: [ [summary, strengths/weaknesses], [questions, limitations] ]
     blocks: [[0, 1], [2, 3]],
+    // Tooltips with ICML scale definitions
+    tooltips: {
+      rating: `<strong>Overall Recommendation</strong><br>
+6 = Strong Accept: Technically flawless paper with exceptional impact, strong evaluation, reproducibility, and no unaddressed ethical considerations.<br>
+5 = Accept: Technically solid paper with high impact on at least one sub-area or moderate-to-high impact on multiple areas.<br>
+4 = Weak Accept: Technically solid paper that advances at least one sub-area, but with some weaknesses that limit impact (limited evaluation, etc.).<br>
+3 = Weak Reject: Paper with clear merits but weaknesses that outweigh them. Requires revisions before others can build on it.<br>
+2 = Reject: Technical flaws, weak evaluation, inadequate reproducibility, incompletely addressed ethics, or poor writing.<br>
+1 = Strong Reject: Well-known results, unaddressed ethics, or poorly written paper where contributions are unclear.`,
+      confidence: `<strong>Confidence</strong><br>
+5 = Absolutely certain. Very familiar with related work and carefully checked math/details.<br>
+4 = Confident but not absolutely certain. It's unlikely but possible you missed some parts or related work.<br>
+3 = Fairly confident. Possible you missed some parts or related work. Math/details not carefully checked.<br>
+2 = Willing to defend assessment, but quite likely you missed central parts or related work. Details not carefully checked.<br>
+1 = Educated guess. Not in your area or submission difficult to understand. Math/details not carefully checked.`,
+      soundness: `<strong>Soundness</strong><br>
+Rate the paper on technical claims, experimental/research methodology, and whether central claims are adequately supported.<br>
+4 = Excellent: Technically sound with strong evidence<br>
+3 = Good: Mostly sound with adequate support<br>
+2 = Fair: Some weaknesses in methodology or support<br>
+1 = Poor: Significant technical flaws or inadequate support`,
+      presentation: `<strong>Presentation</strong><br>
+Rate the paper on writing quality, clarity, and contextualization relative to prior work.<br>
+4 = Excellent: Clear writing, well-organized, good context<br>
+3 = Good: Generally clear with good structure<br>
+2 = Fair: Some clarity issues or unclear organization<br>
+1 = Poor: Unclear writing or poor organization`,
+      significance: `<strong>Significance</strong><br>
+Rate the significance of the overall contribution to the research area being studied.<br>
+4 = Excellent: Significant contribution with high impact<br>
+3 = Good: Solid contribution to the area<br>
+2 = Fair: Limited impact or incremental contribution<br>
+1 = Poor: Minimal or no significance to the area`,
+      originality: `<strong>Originality</strong><br>
+Rate the originality of the paper.<br>
+4 = Excellent: Highly novel and original approach<br>
+3 = Good: Original contribution with some novelty<br>
+2 = Fair: Limited novelty, mostly incremental<br>
+1 = Poor: Little to no originality`,
+    },
   },
   ARR: {
     scores: [
@@ -63,6 +134,43 @@ const CONFERENCE_TEMPLATES = {
     ],
     // Group sections into blocks: [ [summary, strength], [weakness, suggestion] ]
     blocks: [[0, 1], [2, 3]],
+    // Tooltips with ARR scale definitions
+    tooltips: {
+      confidence: `<strong>Reviewer Confidence</strong><br>
+5 = Positive that my evaluation is correct. I read the paper very carefully and am familiar with related work.<br>
+4 = Quite sure. I tried to check the important points carefully. It's unlikely that I missed something.<br>
+3 = Pretty sure, but there's a chance I missed something. I did not carefully check all details.<br>
+2 = Willing to defend my evaluation, but fairly likely that I missed some details.<br>
+1 = Not my area, or paper is very hard to understand. My evaluation is an educated guess.`,
+      soundness: `<strong>Soundness</strong><br>
+5 = Excellent: One of the most thorough studies I have seen.<br>
+4 = Strong: Provides sufficient support for all claims. Some extra experiments could be nice.<br>
+3 = Acceptable: Provides sufficient support for main claims. Some minor points may need extra support.<br>
+2 = Poor: Some main claims are not sufficiently supported. Major technical/methodological problems.<br>
+1 = Major Issues: Not sufficiently thorough to warrant publication or not relevant to ACL.`,
+      excitement: `<strong>Excitement</strong><br>
+5 = Highly Exciting: I would recommend to others and/or attend its presentation.<br>
+4 = Exciting: I would mention this paper to others and/or make effort to attend.<br>
+3 = Interesting: I might mention some points and/or attend if there's time.<br>
+2 = Potentially Interesting: Does not resonate with me, but might with others.<br>
+1 = Not Exciting: Does not resonate with me, and I don't think it would with the ACL community.`,
+      assessment: `<strong>Overall Assessment</strong><br>
+5 = Award: Could be considered for an outstanding paper award (top 2.5%).<br>
+4.5 = Borderline Award<br>
+4 = Conference: Could be accepted to an ACL conference.<br>
+3.5 = Borderline Conference<br>
+3 = Findings: Could be accepted to Findings of the ACL.<br>
+2.5 = Borderline Findings<br>
+2 = Resubmit: Needs substantial revisions for next cycle.<br>
+1.5 = Resubmit after next cycle: Needs substantial revisions beyond next cycle.<br>
+1 = Do not resubmit: Must be fully redone or not relevant to ACL.`,
+      reproducibility: `<strong>Reproducibility</strong><br>
+5 = They could easily reproduce the results.<br>
+4 = Could mostly reproduce, but minor variations possible due to sample variance or interpretation.<br>
+3 = Could reproduce with some difficulty. Parameters underspecified or data not widely available.<br>
+2 = Hard to reproduce: Data not available or insufficient details provided.<br>
+1 = Cannot reproduce: Results not reproducible no matter how hard they tried.`,
+    },
   },
 };
 
@@ -78,6 +186,9 @@ const STAGES = [
   { key: 'stage5', label: 'Final Remarks', desc: 'Finalize and summarize the rebuttal outcome' },
 ];
 
+
+/* Global tooltip storage for score definitions */
+let TOOLTIP_STORAGE = {};
 
 /* TEMPLATE_LIBRARY is loaded asynchronously from templates/templates.json */
 let TEMPLATE_LIBRARY = {};
@@ -1404,8 +1515,15 @@ function renderBreakdownPanel() {
   tpl.scores.forEach((s, i) => {
     if (i > 0) scoresHTML += '<span class="score-divider">|</span>';
     const val = data.scores[s.key] || s.default;
+    let tooltipAttr = '';
+    const badgeHTML = tpl.tooltips && tpl.tooltips[s.key] ? '<span class="tooltip-badge">?</span>' : '';
+    if (tpl.tooltips && tpl.tooltips[s.key]) {
+      const tooltipKey = `tooltip_${Math.random().toString(36).substr(2, 9)}`;
+      TOOLTIP_STORAGE[tooltipKey] = tpl.tooltips[s.key];
+      tooltipAttr = `data-tooltip-key="${tooltipKey}" class="has-tooltip"`;
+    }
     scoresHTML += `<div class="score-item" data-score-key="${s.key}">
-      <span class="score-label">${s.label}</span>
+      <span class="score-label" ${tooltipAttr}>${s.label}${badgeHTML}</span>
       <span class="score-value" contenteditable="true" data-score-edit="${s.key}">${escapeHTML(val)}</span>
     </div>`;
   });
@@ -1415,8 +1533,15 @@ function renderBreakdownPanel() {
   tpl.metrics.forEach((s, i) => {
     if (i > 0) scoresHTML += '<span class="score-divider">|</span>';
     const val = data.scores[s.key] || s.default;
+    let tooltipAttr = '';
+    const badgeHTML = tpl.tooltips && tpl.tooltips[s.key] ? '<span class="tooltip-badge">?</span>' : '';
+    if (tpl.tooltips && tpl.tooltips[s.key]) {
+      const tooltipKey = `tooltip_${Math.random().toString(36).substr(2, 9)}`;
+      TOOLTIP_STORAGE[tooltipKey] = tpl.tooltips[s.key];
+      tooltipAttr = `data-tooltip-key="${tooltipKey}" class="has-tooltip"`;
+    }
     scoresHTML += `<div class="score-item" data-score-key="${s.key}">
-      <span class="score-label blue-label">${s.label}</span>
+      <span class="score-label blue-label" ${tooltipAttr}>${s.label}${badgeHTML}</span>
       <span class="score-value" contenteditable="true" data-score-edit="${s.key}">${escapeHTML(val)}</span>
     </div>`;
   });
@@ -4470,7 +4595,41 @@ reviewerInput.addEventListener('input', (e) => {
 
 
 
+function showTooltipModal(htmlContent) {
+  const overlay = document.createElement('div');
+  overlay.className = 'tooltip-overlay';
+  overlay.addEventListener('click', () => {
+    overlay.remove();
+    modal.remove();
+  });
+
+  const modal = document.createElement('div');
+  modal.className = `tooltip-modal ${document.documentElement.getAttribute('data-theme') || 'dark'}`;
+  modal.innerHTML = `<div class="tooltip-modal-content">${htmlContent}</div>`;
+  modal.addEventListener('click', (e) => e.stopPropagation());
+
+  document.body.appendChild(overlay);
+  document.body.appendChild(modal);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      overlay.click();
+    }
+  }, { once: true });
+}
+
 breakdownContentEl.addEventListener('click', (e) => {
+  const tooltipBadge = e.target.closest('.tooltip-badge');
+  if (tooltipBadge) {
+    const scoreLabel = e.target.closest('.score-label');
+    const tooltipKey = scoreLabel?.getAttribute('data-tooltip-key');
+    const tooltipHTML = tooltipKey ? TOOLTIP_STORAGE[tooltipKey] : null;
+    if (tooltipHTML) {
+      showTooltipModal(tooltipHTML);
+    }
+    return;
+  }
+
   const stage4CopyBtn = e.target.closest('[data-stage4-copy-refined]');
   if (stage4CopyBtn) {
     const stage4 = getStage4StateForReviewer(state.activeReviewerIdx);
