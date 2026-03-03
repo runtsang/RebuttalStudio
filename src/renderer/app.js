@@ -45,6 +45,25 @@ const CONFERENCE_TEMPLATES = {
     // Group sections into blocks: [ [summary, strength], [weakness, questions] ]
     blocks: [[0, 1], [2, 3]],
   },
+  ARR: {
+    scores: [
+      { key: 'assessment', label: 'Assessment', default: 'A' },
+      { key: 'confidence', label: 'Confidence', default: 'B' },
+    ],
+    metrics: [
+      { key: 'soundness', label: 'Soundness', default: 'C' },
+      { key: 'excitement', label: 'Excitement', default: 'D' },
+      { key: 'reproducibility', label: 'Reproducibility', default: 'E' },
+    ],
+    sections: [
+      { key: 'summary', label: 'Paper Summary', placeholder: 'Paper summary.' },
+      { key: 'strength', label: 'Strengths', placeholder: 'Summary of strengths.' },
+      { key: 'weakness', label: 'Weaknesses', placeholder: 'Summary of weaknesses.' },
+      { key: 'suggestion', label: 'Comments & Suggestions', placeholder: 'Comments, suggestions, and typos.' },
+    ],
+    // Group sections into blocks: [ [summary, strength], [weakness, suggestion] ]
+    blocks: [[0, 1], [2, 3]],
+  },
 };
 
 

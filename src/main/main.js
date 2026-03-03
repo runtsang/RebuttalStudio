@@ -198,9 +198,20 @@ function buildStage1Prompt(content, conference = 'ICLR') {
   const conf = (conference || 'ICLR').toUpperCase();
   const skillPath = `stage1/${conf.toLowerCase()}/skill.md`;
 
-  const scoreKeys = conf === 'ICML'
-    ? ['rating', 'confidence', 'soundness', 'presentation', 'significance', 'originality']
-    : ['rating', 'confidence', 'soundness', 'presentation', 'contribution'];
+  let scoreKeys, sectionsSchema, atomicSources;
+  if (conf === 'ICML') {
+    scoreKeys = ['rating', 'confidence', 'soundness', 'presentation', 'significance', 'originality'];
+    sectionsSchema = {"summary":"","strength":"","weakness":"","questions":""};
+    atomicSources = 'weakness and question/questions';
+  } else if (conf === 'ARR') {
+    scoreKeys = ['confidence', 'soundness', 'excitement', 'assessment', 'reproducibility'];
+    sectionsSchema = {"summary":"","strength":"","weakness":"","suggestion":""};
+    atomicSources = 'weakness and suggestion/comments';
+  } else {
+    scoreKeys = ['rating', 'confidence', 'soundness', 'presentation', 'contribution'];
+    sectionsSchema = {"summary":"","strength":"","weakness":"","questions":""};
+    atomicSources = 'weakness and question/questions';
+  }
 
   const scoresSchema = {};
   scoreKeys.forEach(k => scoresSchema[k] = "");
@@ -210,14 +221,14 @@ function buildStage1Prompt(content, conference = 'ICLR') {
 Follow these requirements exactly:
 1) Extract scores: ${scoreKeys.join(', ')} (numbers only where found; empty string if missing).
 2) Preserve summary and strength text as verbatim as possible.
-3) Split weakness and question/questions into atomic issues.
+3) Split ${atomicSources} into atomic issues.
 4) Build responses Response1..N with fields title, source, source_id, quoted_issue.
 5) quoted_issue must be verbatim.
 
 Return JSON ONLY (no markdown fences) with this schema:
 {
   "scores": ${JSON.stringify(scoresSchema)},
-  "sections": {"summary":"","strength":"","weakness":"","questions":""},
+  "sections": ${JSON.stringify(sectionsSchema)},
   "atomicIssues": [
     {"id":"weakness1","source":"weakness","text":"..."},
     {"id":"question1","source":"question","text":"..."}
@@ -292,9 +303,14 @@ function normalizeStage1Breakdown(payload = {}, conference = 'ICLR') {
   const responsesIn = Array.isArray(payload.responses) ? payload.responses : [];
 
   const conf = (conference || 'ICLR').toUpperCase();
-  const scoreKeys = conf === 'ICML'
-    ? ['rating', 'confidence', 'soundness', 'presentation', 'significance', 'originality']
-    : ['rating', 'confidence', 'soundness', 'presentation', 'contribution'];
+  let scoreKeys;
+  if (conf === 'ICML') {
+    scoreKeys = ['rating', 'confidence', 'soundness', 'presentation', 'significance', 'originality'];
+  } else if (conf === 'ARR') {
+    scoreKeys = ['confidence', 'soundness', 'excitement', 'assessment', 'reproducibility'];
+  } else {
+    scoreKeys = ['rating', 'confidence', 'soundness', 'presentation', 'contribution'];
+  }
 
   const scores = {};
   for (const key of scoreKeys) {
@@ -306,6 +322,7 @@ function normalizeStage1Breakdown(payload = {}, conference = 'ICLR') {
     strength: `${sectionsIn.strength ?? ''}`.trim(),
     weakness: `${sectionsIn.weakness ?? ''}`.trim(),
     questions: `${sectionsIn.questions ?? sectionsIn.question ?? ''}`.trim(),
+    suggestion: `${sectionsIn.suggestion ?? sectionsIn.comments ?? ''}`.trim(),
   };
 
   const atomicIssues = atomicIssuesIn
