@@ -472,6 +472,7 @@ const reviewerTabsRowEl = document.querySelector('.reviewer-tabs-row');
 const convertBtnEl = document.getElementById('convertBtn');
 const stage3AdjustStyleBtn = document.getElementById('stage3AdjustStyleBtn');
 const stage2AutoFitBtn = document.getElementById('stage2AutoFitBtn');
+const stage2DirectTransferBtn = document.getElementById('stage2DirectTransferBtn');
 const stage3ThemeNoticeEl = document.getElementById('stage3ThemeNotice');
 const breakdownContentEl = document.getElementById('breakdownContent');
 
@@ -3571,6 +3572,32 @@ async function runStage1ApiBreakdown(rawText) {
   });
 }
 
+function runStage2DirectTransfer() {
+  const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
+  const responses = Array.isArray(data.responses) ? data.responses : [];
+  if (!responses.length) return;
+  const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+  let transferred = 0;
+  for (const resp of responses) {
+    const cell = stage2Map[resp.id] || { outline: '', draft: '', assets: [] };
+    const outline = (cell.outline || '').trim();
+    if (outline) {
+      cell.draft = outline;
+      stage2Map[resp.id] = cell;
+      transferred++;
+    }
+  }
+  if (!transferred) {
+    alert('No outlines to transfer. Please write outlines first.');
+    return;
+  }
+  state.stage2Replies[state.activeReviewerIdx] = stage2Map;
+  syncStage2CompletionState();
+  queueStateSync();
+  renderBreakdownPanel();
+  renderSidebarStages();
+}
+
 async function runStage2RefineOneResponse(responseId) {
   if (convertBtnEl.disabled) return;
   const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
@@ -4274,6 +4301,9 @@ function syncStageUi() {
     showStage3ThemeNotice('');
   }
 
+  if (stage2DirectTransferBtn) {
+    stage2DirectTransferBtn.classList.toggle('hidden', !isStage2);
+  }
   if (stage2AutoFitBtn) {
     stage2AutoFitBtn.classList.toggle('hidden', !(isStage2 || isStage5));
     const labelEl = stage2AutoFitBtn.querySelector('.convert-label');
@@ -5244,6 +5274,10 @@ if (stage3AdjustStyleBtn) {
 }
 
 if (stage2AutoFitBtn) {
+  stage2DirectTransferBtn.addEventListener('click', () => {
+    runStage2DirectTransfer();
+  });
+
   stage2AutoFitBtn.addEventListener('click', () => {
     if (currentStageKey() === 'stage5') {
       runStage5AutoFillPipeline();
