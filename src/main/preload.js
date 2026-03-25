@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('studioApi', {
   createProject: (payload) => ipcRenderer.invoke('projects:create', payload),
   openProject: (folderName) => ipcRenderer.invoke('projects:open', folderName),
   renameProject: (payload) => ipcRenderer.invoke('projects:rename', payload),
+  copyProject: (folderName) => ipcRenderer.invoke('projects:copy', folderName),
   deleteProject: (folderName) => ipcRenderer.invoke('projects:delete', folderName),
   updateProjectState: (payload) => ipcRenderer.invoke('projects:updateState', payload),
   setAutosaveInterval: (seconds) => ipcRenderer.invoke('projects:setAutosaveInterval', seconds),

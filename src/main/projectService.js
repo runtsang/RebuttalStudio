@@ -237,6 +237,41 @@ async function renameProject(folderName, nextProjectName) {
   return { folderName: targetFolder, doc: savedDoc };
 }
 
+async function copyProject(folderName) {
+  await ensureProjectsRoot();
+  const sourceFolder = sanitizeProjectName(folderName || '');
+  if (!sourceFolder) {
+    throw new Error('Project folder is invalid.');
+  }
+
+  const sourceDir = path.join(PROJECTS_ROOT, sourceFolder);
+  await fs.access(sourceDir);
+
+  const sourceDoc = await loadProject(sourceFolder);
+  const copiedProjectName = `${(sourceDoc.projectName || sourceFolder).trim() || sourceFolder}_Copy`;
+  const targetFolder = sanitizeProjectName(copiedProjectName);
+  if (!targetFolder) {
+    throw new Error('Copied project name is invalid after sanitization.');
+  }
+
+  const targetDir = path.join(PROJECTS_ROOT, targetFolder);
+  try {
+    await fs.access(targetDir);
+    throw new Error(`A project named "${copiedProjectName}" already exists.`);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+
+  await fs.cp(sourceDir, targetDir, { recursive: true, errorOnExist: true, force: false });
+
+  const now = new Date().toISOString();
+  const copiedDoc = await loadProject(targetFolder);
+  copiedDoc.projectName = copiedProjectName;
+  copiedDoc.createdAt = now;
+  const savedDoc = await saveProject(targetFolder, copiedDoc);
+  return { folderName: targetFolder, doc: savedDoc };
+}
+
 async function deleteProject(folderName) {
   await ensureProjectsRoot();
   const safeFolder = sanitizeProjectName(folderName || '');
@@ -302,6 +337,7 @@ module.exports = {
   listProjects,
   loadProject,
   renameProject,
+  copyProject,
   deleteProject,
   saveProject,
   loadAppSettings,

@@ -1206,6 +1206,13 @@ async function renameProjectFromContext(folderName) {
   renderWorkspace();
 }
 
+async function copyProjectFromContext(folderName) {
+  const result = await window.studioApi.copyProject(folderName);
+  await loadProjects();
+  renderWorkspace();
+  return result;
+}
+
 function promptProjectRename(defaultName = '') {
   return new Promise((resolve) => {
     pendingProjectRenameResolver = resolve;
@@ -1726,6 +1733,8 @@ projectContextMenuEl.addEventListener('click', async (e) => {
   try {
     if (action === 'rename') {
       await renameProjectFromContext(folderName);
+    } else if (action === 'copy') {
+      await copyProjectFromContext(folderName);
     } else if (action === 'delete') {
       await deleteProjectFromContext(folderName);
     }

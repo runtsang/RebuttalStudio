@@ -7,6 +7,7 @@ const {
   listProjects,
   loadProject,
   renameProject,
+  copyProject,
   deleteProject,
   saveProject,
   loadAppSettings,
@@ -1292,6 +1293,13 @@ ipcMain.handle('projects:delete', async (_event, folderName) => {
     autosaveState.currentDoc = null;
   }
   return { ok: true };
+});
+
+ipcMain.handle('projects:copy', async (_event, folderName) => {
+  if (autosaveState.currentFolder === folderName && autosaveState.currentDoc) {
+    await persistNow();
+  }
+  return copyProject(folderName);
 });
 
 ipcMain.handle('projects:exportFirstRound', async (event, { folderName, format, markdown, htmlStr }) => {
