@@ -239,6 +239,405 @@ function buildJsonErrorSnippet(text = '', error) {
   return text.slice(start, end).replace(/\s+/g, ' ').trim();
 }
 
+function escapeRegExp(text = '') {
+  return `${text || ''}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function stripJsonFences(text = '') {
+  return `${text || ''}`
+    .trim()
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```$/, '')
+    .trim();
+}
+
+function repairUnexpectedBarewordAtError(text = '', error) {
+  const pos = getJsonParseErrorPosition(error);
+  if (!Number.isFinite(pos) || pos < 0 || pos >= text.length) {
+    return text;
+  }
+
+  const left = previousNonWhitespaceIndex(text, pos - 1);
+  const right = nextNonWhitespaceIndex(text, pos);
+  if (left < 0 || right < 0) {
+    return text;
+  }
+
+  if (!isJsonValueTerminator(text, left) || !/[A-Za-z_]/.test(text[right])) {
+    return text;
+  }
+
+  let end = right;
+  while (end < text.length && /[A-Za-z0-9_$-]/.test(text[end])) {
+    end += 1;
+  }
+
+  const next = nextNonWhitespaceIndex(text, end);
+  if (next < 0) {
+    return text;
+  }
+
+  const nextChar = text[next];
+  if (!['{', '[', ']', '}', '"'].includes(nextChar)) {
+    return text;
+  }
+
+  return `${text.slice(0, right)}${text.slice(next)}`;
+}
+
+function repairLooseJsonCandidate(candidate = '') {
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < candidate.length; i++) {
+    const c = candidate[i];
+    if (c === '"' && !escaped) {
+      inString = !inString;
+    }
+    if (inString && (c === '\n' || c === '\r')) {
+      out += c === '\n' ? '\\n' : '\\r';
+    } else {
+      out += c;
+    }
+    escaped = (c === '\\' && !escaped);
+  }
+
+  const lines = out.split('\n');
+  for (let i = 0; i < lines.length - 1; i++) {
+    const line = lines[i].trim();
+    const next = lines[i + 1] ? lines[i + 1].trim() : '';
+    const lineEndsWithValue = /(?:"|\d|true|false|null|}|\])$/.test(line);
+    const nextStartsWithValue = /^(?:"|\{|\[|-?\d|true\b|false\b|null\b)/.test(next);
+    const nextStartsWithCloser = /^[}\]]/.test(next);
+    if (lineEndsWithValue && !line.endsWith(',') && nextStartsWithValue && !nextStartsWithCloser) {
+      lines[i] = lines[i] + ',';
+    }
+  }
+
+  return lines.join('\n').replace(/,\s*([\]}])/g, '$1');
+}
+
+function parseLooseJsonBlock(candidate = '') {
+  const cleaned = stripJsonFences(candidate);
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    let current = repairLooseJsonCandidate(cleaned);
+    let lastError = null;
+
+    for (let attempt = 0; attempt < 16; attempt++) {
+      try {
+        return JSON.parse(current);
+      } catch (error) {
+        lastError = error;
+        const withComma = repairJsonMissingCommaAtError(current, error);
+        if (withComma !== current) {
+          current = withComma;
+          continue;
+        }
+        const withoutBareword = repairUnexpectedBarewordAtError(current, error);
+        if (withoutBareword !== current) {
+          current = withoutBareword;
+          continue;
+        }
+        break;
+      }
+    }
+
+    throw lastError || new Error('Unknown JSON parse failure.');
+  }
+}
+
+function extractBalancedJsonBlock(text = '', startIndex = -1) {
+  if (startIndex < 0 || startIndex >= text.length) {
+    return null;
+  }
+
+  const openChar = text[startIndex];
+  const closeChar = openChar === '{' ? '}' : (openChar === '[' ? ']' : '');
+  if (!closeChar) {
+    return null;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = startIndex; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (ch === openChar) {
+      depth += 1;
+      continue;
+    }
+
+    if (ch === closeChar) {
+      depth -= 1;
+      if (depth === 0) {
+        return {
+          text: text.slice(startIndex, i + 1),
+          endIndex: i,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractFirstBalancedJsonObject(text = '') {
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] !== '{') continue;
+    const block = extractBalancedJsonBlock(text, i);
+    if (block?.text) {
+      return block.text;
+    }
+  }
+  return null;
+}
+
+function extractJsonBlockForKey(text = '', key = '', openingChar = '{') {
+  const pattern = new RegExp(`(?:"${escapeRegExp(key)}"|\\b${escapeRegExp(key)}\\b)\\s*:`, 'i');
+  const match = pattern.exec(text);
+  if (!match) {
+    return null;
+  }
+
+  const startIndex = nextNonWhitespaceIndex(text, match.index + match[0].length);
+  if (startIndex < 0 || text[startIndex] !== openingChar) {
+    return null;
+  }
+
+  return extractBalancedJsonBlock(text, startIndex)?.text || null;
+}
+
+function extractJsonObjectsFromLooseArrayBlock(arrayBlock = '') {
+  const source = stripJsonFences(arrayBlock);
+  const objects = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (source[i] !== '{') continue;
+    const block = extractBalancedJsonBlock(source, i);
+    if (!block?.text) continue;
+    objects.push(block.text);
+    i = block.endIndex;
+  }
+
+  return objects;
+}
+
+function decodeLooseJsonStringValue(raw = '') {
+  try {
+    return JSON.parse(`"${raw}"`);
+  } catch {
+    return `${raw || ''}`
+      .replace(/\\r/g, '\r')
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t')
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, '\\');
+  }
+}
+
+function extractLooseFieldValue(text = '', key = '') {
+  const quotedPattern = new RegExp(`(?:"${escapeRegExp(key)}"|\\b${escapeRegExp(key)}\\b)\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`, 'is');
+  const quoted = quotedPattern.exec(text);
+  if (quoted?.[1] != null) {
+    return decodeLooseJsonStringValue(quoted[1]).trim();
+  }
+
+  const scalarPattern = new RegExp(`(?:"${escapeRegExp(key)}"|\\b${escapeRegExp(key)}\\b)\\s*:\\s*(true|false|null|-?\\d+(?:\\.\\d+)?)`, 'i');
+  const scalar = scalarPattern.exec(text);
+  if (scalar?.[1] != null) {
+    return `${scalar[1]}`.trim();
+  }
+
+  const plainPattern = new RegExp(`(?:"${escapeRegExp(key)}"|\\b${escapeRegExp(key)}\\b)\\s*:\\s*([^,\\n\\r}\\]]+)`, 'i');
+  const plain = plainPattern.exec(text);
+  if (plain?.[1] != null) {
+    return `${plain[1]}`.trim().replace(/^"+|"+$/g, '');
+  }
+
+  return '';
+}
+
+function getStage1ScoreKeys(conference = 'ICLR') {
+  const conf = (conference || 'ICLR').toUpperCase();
+  if (conf === 'ICML') {
+    return ['rating', 'confidence', 'soundness', 'presentation', 'significance', 'originality'];
+  }
+  if (conf === 'NEURIPS') {
+    return ['rating', 'confidence', 'quality', 'clarity', 'significance', 'originality'];
+  }
+  if (conf === 'ARR') {
+    return ['confidence', 'soundness', 'excitement', 'assessment', 'reproducibility'];
+  }
+  return ['rating', 'confidence', 'soundness', 'presentation', 'contribution'];
+}
+
+function salvageLooseObjectFields(text = '', keys = []) {
+  const out = {};
+  let found = false;
+
+  for (const key of keys) {
+    const value = extractLooseFieldValue(text, key);
+    if (value) {
+      out[key] = value;
+      found = true;
+    }
+  }
+
+  return found ? out : null;
+}
+
+function salvageStage1BreakdownPayloadFromText(text = '', conference = 'ICLR') {
+  const cleaned = stripJsonFences(text);
+  const payload = {
+    scores: {},
+    sections: {},
+    atomicIssues: [],
+    responses: [],
+  };
+  let foundAny = false;
+
+  const scoresBlock = extractJsonBlockForKey(cleaned, 'scores', '{');
+  if (scoresBlock) {
+    try {
+      const parsedScores = parseLooseJsonBlock(scoresBlock);
+      if (parsedScores && typeof parsedScores === 'object' && !Array.isArray(parsedScores)) {
+        payload.scores = parsedScores;
+        foundAny = true;
+      }
+    } catch { }
+  }
+  if (!Object.keys(payload.scores).length) {
+    const scoresFallback = salvageLooseObjectFields(scoresBlock || cleaned, getStage1ScoreKeys(conference));
+    if (scoresFallback) {
+      payload.scores = scoresFallback;
+      foundAny = true;
+    }
+  }
+
+  const sectionsBlock = extractJsonBlockForKey(cleaned, 'sections', '{');
+  if (sectionsBlock) {
+    try {
+      const parsedSections = parseLooseJsonBlock(sectionsBlock);
+      if (parsedSections && typeof parsedSections === 'object' && !Array.isArray(parsedSections)) {
+        payload.sections = parsedSections;
+        foundAny = true;
+      }
+    } catch { }
+  }
+  if (!Object.keys(payload.sections).length) {
+    const sectionFallback = salvageLooseObjectFields(sectionsBlock || cleaned, ['summary', 'strength', 'weakness', 'questions', 'question', 'suggestion', 'comments']);
+    if (sectionFallback) {
+      payload.sections = sectionFallback;
+      foundAny = true;
+    }
+  }
+
+  const atomicIssuesBlock = extractJsonBlockForKey(cleaned, 'atomicIssues', '[');
+  if (atomicIssuesBlock) {
+    const issues = extractJsonObjectsFromLooseArrayBlock(atomicIssuesBlock)
+      .map((itemText) => {
+        try {
+          return parseLooseJsonBlock(itemText);
+        } catch {
+          return salvageLooseObjectFields(itemText, ['id', 'source', 'text', 'quoted_issue']);
+        }
+      })
+      .filter((item) => item && (item.text || item.quoted_issue));
+    if (issues.length) {
+      payload.atomicIssues = issues;
+      foundAny = true;
+    }
+  }
+
+  const responsesBlock = extractJsonBlockForKey(cleaned, 'responses', '[');
+  if (responsesBlock) {
+    const responses = extractJsonObjectsFromLooseArrayBlock(responsesBlock)
+      .map((itemText) => {
+        try {
+          return parseLooseJsonBlock(itemText);
+        } catch {
+          return salvageLooseObjectFields(itemText, ['id', 'title', 'source', 'source_id', 'quoted_issue']);
+        }
+      })
+      .filter((item) => item && (item.quoted_issue || item.source_id || item.title));
+    if (responses.length) {
+      payload.responses = responses;
+      foundAny = true;
+    }
+  }
+
+  return foundAny ? payload : null;
+}
+
+function salvageSingleFieldObjectFromText(text = '', fieldNames = []) {
+  const cleaned = stripJsonFences(text);
+  for (const fieldName of fieldNames) {
+    const value = extractLooseFieldValue(cleaned, fieldName);
+    if (`${value || ''}`.trim()) {
+      return { [fieldName]: value };
+    }
+  }
+  return null;
+}
+
+function buildJsonRepairRetryPrompt(prompt = '') {
+  return `${prompt}
+
+IMPORTANT:
+- Return one valid JSON object only.
+- Do NOT include markdown fences.
+- Do NOT include headings like "Metadata".
+- Do NOT include commentary, notes, or any text before or after the root JSON object.
+- If some requested fields are unavailable, keep the schema and use empty strings or empty arrays instead of omitting structure.`;
+}
+
+async function requestOpenAICompatibleJson(profile = {}, prompt = '', providerKey = '', fallbackParser = null) {
+  const attemptedTexts = [];
+  let lastError = null;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const actualPrompt = attempt === 0 ? prompt : buildJsonRepairRetryPrompt(prompt);
+    const text = await runOpenAICompatibleRequest(profile, actualPrompt, 'application/json', providerKey);
+    attemptedTexts.push(text);
+    try {
+      return extractJsonFromText(text);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (fallbackParser) {
+    for (let i = attemptedTexts.length - 1; i >= 0; i--) {
+      const recovered = fallbackParser(attemptedTexts[i], lastError);
+      if (recovered) {
+        return recovered;
+      }
+    }
+  }
+
+  throw lastError || new Error('Failed to parse JSON response.');
+}
+
 async function saveCondensedMarkdown(reviewerId, condensedMarkdown, folderName = autosaveState.currentFolder) {
   if (!folderName) {
     throw new Error('No project is currently open.');
@@ -385,6 +784,7 @@ Follow these requirements exactly:
 3) Split ${atomicSources} into atomic issues.
 4) Build responses Response1..N with fields title, source, source_id, quoted_issue.
 5) quoted_issue must be verbatim.
+6) Do NOT output labels like "Metadata", "Notes", or any text outside the root JSON object.
 
 Return JSON ONLY (no markdown fences) with this schema:
 {
@@ -448,10 +848,10 @@ async function runGeminiStage1Breakdown(profile = {}, content = '', conference =
 
   let parsed;
   try {
-    parsed = JSON.parse(text);
-  } catch {
-    const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/, '').trim();
-    parsed = JSON.parse(cleaned);
+    parsed = extractJsonFromText(text);
+  } catch (error) {
+    parsed = salvageStage1BreakdownPayloadFromText(text, conference);
+    if (!parsed) throw error;
   }
 
   return normalizeStage1Breakdown(parsed, conference);
@@ -463,18 +863,7 @@ function normalizeStage1Breakdown(payload = {}, conference = 'ICLR') {
   const atomicIssuesIn = Array.isArray(payload.atomicIssues) ? payload.atomicIssues : [];
   const responsesIn = Array.isArray(payload.responses) ? payload.responses : [];
 
-  const conf = (conference || 'ICLR').toUpperCase();
-  let scoreKeys;
-  if (conf === 'ICML') {
-    scoreKeys = ['rating', 'confidence', 'soundness', 'presentation', 'significance', 'originality'];
-  } else if (conf === 'NEURIPS') {
-    scoreKeys = ['rating', 'confidence', 'quality', 'clarity', 'significance', 'originality'];
-  } else if (conf === 'ARR') {
-    scoreKeys = ['confidence', 'soundness', 'excitement', 'assessment', 'reproducibility'];
-  } else {
-    scoreKeys = ['rating', 'confidence', 'soundness', 'presentation', 'contribution'];
-  }
-
+  const scoreKeys = getStage1ScoreKeys(conference);
   const scores = {};
   for (const key of scoreKeys) {
     scores[key] = `${scoresIn[key] ?? ''}`.trim();
@@ -488,7 +877,7 @@ function normalizeStage1Breakdown(payload = {}, conference = 'ICLR') {
     suggestion: `${sectionsIn.suggestion ?? sectionsIn.comments ?? ''}`.trim(),
   };
 
-  const atomicIssues = atomicIssuesIn
+  let atomicIssues = atomicIssuesIn
     .map((item, idx) => ({
       id: `${item?.id ?? ''}`.trim() || `issue${idx + 1}`,
       source: `${item?.source ?? ''}`.trim() || 'weakness',
@@ -496,7 +885,7 @@ function normalizeStage1Breakdown(payload = {}, conference = 'ICLR') {
     }))
     .filter((item) => item.text);
 
-  const responses = responsesIn
+  let responses = responsesIn
     .map((item, idx) => ({
       id: `${item?.id ?? ''}`.trim() || `Response${idx + 1}`,
       title: `${item?.title ?? ''}`.trim() || `Regarding issue ${idx + 1}`,
@@ -505,6 +894,47 @@ function normalizeStage1Breakdown(payload = {}, conference = 'ICLR') {
       quoted_issue: `${item?.quoted_issue ?? ''}`.trim(),
     }))
     .filter((item) => item.quoted_issue || item.source_id);
+
+  if (!atomicIssues.length && responses.length) {
+    atomicIssues = responses.map((item, idx) => ({
+      id: item.source_id || `${item.source || 'issue'}${idx + 1}`,
+      source: item.source || 'weakness',
+      text: item.quoted_issue || '',
+    })).filter((item) => item.text);
+  }
+
+  if (!responses.length && atomicIssues.length) {
+    responses = atomicIssues.map((item, idx) => ({
+      id: `Response${idx + 1}`,
+      title: `Regarding issue ${idx + 1}`,
+      source: item.source || 'weakness',
+      source_id: item.id,
+      quoted_issue: item.text,
+    }));
+  }
+
+  responses = responses
+    .map((item, idx) => {
+      const linkedIssue = atomicIssues.find((issue) => issue.id === item.source_id) || atomicIssues[idx] || null;
+      return {
+        ...item,
+        source: item.source || linkedIssue?.source || 'weakness',
+        source_id: item.source_id || linkedIssue?.id || '',
+        quoted_issue: item.quoted_issue || linkedIssue?.text || '',
+      };
+    })
+    .filter((item) => item.quoted_issue || item.source_id);
+
+  atomicIssues = atomicIssues
+    .map((item, idx) => {
+      const linkedResponse = responses.find((resp) => resp.source_id === item.id) || responses[idx] || null;
+      return {
+        ...item,
+        source: item.source || linkedResponse?.source || 'weakness',
+        text: item.text || linkedResponse?.quoted_issue || '',
+      };
+    })
+    .filter((item) => item.text);
 
   return {
     scores,
@@ -928,8 +1358,9 @@ async function runGeminiWritingAntiAI(profile = {}, content = '') {
 
 async function runOpenAIWritingAntiAI(profile = {}, content = '', providerKey = '') {
   const prompt = buildWritingAntiAIPrompt(content);
-  const raw = await runOpenAICompatibleRequest(profile, prompt, 'application/json', providerKey);
-  const parsed = extractJsonFromText(raw);
+  const parsed = await requestOpenAICompatibleJson(profile, prompt, providerKey, (text) => (
+    salvageSingleFieldObjectFromText(text, ['text', 'draft'])
+  ));
   const out = `${parsed?.text ?? parsed?.draft ?? ''}`.trim();
   if (!out) throw new Error('Writing Anti-AI did not return text.');
   return { text: out };
@@ -1000,11 +1431,19 @@ async function runOpenAICompatibleRequest(profile = {}, prompt = '', responseMim
   const apiKey = (profile.apiKey || '').trim();
   const baseUrl = (profile.baseUrl || '').trim().replace(/\/$/, '') || 'https://api.openai.com/v1';
   const model = (profile.model || '').trim() || 'gpt-3.5-turbo';
+  const messages = [];
+  if (responseMimeType === 'application/json') {
+    messages.push({
+      role: 'system',
+      content: 'Return one valid JSON object only. Do not include markdown fences, headings like "Metadata", explanations, or any text before or after the JSON root object. Preserve the requested schema and use empty strings or empty arrays for missing fields.',
+    });
+  }
+  messages.push({ role: 'user', content: prompt });
 
   const endpoint = `${baseUrl}/chat/completions`;
   const body = {
     model,
-    messages: [{ role: 'user', content: prompt }],
+    messages,
     temperature: 0.1,
   };
 
@@ -1047,106 +1486,33 @@ async function runOpenAICompatibleRequest(profile = {}, prompt = '', responseMim
 }
 
 function extractJsonFromText(text = '') {
-  const trimmed = text.trim();
+  const trimmed = stripJsonFences(text);
   if (!trimmed) return null;
-
-  function tryRepair(candidate) {
-    // 1. First pass: Escape unescaped newlines in strings
-    let out = '';
-    let inString = false;
-    let escaped = false;
-    for (let i = 0; i < candidate.length; i++) {
-      const c = candidate[i];
-      if (c === '"' && !escaped) {
-        inString = !inString;
-      }
-      if (inString && (c === '\n' || c === '\r')) {
-        out += c === '\n' ? '\\n' : '\\r';
-      } else {
-        out += c;
-      }
-      escaped = (c === '\\' && !escaped);
-    }
-
-    // 2. Second pass: Fix missing commas between properties / array items on adjacent lines
-    let lines = out.split('\n');
-    for (let i = 0; i < lines.length - 1; i++) {
-      const line = lines[i].trim();
-      const next = lines[i + 1] ? lines[i + 1].trim() : '';
-      const lineEndsWithValue = /(?:"|\d|true|false|null|}|\])$/.test(line);
-      const nextStartsWithValue = /^(?:"|\{|\[|-?\d|true\b|false\b|null\b)/.test(next);
-      const nextStartsWithCloser = /^[}\]]/.test(next);
-      if (lineEndsWithValue && !line.endsWith(',') && nextStartsWithValue && !nextStartsWithCloser) {
-        lines[i] = lines[i] + ',';
-      }
-    }
-    let combined = lines.join('\n');
-
-    // 3. Third pass: Remove trailing commas
-    combined = combined.replace(/,\s*([\]}])/g, '$1');
-
-    return combined;
+  const candidate = extractFirstBalancedJsonObject(trimmed);
+  if (!candidate) {
+    throw new Error(`No JSON object found in response. Body head: ${trimmed.slice(0, 100).replace(/\n/g, ' ')}...`);
   }
 
-  function tryParse(candidate) {
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      let current = tryRepair(candidate);
-      let lastError = null;
-
-      for (let attempt = 0; attempt < 8; attempt++) {
-        try {
-          return JSON.parse(current);
-        } catch (error) {
-          lastError = error;
-          const repairedAtError = repairJsonMissingCommaAtError(current, error);
-          if (repairedAtError === current) {
-            break;
-          }
-          current = repairedAtError;
-        }
-      }
-
-      throw lastError || new Error('Unknown JSON parse failure.');
-    }
+  try {
+    return parseLooseJsonBlock(candidate);
+  } catch (error) {
+    throw new Error(`JSON parse error: ${error.message}. Around error: ${buildJsonErrorSnippet(candidate, error)}`);
   }
-
-  const start = trimmed.indexOf('{');
-  const end = trimmed.lastIndexOf('}');
-
-  if (start !== -1 && end !== -1 && end > start) {
-    const candidate = trimmed.slice(start, end + 1);
-    try {
-      return tryParse(candidate);
-    } catch (e) {
-      const cleaned = candidate
-        .replace(/^```json\s*/i, '')
-        .replace(/^```\s*/i, '')
-        .replace(/```$/, '')
-        .trim();
-      try {
-        return tryParse(cleaned);
-      } catch (e4) {
-        throw new Error(`JSON parse error: ${e4.message}. Around error: ${buildJsonErrorSnippet(cleaned, e4)}`);
-      }
-    }
-  }
-
-  throw new Error(`No JSON object found in response. Body head: ${trimmed.slice(0, 100).replace(/\n/g, ' ')}...`);
 }
 
 async function runOpenAIStage1Breakdown(profile = {}, content = '', conference = 'ICLR', providerKey = '') {
   const prompt = buildStage1Prompt(content, conference);
-  const text = await runOpenAICompatibleRequest(profile, prompt, 'application/json', providerKey);
-  const parsed = extractJsonFromText(text);
+  const parsed = await requestOpenAICompatibleJson(profile, prompt, providerKey, (text) => (
+    salvageStage1BreakdownPayloadFromText(text, conference)
+  ));
   return normalizeStage1Breakdown(parsed, conference);
 }
 
 async function runOpenAIStage2Refine(profile = {}, payload = {}, conference = 'ICLR', providerKey = '') {
   const prompt = buildStage2Prompt(payload, conference);
-  const text = await runOpenAICompatibleRequest(profile, prompt, 'application/json', providerKey);
-  const parsed = extractJsonFromText(text);
+  const parsed = await requestOpenAICompatibleJson(profile, prompt, providerKey, (text) => (
+    salvageSingleFieldObjectFromText(text, ['draft', 'response'])
+  ));
 
   const draft = `${parsed?.draft ?? parsed?.response ?? ''}`.trim();
   if (!draft) {
@@ -1158,8 +1524,9 @@ async function runOpenAIStage2Refine(profile = {}, payload = {}, conference = 'I
 
 async function runOpenAIStage4Condense(profile = {}, allSource = '', providerKey = '') {
   const prompt = buildStage4CondensePrompt(allSource);
-  const text = await runOpenAICompatibleRequest(profile, prompt, 'application/json', providerKey);
-  const parsed = extractJsonFromText(text);
+  const parsed = await requestOpenAICompatibleJson(profile, prompt, providerKey, (text) => (
+    salvageSingleFieldObjectFromText(text, ['condensedMarkdown', 'summary'])
+  ));
 
   const condensedMarkdown = `${parsed?.condensedMarkdown ?? parsed?.summary ?? ''}`.trim();
   if (!condensedMarkdown) {
@@ -1171,8 +1538,9 @@ async function runOpenAIStage4Condense(profile = {}, allSource = '', providerKey
 
 async function runOpenAIStage4Refine(profile = {}, payload = {}, providerKey = '') {
   const prompt = buildStage4RefinePrompt(payload);
-  const text = await runOpenAICompatibleRequest(profile, prompt, 'application/json', providerKey);
-  const parsed = extractJsonFromText(text);
+  const parsed = await requestOpenAICompatibleJson(profile, prompt, providerKey, (text) => (
+    salvageSingleFieldObjectFromText(text, ['refinedText', 'draft', 'response'])
+  ));
 
   const refinedText = `${parsed?.refinedText ?? parsed?.draft ?? parsed?.response ?? ''}`.trim();
   if (!refinedText) {
@@ -1184,8 +1552,9 @@ async function runOpenAIStage4Refine(profile = {}, payload = {}, providerKey = '
 
 async function runOpenAIStage5FinalRemarks(profile = {}, payload = {}, providerKey = '') {
   const prompt = buildStage5FinalRemarksPrompt(payload);
-  const text = await runOpenAICompatibleRequest(profile, prompt, 'application/json', providerKey);
-  const parsed = extractJsonFromText(text);
+  const parsed = await requestOpenAICompatibleJson(profile, prompt, providerKey, (text) => (
+    salvageSingleFieldObjectFromText(text, ['filledMarkdown', 'finalRemarks', 'text'])
+  ));
 
   const filledMarkdown = `${parsed?.filledMarkdown ?? parsed?.finalRemarks ?? parsed?.text ?? ''}`.trim();
   if (!filledMarkdown) {
@@ -1197,8 +1566,9 @@ async function runOpenAIStage5FinalRemarks(profile = {}, payload = {}, providerK
 
 async function runOpenAITemplateRephrase(profile = {}, content = '', providerKey = '') {
   const prompt = buildTemplateRephrasePrompt(content);
-  const text = await runOpenAICompatibleRequest(profile, prompt, 'application/json', providerKey);
-  const parsed = extractJsonFromText(text);
+  const parsed = await requestOpenAICompatibleJson(profile, prompt, providerKey, (text) => (
+    salvageSingleFieldObjectFromText(text, ['text', 'draft'])
+  ));
 
   const out = `${parsed?.text ?? parsed?.draft ?? ''}`.trim();
   if (!out) throw new Error('Template rephrase did not return text.');
