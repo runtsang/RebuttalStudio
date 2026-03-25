@@ -966,6 +966,43 @@ html.platform-win32:not([data-theme]) .sidebar {
   align-items: center;
 }
 
+.topbar-history-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--panel-muted) 84%, transparent);
+}
+
+.history-btn {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  width: 38px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+
+.history-btn + .history-btn {
+  border-left: 1px solid var(--border);
+}
+
+.history-btn:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.history-btn:disabled {
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.5;
+}
+
 .active-model-badge {
   display: inline-flex;
   align-items: center;

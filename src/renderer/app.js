@@ -418,12 +418,21 @@ let stage2TableRows = 3;
 let stage2TableCols = 3;
 let stage3BreakdownPartsCache = [];
 const STAGE3_PRESET_COLORS = ['#ff0000', '#ff7f00', '#ffff00', '#00aa00', '#0077ff', '#4b0082', '#8b00ff'];
+const PROJECT_HISTORY_LIMIT = 120;
+const PROJECT_HISTORY_SETTLE_MS = 700;
 const STAGE3_ALL_TAB_ID = '__all__';
 const STAGE3_ALL_OPENING_PARAGRAPH = 'Thank you for acknowledging the A, B, and C of our method. We sincerely appreciate your time and effort in reviewing our paper and providing valuable comments. We provide explanations to your questions point-by-point in the following.';
 const STAGE3_ALL_CLOSING_PARAGRAPH = '**We appreciate your thoughtful comments. We hope our response addresses your concerns. Please let us know if there are any additional questions, and we will be happy to discuss further.**';
 const REBUTTAL_TYPOS = ['Rrbuttal', 'Rebuttle', 'Rebttal', 'Rebutall', 'Rebuttal'];
 const homeIntroRuntime = {
   timeouts: [],
+};
+const projectHistoryState = {
+  folderName: null,
+  past: [],
+  present: null,
+  future: [],
+  typing: null,
 };
 
 function normalizePositiveInt(value, fallback, min = 1, max = 20) {
@@ -477,6 +486,8 @@ const stage3ThemeNoticeEl = document.getElementById('stage3ThemeNotice');
 const breakdownContentEl = document.getElementById('breakdownContent');
 
 const appEl = document.querySelector('.app');
+const undoBtnEl = document.getElementById('undoBtn');
+const redoBtnEl = document.getElementById('redoBtn');
 const templateModalEl = document.getElementById('templateModal');
 const templateAudienceTabsEl = document.getElementById('templateAudienceTabs');
 const templateTypeListEl = document.getElementById('templateTypeList');
@@ -720,6 +731,240 @@ function isStageComplete(stageKey) {
     return isStage2FullyRefined();
   }
   return `${state.currentDoc?.[stageKey]?.content || ''}`.trim().length > 0;
+}
+
+function deepCloneJson(value) {
+  if (value === null || value === undefined) return value;
+  return JSON.parse(JSON.stringify(value));
+}
+
+function clampReviewerIndex(idx, reviewerCount = state.reviewers.length || 1) {
+  const count = Math.max(1, Number(reviewerCount) || 1);
+  const parsed = Number(idx);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.min(count - 1, Math.floor(parsed)));
+}
+
+function buildProjectDocFromState() {
+  if (!state.currentDoc) return null;
+  return deepCloneJson({
+    ...state.currentDoc,
+    reviewers: state.reviewers,
+    activeReviewerIdx: state.activeReviewerIdx,
+    breakdownData: state.breakdownData,
+    stage2Replies: state.stage2Replies,
+    stage3Settings: state.stage3Settings,
+    stage3Drafts: state.stage3Drafts,
+    stage3Selection: state.stage3Selection,
+    stage4Data: state.stage4Data,
+    stage5Data: state.stage5Data,
+    stage5Settings: state.stage5Settings,
+  });
+}
+
+function makeProjectHistoryEntry(doc = buildProjectDocFromState()) {
+  if (!doc) return null;
+  const snapshot = deepCloneJson(doc);
+  return {
+    snapshot,
+    signature: JSON.stringify(snapshot),
+  };
+}
+
+function clearProjectHistoryTypingTimer() {
+  if (!projectHistoryState.typing?.timerId) return;
+  clearTimeout(projectHistoryState.typing.timerId);
+  projectHistoryState.typing.timerId = null;
+}
+
+function isProjectHistoryBusy() {
+  return Boolean(stage2RefineProgress || stage4RefineRuntime.running || stage5AutoFillRuntime.running);
+}
+
+function updateHistoryButtons() {
+  const hasProject = Boolean(state.currentDoc && state.currentFolderName);
+  const isBusy = hasProject && isProjectHistoryBusy();
+  const hasUndo = hasProject && (projectHistoryState.past.length > 0 || Boolean(projectHistoryState.typing));
+  const hasRedo = hasProject && projectHistoryState.future.length > 0;
+  if (undoBtnEl) undoBtnEl.disabled = !hasUndo || isBusy;
+  if (redoBtnEl) redoBtnEl.disabled = !hasRedo || isBusy;
+}
+
+function clearProjectHistory() {
+  clearProjectHistoryTypingTimer();
+  projectHistoryState.folderName = null;
+  projectHistoryState.past = [];
+  projectHistoryState.present = null;
+  projectHistoryState.future = [];
+  projectHistoryState.typing = null;
+  updateHistoryButtons();
+}
+
+function initializeProjectHistory() {
+  if (!state.currentDoc || !state.currentFolderName) {
+    clearProjectHistory();
+    return;
+  }
+  clearProjectHistoryTypingTimer();
+  projectHistoryState.folderName = state.currentFolderName;
+  projectHistoryState.past = [];
+  projectHistoryState.present = makeProjectHistoryEntry();
+  projectHistoryState.future = [];
+  projectHistoryState.typing = null;
+  updateHistoryButtons();
+}
+
+function pushProjectHistoryPastEntry(entry) {
+  if (!entry) return;
+  projectHistoryState.past.push(entry);
+  if (projectHistoryState.past.length > PROJECT_HISTORY_LIMIT) {
+    projectHistoryState.past.shift();
+  }
+}
+
+function beginProjectHistoryTyping() {
+  if (!state.currentDoc || !state.currentFolderName) return;
+  if (projectHistoryState.folderName !== state.currentFolderName || !projectHistoryState.present) {
+    initializeProjectHistory();
+  }
+  if (!projectHistoryState.typing) {
+    projectHistoryState.typing = { latest: null, timerId: null };
+  }
+  clearProjectHistoryTypingTimer();
+  projectHistoryState.typing.timerId = setTimeout(() => {
+    finalizeProjectHistoryTyping();
+  }, PROJECT_HISTORY_SETTLE_MS);
+  updateHistoryButtons();
+}
+
+function finalizeProjectHistoryTyping() {
+  if (!projectHistoryState.typing) return;
+  clearProjectHistoryTypingTimer();
+  const latestEntry = projectHistoryState.typing.latest || makeProjectHistoryEntry();
+  if (latestEntry && projectHistoryState.present && latestEntry.signature !== projectHistoryState.present.signature) {
+    pushProjectHistoryPastEntry(projectHistoryState.present);
+    projectHistoryState.present = latestEntry;
+    projectHistoryState.future = [];
+  }
+  projectHistoryState.typing = null;
+  updateHistoryButtons();
+}
+
+function commitProjectHistorySnapshot() {
+  if (!state.currentDoc || !state.currentFolderName) {
+    clearProjectHistory();
+    return;
+  }
+  if (projectHistoryState.folderName !== state.currentFolderName || !projectHistoryState.present) {
+    initializeProjectHistory();
+  }
+
+  const nextEntry = makeProjectHistoryEntry();
+  if (!nextEntry) return;
+  if (!projectHistoryState.present) {
+    projectHistoryState.present = nextEntry;
+    updateHistoryButtons();
+    return;
+  }
+  if (nextEntry.signature === projectHistoryState.present.signature) {
+    if (projectHistoryState.typing) {
+      projectHistoryState.typing.latest = nextEntry;
+      clearProjectHistoryTypingTimer();
+      projectHistoryState.typing.timerId = setTimeout(() => {
+        finalizeProjectHistoryTyping();
+      }, PROJECT_HISTORY_SETTLE_MS);
+    }
+    updateHistoryButtons();
+    return;
+  }
+  if (projectHistoryState.typing) {
+    projectHistoryState.typing.latest = nextEntry;
+    clearProjectHistoryTypingTimer();
+    projectHistoryState.typing.timerId = setTimeout(() => {
+      finalizeProjectHistoryTyping();
+    }, PROJECT_HISTORY_SETTLE_MS);
+    updateHistoryButtons();
+    return;
+  }
+
+  pushProjectHistoryPastEntry(projectHistoryState.present);
+  projectHistoryState.present = nextEntry;
+  projectHistoryState.future = [];
+  updateHistoryButtons();
+}
+
+function syncStage4DraftStorageFromState() {
+  Object.keys(state.stage4Data || {}).forEach((reviewerIdx) => {
+    const reviewerId = getReviewerId(Number(reviewerIdx));
+    const draft = state.stage4Data?.[reviewerIdx]?.draft || '';
+    persistStage4DraftToStorage(reviewerId, draft);
+  });
+}
+
+function restoreProjectHistoryEntry(entry) {
+  if (!entry?.snapshot || !state.currentFolderName) return;
+  state.currentDoc = deepCloneJson(entry.snapshot);
+  state.pendingCreate = false;
+  loadProjectStateFromDoc(state.currentDoc);
+  state.activeReviewerIdx = clampReviewerIndex(state.currentDoc?.activeReviewerIdx, state.reviewers.length);
+  persistActiveReviewerSelection();
+  syncStage4DraftStorageFromState();
+
+  document.getElementById('docsPanel')?.classList.add('hidden');
+  document.getElementById('skillsPanel')?.classList.add('hidden');
+  workspaceEl.classList.remove('hidden');
+  emptyStateEl.classList.add('hidden');
+  namingPanelEl.classList.add('hidden');
+  clearHomeIntroTimers();
+  hideCopyPopup();
+  hideStage2ContextMenu();
+  hideStage3SourceMenu();
+  hideAntiAIMenu();
+  hideAntiAIToast();
+  closeStage5TemplateModal();
+  stage4RefineRuntime = { running: false, reviewerIdx: -1 };
+  stage5AutoFillRuntime = { running: false };
+
+  renderReviewerTabs();
+  renderBreakdownPanel();
+  syncStageUi();
+  enterProjectMode();
+  queueStateSync({ skipHistory: true });
+  updateHistoryButtons();
+}
+
+function undoProjectHistory() {
+  if (!state.currentDoc || !state.currentFolderName) return;
+  if (isProjectHistoryBusy()) {
+    alert('Please wait for the current generation pipeline to finish before using Undo.');
+    return;
+  }
+  finalizeProjectHistoryTyping();
+  if (!projectHistoryState.past.length || !projectHistoryState.present) {
+    updateHistoryButtons();
+    return;
+  }
+  const previous = projectHistoryState.past.pop();
+  projectHistoryState.future.unshift(projectHistoryState.present);
+  projectHistoryState.present = previous;
+  restoreProjectHistoryEntry(previous);
+}
+
+function redoProjectHistory() {
+  if (!state.currentDoc || !state.currentFolderName) return;
+  if (isProjectHistoryBusy()) {
+    alert('Please wait for the current generation pipeline to finish before using Redo.');
+    return;
+  }
+  finalizeProjectHistoryTyping();
+  if (!projectHistoryState.future.length || !projectHistoryState.present) {
+    updateHistoryButtons();
+    return;
+  }
+  const next = projectHistoryState.future.shift();
+  pushProjectHistoryPastEntry(projectHistoryState.present);
+  projectHistoryState.present = next;
+  restoreProjectHistoryEntry(next);
 }
 
 /* All stages are now accessible (no locking) */
@@ -1005,6 +1250,7 @@ async function deleteProjectFromContext(folderName) {
 
   await window.studioApi.deleteProject(folderName);
   if (state.currentFolderName === folderName) {
+    clearProjectHistory();
     state.currentDoc = null;
     state.currentFolderName = null;
     projectDrawerEl.classList.remove('open');
@@ -1289,7 +1535,40 @@ function restoreActiveReviewerSelection() {
       idx = 0;
     }
   }
-  state.activeReviewerIdx = Math.max(0, Math.min(reviewerCount - 1, Math.floor(idx)));
+  state.activeReviewerIdx = clampReviewerIndex(idx, reviewerCount);
+}
+
+function loadProjectStateFromDoc(doc = state.currentDoc) {
+  if (!doc) return;
+  if (doc.reviewers && doc.reviewers.length > 0) {
+    state.reviewers = doc.reviewers;
+  } else {
+    state.reviewers = [{ id: 0, name: '', content: doc.stage1?.content || '' }];
+  }
+
+  state.breakdownData = doc.breakdownData || {};
+  state.stage2Replies = doc.stage2Replies || {};
+  state.stage3Settings = doc.stage3Settings || { style: 'standard', color: '#f26921' };
+  state.stage3Drafts = doc.stage3Drafts || {};
+  state.stage3Selection = doc.stage3Selection || {};
+  state.stage4Data = doc.stage4Data || {};
+  state.stage5Data = doc.stage5Data || {};
+  state.stage5Settings = doc.stage5Settings || { style: 'run' };
+}
+
+function maybePromptInitialReviewerName() {
+  if (state.reviewers[0]?.name) return;
+  promptReviewerName((suffix) => {
+    state.reviewers[0].name = suffix;
+    persistActiveReviewerSelection();
+    renderReviewerTabs();
+    queueStateSync();
+  }, () => {
+    state.reviewers[0].name = 'R001';
+    persistActiveReviewerSelection();
+    renderReviewerTabs();
+    queueStateSync();
+  });
 }
 
 function switchReviewer(idx) {
@@ -1546,6 +1825,7 @@ function currentStageKey() {
 }
 
 function renderBreakdownPanel() {
+  updateHistoryButtons();
   const stageKey = currentStageKey();
   const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
 
@@ -2113,10 +2393,11 @@ function persistStage4DraftToStorage(reviewerId, draft) {
 }
 
 function getStage4StateForReviewer(reviewerIdx = state.activeReviewerIdx) {
+  const reviewerId = getReviewerId(reviewerIdx);
   if (!state.stage4Data[reviewerIdx]) {
     state.stage4Data[reviewerIdx] = {
       followupQuestion: '',
-      draft: '',
+      draft: loadStage4DraftFromStorage(reviewerId),
       condensedMarkdown: '',
       condensedPath: '',
       refinedText: '',
@@ -2124,12 +2405,8 @@ function getStage4StateForReviewer(reviewerIdx = state.activeReviewerIdx) {
     };
   }
   const cell = state.stage4Data[reviewerIdx];
-  const reviewerId = getReviewerId(reviewerIdx);
   if (typeof cell.followupQuestion !== 'string') cell.followupQuestion = '';
-  if (typeof cell.draft !== 'string') cell.draft = '';
-  if (!cell.draft) {
-    cell.draft = loadStage4DraftFromStorage(reviewerId);
-  }
+  if (typeof cell.draft !== 'string') cell.draft = loadStage4DraftFromStorage(reviewerId);
   if (typeof cell.condensedMarkdown !== 'string') cell.condensedMarkdown = '';
   if (typeof cell.condensedPath !== 'string') cell.condensedPath = '';
   if (typeof cell.refinedText !== 'string') cell.refinedText = '';
@@ -2230,6 +2507,7 @@ function renderStage4ProgressLine(label, step) {
 }
 
 function renderStage4Panels() {
+  updateHistoryButtons();
   const stage2LeftEl = document.getElementById('stage2LeftPanel');
   const reviewerName = state.reviewers[state.activeReviewerIdx]?.name || `${state.activeReviewerIdx + 1}`;
   const stage4 = getStage4StateForReviewer(state.activeReviewerIdx);
@@ -2492,6 +2770,7 @@ function renderStage5ProgressLine(label, step) {
 }
 
 function renderStage5Panels() {
+  updateHistoryButtons();
   const stage2LeftEl = document.getElementById('stage2LeftPanel');
   const stage5 = getStage5State();
   const selectedTemplate = getStage5TemplateEntry(stage5.styleKey);
@@ -3889,56 +4168,26 @@ function renderWorkspace() {
     clearHomeIntroTimers();
     stage4RefineRuntime = { running: false, reviewerIdx: -1 };
     stage5AutoFillRuntime = { running: false };
-    // Load reviewer data from project
-    if (state.currentDoc.reviewers && state.currentDoc.reviewers.length > 0) {
-      state.reviewers = state.currentDoc.reviewers;
-    } else {
-      state.reviewers = [{ id: 0, name: '', content: state.currentDoc.stage1?.content || '' }];
-    }
-    state.activeReviewerIdx = 0;
-
-    // Load breakdown data from project
-    if (state.currentDoc.breakdownData) {
-      state.breakdownData = state.currentDoc.breakdownData;
-    } else {
-      state.breakdownData = {};
-    }
-
-    state.stage2Replies = state.currentDoc.stage2Replies || {};
-    state.stage3Settings = state.currentDoc.stage3Settings || { style: 'standard', color: '#f26921' };
-    state.stage3Drafts = state.currentDoc.stage3Drafts || {};
-    state.stage3Selection = state.currentDoc.stage3Selection || {};
-    state.stage4Data = state.currentDoc.stage4Data || {};
-    state.stage5Data = state.currentDoc.stage5Data || {};
-    state.stage5Settings = state.currentDoc.stage5Settings || { style: 'run' };
-
+    loadProjectStateFromDoc(state.currentDoc);
     restoreActiveReviewerSelection();
     renderReviewerTabs();
     renderBreakdownPanel();
     syncStageUi();
 
     enterProjectMode();
-
-    // If the first reviewer has no name yet, prompt for it
-    if (!state.reviewers[0].name) {
-      promptReviewerName((suffix) => {
-        state.reviewers[0].name = suffix;
-        persistActiveReviewerSelection();
-        renderReviewerTabs();
-        queueStateSync();
-      }, () => {
-        // User cancelled — assign a fallback 4-char ID
-        state.reviewers[0].name = 'R001';
-        persistActiveReviewerSelection();
-        renderReviewerTabs();
-        queueStateSync();
-      });
+    if (projectHistoryState.folderName !== state.currentFolderName || !projectHistoryState.present) {
+      initializeProjectHistory();
+    } else {
+      updateHistoryButtons();
     }
+
+    maybePromptInitialReviewerName();
   } else {
     hideCopyPopup();
     closeStage5TemplateModal();
     exitProjectMode();
     syncStageUi();
+    clearProjectHistory();
     if (showingHomeLanding) {
       renderHomeLanding();
     } else {
@@ -3955,18 +4204,14 @@ async function loadProjects() {
   renderProjectList();
 }
 
-function queueStateSync() {
+function queueStateSync(options = {}) {
   if (!state.currentDoc || !state.currentFolderName) return;
-  state.currentDoc.reviewers = state.reviewers;
-  state.currentDoc.activeReviewerIdx = state.activeReviewerIdx;
-  state.currentDoc.breakdownData = state.breakdownData;
-  state.currentDoc.stage2Replies = state.stage2Replies;
-  state.currentDoc.stage3Settings = state.stage3Settings;
-  state.currentDoc.stage3Drafts = state.stage3Drafts;
-  state.currentDoc.stage3Selection = state.stage3Selection;
-  state.currentDoc.stage4Data = state.stage4Data;
-  state.currentDoc.stage5Data = state.stage5Data;
-  state.currentDoc.stage5Settings = state.stage5Settings;
+  state.currentDoc = buildProjectDocFromState();
+  if (!options.skipHistory) {
+    commitProjectHistorySnapshot();
+  } else {
+    updateHistoryButtons();
+  }
   window.studioApi.updateProjectState({
     folderName: state.currentFolderName,
     doc: state.currentDoc,
@@ -3985,6 +4230,7 @@ async function createProjectFromPrompt() {
       conference: conferenceSelect.value,
       autosaveIntervalSeconds: state.appSettings.defaultAutosaveIntervalSeconds,
     });
+    clearProjectHistory();
     state.currentFolderName = created.folderName;
     state.currentDoc = created.doc;
     state.pendingCreate = false;
@@ -4000,7 +4246,9 @@ async function createProjectFromPrompt() {
 
 async function openProject(folderName) {
   try {
+    finalizeProjectHistoryTyping();
     const opened = await window.studioApi.openProject(folderName);
+    clearProjectHistory();
     state.currentFolderName = opened.folderName;
     state.currentDoc = opened.doc;
     state.pendingCreate = false;
@@ -4229,6 +4477,7 @@ async function saveApiSettings() {
 
 
 function beginProjectCreation() {
+  clearProjectHistory();
   state.pendingCreate = true;
   state.currentDoc = null;
   state.stage4Data = {};
@@ -4387,9 +4636,55 @@ async function init() {
   syncStageUi();
 }
 
+function isProjectHistoryEditableTarget(target) {
+  if (!state.currentDoc || !target) return false;
+  const node = target.nodeType === Node.ELEMENT_NODE ? target : target.parentElement;
+  if (!node) return false;
+  if (!node.closest('#workspace')) return false;
+  if (node === reviewerInput || node.closest('#reviewerInput')) return true;
+  if (node.closest('[contenteditable="true"]')) return true;
+  if (node.closest('textarea, input')) return true;
+  return false;
+}
+
+function shouldFinalizeTypingForTarget(target) {
+  if (!state.currentDoc || !projectHistoryState.typing || !target) return false;
+  const node = target.nodeType === Node.ELEMENT_NODE ? target : target.parentElement;
+  if (!node) return false;
+  return Boolean(node.closest('button, select, input[type="checkbox"], input[type="radio"], .project-item, [data-stage3-format], [data-outline-insert], [data-stage3-color]'));
+}
+
+function shouldHandleProjectHistoryShortcut(target) {
+  if (!state.currentDoc || !target) return false;
+  const node = target.nodeType === Node.ELEMENT_NODE ? target : target.parentElement;
+  if (!node) return false;
+  return Boolean(
+    node.closest('#workspace')
+    || node.closest('#sidebarStages')
+    || node.closest('#projectDrawer')
+    || node.closest('.topbar-history-group')
+  );
+}
+
 /* ────────────────────────────────────────────────────────────
    Event listeners
    ──────────────────────────────────────────────────────────── */
+document.addEventListener('beforeinput', (e) => {
+  if (!isProjectHistoryEditableTarget(e.target)) return;
+  beginProjectHistoryTyping();
+}, true);
+
+document.addEventListener('focusout', (e) => {
+  if (!isProjectHistoryEditableTarget(e.target)) return;
+  finalizeProjectHistoryTyping();
+}, true);
+
+document.addEventListener('pointerdown', (e) => {
+  if (typeof e.button === 'number' && e.button !== 0) return;
+  if (!shouldFinalizeTypingForTarget(e.target)) return;
+  finalizeProjectHistoryTyping();
+}, true);
+
 // New Project (Global Sidebar handling or Delegate)
 document.addEventListener('click', (e) => {
   if (e.target.closest('[data-new-project-open]')) {
@@ -4498,6 +4793,7 @@ document.getElementById('skillModal')?.addEventListener('click', (e) => {
 });
 
 document.getElementById('brandBtn').addEventListener('click', () => {
+  clearProjectHistory();
   state.pendingCreate = false;
   state.currentDoc = null;
   state.currentFolderName = null;
@@ -5218,7 +5514,28 @@ document.getElementById('saveNowBtn').addEventListener('click', async () => {
   await loadProjects();
 });
 
+undoBtnEl?.addEventListener('click', undoProjectHistory);
+redoBtnEl?.addEventListener('click', redoProjectHistory);
+
 document.addEventListener('keydown', async (e) => {
+  const isHistoryShortcut = (e.ctrlKey || e.metaKey) && (
+    e.key.toLowerCase() === 'z'
+    || e.key.toLowerCase() === 'y'
+  );
+  if (isHistoryShortcut && shouldHandleProjectHistoryShortcut(e.target)) {
+    e.preventDefault();
+    if (e.key.toLowerCase() === 'z' && e.shiftKey) {
+      redoProjectHistory();
+      return;
+    }
+    if (e.key.toLowerCase() === 'y') {
+      redoProjectHistory();
+      return;
+    }
+    undoProjectHistory();
+    return;
+  }
+
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
     e.preventDefault();
     const result = await window.studioApi.saveNow();

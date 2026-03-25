@@ -148,6 +148,22 @@
           <button id="brandBtn" class="brand-btn" aria-label="Go to projects home">
             <img src="../../img/rebuttalstudio_hori.png" alt="Rebuttal Studio" class="brand-logo" />
           </button>
+          <div class="topbar-history-group" aria-label="History controls">
+            <button id="undoBtn" class="history-btn" type="button" aria-label="Undo" title="Undo (Ctrl/Cmd+Z)" disabled>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 14 4 9l5-5" />
+                <path d="M4 9h9a7 7 0 1 1 0 14h-1" />
+              </svg>
+            </button>
+            <button id="redoBtn" class="history-btn" type="button" aria-label="Redo" title="Redo (Ctrl/Cmd+Shift+Z / Ctrl+Y)" disabled>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m15 14 5-5-5-5" />
+                <path d="M20 9h-9a7 7 0 1 0 0 14h1" />
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="topbar-right">
           <span id="tokenUsageBadge" class="token-usage-badge" aria-live="polite" title="Token usage this session"></span>
