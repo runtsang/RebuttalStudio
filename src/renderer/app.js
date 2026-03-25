@@ -3375,10 +3375,16 @@ function renderAtomicIssuesAndResponses(issues, responses) {
     html += `<div class="response-item">
       <div class="response-item-label">
         Response ${idx + 1}
-        <button class="split-response-btn" data-split-index="${idx}" title="Split issue">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
-          Split
-        </button>
+        <div class="response-action-btns">
+          <button class="split-response-btn" data-split-index="${idx}" title="Split issue">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>
+            Split
+          </button>
+          <button class="delete-response-btn" data-delete-index="${idx}" title="Delete issue">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4h6v2"></path></svg>
+            Delete
+          </button>
+        </div>
       </div>
       <div class="response-source-badge">
         <span class="source-id ${sourceClass}">${escapeHTML(sourceId)}</span>${title ? `<span class="source-title">: ${escapeHTML(title)}</span>` : ''}
@@ -3387,7 +3393,11 @@ function renderAtomicIssuesAndResponses(issues, responses) {
       <textarea class="response-quoted-issue" data-response-id="${escapeHTML(resp.id)}" data-response-field="quoted_issue">${escapeHTML(resp.quoted_issue || '')}</textarea>
     </div>`;
 
-    html += `<div class="insert-response-wrapper"><button class="insert-response-btn" data-insert-index="${idx + 1}" title="Add issue">＋</button></div>`;
+    const hasMerge = idx + 1 < responses.length;
+    html += `<div class="insert-response-wrapper">
+      <button class="insert-response-btn" data-insert-index="${idx + 1}" title="Add issue">＋</button>
+      ${hasMerge ? `<button class="merge-response-btn" data-merge-index="${idx + 1}" title="Merge with next">Merge</button>` : ''}
+    </div>`;
   });
 
   return html;
@@ -3520,6 +3530,29 @@ function cancelSplitResponse() {
 if (confirmSplitResponseBtn) {
   confirmSplitResponseBtn.addEventListener('click', confirmSplitResponse);
   cancelSplitResponseBtn.addEventListener('click', cancelSplitResponse);
+}
+
+function deleteResponse(idx) {
+  const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
+  if (!data.responses || !data.responses[idx]) return;
+  data.responses.splice(idx, 1);
+  syncAndResequenceResponses(data);
+  state.breakdownData[state.activeReviewerIdx] = data;
+  queueStateSync();
+  renderBreakdownPanel();
+}
+
+function mergeResponses(idx) {
+  const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
+  if (!data.responses || idx < 1 || idx >= data.responses.length) return;
+  const prev = data.responses[idx - 1];
+  const curr = data.responses[idx];
+  prev.quoted_issue = (prev.quoted_issue || '').trimEnd() + '\n\n' + (curr.quoted_issue || '').trimStart();
+  data.responses.splice(idx, 1);
+  syncAndResequenceResponses(data);
+  state.breakdownData[state.activeReviewerIdx] = data;
+  queueStateSync();
+  renderBreakdownPanel();
 }
 
 function syncAndResequenceResponses(data) {
@@ -4751,6 +4784,16 @@ breakdownContentEl.addEventListener('click', (e) => {
   const splitBtn = e.target.closest('.split-response-btn');
   if (splitBtn) {
     promptSplitResponse(Number(splitBtn.dataset.splitIndex));
+    return;
+  }
+  const deleteBtn = e.target.closest('.delete-response-btn');
+  if (deleteBtn) {
+    deleteResponse(Number(deleteBtn.dataset.deleteIndex));
+    return;
+  }
+  const mergeBtn = e.target.closest('.merge-response-btn');
+  if (mergeBtn) {
+    mergeResponses(Number(mergeBtn.dataset.mergeIndex));
     return;
   }
 });

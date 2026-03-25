@@ -2331,11 +2331,17 @@ html.platform-win32:not([data-theme]) .sidebar {
   margin-bottom: 12px;
 }
 
-.split-response-btn {
+.response-action-btns {
   position: absolute;
   right: 0;
   top: 50%;
   transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.split-response-btn {
   background: transparent;
   border: 1px dashed var(--text-muted);
   border-radius: 4px;
@@ -2355,6 +2361,28 @@ html.platform-win32:not([data-theme]) .sidebar {
   color: var(--bg);
   border-style: solid;
   border-color: var(--text);
+}
+
+.delete-response-btn {
+  background: transparent;
+  border: 1px dashed var(--text-muted);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.delete-response-btn:hover {
+  background: #e53e3e;
+  color: #fff;
+  border-style: solid;
+  border-color: #e53e3e;
 }
 
 .response-source-badge {
@@ -2417,7 +2445,28 @@ html.platform-win32:not([data-theme]) .sidebar {
 .insert-response-wrapper {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 8px;
   margin: 10px 0 16px;
+}
+
+.merge-response-btn {
+  background: transparent;
+  border: 1px dashed var(--text-muted);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.merge-response-btn:hover {
+  background: var(--text);
+  color: var(--bg);
+  border-style: solid;
+  border-color: var(--text);
 }
 
 .insert-response-btn {
