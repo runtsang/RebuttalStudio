@@ -190,6 +190,24 @@
               <option value="ARR">ARR (ACL, EMNLP)</option>
             </select>
           </div>
+          <div class="create-form-group">
+            <label>Document Memory (Optional)</label>
+            <div class="document-memory-picker-row">
+              <button id="projectDocumentPickBtn" class="btn" type="button">Choose Document</button>
+              <button id="projectDocumentClearBtn" class="btn hidden" type="button">Clear</button>
+            </div>
+            <p id="projectDocumentSelected" class="muted">No document selected.</p>
+            <div class="document-memory-helper">
+              <p class="document-memory-helper-intro">This feature always converts your input into text before calling the API. It does not rely on native file-upload support from the model provider.</p>
+              <ul class="document-memory-helper-list">
+                <li>Most APIs do not accept document files directly. We recommend uploading plain text, Markdown, or LaTeX whenever possible.</li>
+                <li>PDF text extraction can be imperfect. If you already have clean text, Markdown, or LaTeX, use that instead of PDF.</li>
+                <li>We recommend uploading only the main paper. Skip references and appendices unless they are essential.</li>
+                <li>Document memory can significantly increase token usage and cost.</li>
+              </ul>
+              <p class="document-memory-helper-footnote">Some platforms also offer native document workflows, such as OpenAI, Gemini, and Anthropic. Support depends on the exact model and endpoint.</p>
+            </div>
+          </div>
           <div class="row">
             <button id="cancelProjectBtn" class="btn">Cancel</button>
             <button id="confirmProjectBtn" class="btn primary">Create Project</button>
@@ -343,6 +361,19 @@
             </div>
           </div>
           <div id="docsContent" class="docs-content markdown-body"></div>
+        </div>
+
+        <div id="documentMemoryPanel" class="docs-panel hidden">
+          <div class="docs-nav">
+            <div>
+              <h2 class="document-memory-title">Document Memory</h2>
+              <p class="document-memory-subtitle">Project-level background knowledge stored as editable Markdown.</p>
+            </div>
+            <div class="docs-nav-actions">
+              <button id="documentMemoryCloseBtn" class="btn">✕ Close</button>
+            </div>
+          </div>
+          <div id="documentMemoryContent" class="document-memory-content"></div>
         </div>
 
         <div id="emptyState" class="empty-state">

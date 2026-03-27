@@ -1,11 +1,15 @@
 const path = require('path');
 const fs = require('fs/promises');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const HTMLtoDOCX = require('html-to-docx');
 const {
   createProject,
+  createEmptyDocumentMemory,
   listProjects,
   loadProject,
+  normalizeDocumentMemory,
   renameProject,
   copyProject,
   createProjectSnapshot,
@@ -19,6 +23,8 @@ const {
   saveTokenUsage,
   PROJECTS_ROOT,
 } = require('./projectService');
+
+const execFileAsync = promisify(execFile);
 
 const MIN_AUTOSAVE_SECONDS = 10;
 const MAX_AUTOSAVE_SECONDS = 1800;
@@ -638,6 +644,296 @@ async function requestOpenAICompatibleJson(profile = {}, prompt = '', providerKe
   throw lastError || new Error('Failed to parse JSON response.');
 }
 
+function buildDocumentMemoryBaseDir(folderName = '') {
+  return path.join(PROJECTS_ROOT, `${folderName || ''}`, 'document-memory');
+}
+
+function buildDocumentMemoryPaths(folderName = '', sourceName = 'document.txt') {
+  const safeSourceName = path.basename(`${sourceName || 'document.txt'}`).replace(/[<>:"/\\|?*\x00-\x1F]/g, '_') || 'document.txt';
+  const baseDir = buildDocumentMemoryBaseDir(folderName);
+  return {
+    baseDir,
+    sourceDir: path.join(baseDir, 'source'),
+    sourceFileName: safeSourceName,
+    sourceAbsPath: path.join(baseDir, 'source', safeSourceName),
+    sourceRelPath: path.posix.join('document-memory', 'source', safeSourceName),
+    extractedAbsPath: path.join(baseDir, 'extracted.txt'),
+    extractedRelPath: path.posix.join('document-memory', 'extracted.txt'),
+    markdownAbsPath: path.join(baseDir, 'summary.md'),
+    markdownRelPath: path.posix.join('document-memory', 'summary.md'),
+  };
+}
+
+function resolveProjectRelativePath(folderName = '', relativePath = '') {
+  const clean = `${relativePath || ''}`.trim();
+  if (!clean) return '';
+  return path.join(PROJECTS_ROOT, `${folderName || ''}`, ...clean.split(/[\\/]+/g).filter(Boolean));
+}
+
+function detectDocumentMemorySourceType(filePath = '') {
+  const ext = path.extname(`${filePath || ''}`).toLowerCase();
+  if (ext === '.pdf') return 'pdf';
+  if (ext === '.md' || ext === '.markdown') return 'md';
+  if (ext === '.txt') return 'txt';
+  if (ext === '.tex' || ext === '.latex') return 'tex';
+  return '';
+}
+
+function updateAutosaveDocIfCurrent(folderName = '', doc = null) {
+  if (!doc) return;
+  if (autosaveState.currentFolder === folderName) {
+    autosaveState.currentDoc = doc;
+  }
+}
+
+async function ensureDocumentMemoryPythonSupport() {
+  try {
+    await execFileAsync('python3', ['--version']);
+  } catch (_error) {
+    throw new Error('python3 is required to extract PDF text locally. Install Python 3 and try again.');
+  }
+
+  try {
+    await execFileAsync('python3', ['-c', 'import pypdf']);
+  } catch (_error) {
+    throw new Error('Python package "pypdf" is required to extract PDF text locally. Install it with "python3 -m pip install pypdf".');
+  }
+}
+
+async function extractPdfTextWithPython(pdfPath = '') {
+  await ensureDocumentMemoryPythonSupport();
+  const scriptPath = path.join(process.cwd(), 'skills', 'document-memory', 'summarize', 'scripts', 'extract_pdf_text.py');
+  try {
+    await fs.access(scriptPath);
+  } catch (_error) {
+    throw new Error('Document Memory PDF extraction script is missing from the repository.');
+  }
+
+  const { stdout, stderr } = await execFileAsync('python3', [scriptPath, pdfPath], {
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  const extractedText = `${stdout || ''}`.trim();
+  if (!extractedText) {
+    throw new Error(`${stderr || 'PDF text extraction returned empty output.'}`.trim());
+  }
+  return extractedText;
+}
+
+async function summarizeDocumentMemoryTextWithProvider(providerKey = '', profile = {}, extractedText = '') {
+  if (!`${extractedText || ''}`.trim()) {
+    throw new Error('Extracted document text is empty.');
+  }
+  if (!profile || !`${profile.apiKey || ''}`.trim()) {
+    throw new Error('Automatic summarization requires a configured API key. You can still edit or paste Markdown manually.');
+  }
+
+  if (providerKey === 'gemini') {
+    return runGeminiDocumentMemorySummarize(profile, extractedText);
+  }
+
+  if (['openai', 'deepseek', 'azureOpenai', 'qwen', 'custom', 'openrouter', 'groq', 'grok', 'together', 'kimi', 'minimax', 'huggingface', 'portkey', 'bedrock'].includes(providerKey)) {
+    return runOpenAIDocumentMemorySummarize(profile, extractedText, providerKey);
+  }
+
+  throw new Error('Automatic summarization is not available for the selected provider in this app yet. You can still edit or paste Markdown manually.');
+}
+
+async function finalizeDocumentMemoryRecord(folderName, doc, nextRecord) {
+  doc.documentMemory = normalizeDocumentMemory(nextRecord);
+  const saved = await saveProject(folderName, doc);
+  updateAutosaveDocIfCurrent(folderName, saved);
+  return saved;
+}
+
+async function processDocumentMemoryFromSource({
+  folderName = '',
+  sourceFilePath = '',
+  sourceName = '',
+  sourceType = '',
+  providerKey = '',
+  profile = {},
+  uploadedAt = null,
+  replaceSourceCopy = false,
+}) {
+  const projectDoc = await loadProject(folderName);
+  const normalizedSourceType = `${sourceType || detectDocumentMemorySourceType(sourceFilePath)}`.trim();
+  const normalizedSourceName = `${sourceName || path.basename(sourceFilePath || '')}`.trim() || 'document.txt';
+  const now = new Date().toISOString();
+  const paths = buildDocumentMemoryPaths(folderName, normalizedSourceName);
+
+  if (!['pdf', 'md', 'txt', 'tex'].includes(normalizedSourceType)) {
+    return finalizeDocumentMemoryRecord(folderName, projectDoc, {
+      ...createEmptyDocumentMemory(),
+      status: 'error',
+      sourceName: normalizedSourceName,
+      sourceType: normalizedSourceType,
+      sourcePath: paths.sourceRelPath,
+      extractedTextPath: paths.extractedRelPath,
+      markdownPath: paths.markdownRelPath,
+      summaryMode: 'manual',
+      error: 'Only PDF, Markdown, text, and LaTeX files are supported.',
+      uploadedAt: uploadedAt || now,
+      updatedAt: now,
+    });
+  }
+
+  const processingRecord = {
+    ...createEmptyDocumentMemory(),
+    status: 'processing',
+    sourceName: normalizedSourceName,
+    sourceType: normalizedSourceType,
+    sourcePath: paths.sourceRelPath,
+    extractedTextPath: paths.extractedRelPath,
+    markdownPath: paths.markdownRelPath,
+    summaryMode: 'manual',
+    uploadedAt: uploadedAt || now,
+    updatedAt: now,
+  };
+  let savedDoc = await finalizeDocumentMemoryRecord(folderName, projectDoc, processingRecord);
+
+  try {
+    if (replaceSourceCopy) {
+      await fs.rm(paths.baseDir, { recursive: true, force: true });
+    }
+    await fs.mkdir(paths.sourceDir, { recursive: true });
+    if (replaceSourceCopy) {
+      await fs.copyFile(sourceFilePath, paths.sourceAbsPath);
+    }
+
+    let extractedText = '';
+    if (normalizedSourceType === 'pdf') {
+      extractedText = await extractPdfTextWithPython(paths.sourceAbsPath);
+    } else {
+      extractedText = await fs.readFile(paths.sourceAbsPath, 'utf8');
+    }
+
+    const normalizedText = `${extractedText || ''}`.trim();
+    if (!normalizedText) {
+      throw new Error('The extracted document text is empty. PDF extraction may have failed. Try a clean .txt, .md, or .tex file instead.');
+    }
+
+    await fs.writeFile(paths.extractedAbsPath, normalizedText, 'utf8');
+
+    try {
+      const markdown = await summarizeDocumentMemoryTextWithProvider(providerKey, profile, normalizedText);
+      const normalizedMarkdown = `${markdown || ''}`.trim();
+      await fs.writeFile(paths.markdownAbsPath, normalizedMarkdown, 'utf8');
+      savedDoc = await finalizeDocumentMemoryRecord(folderName, savedDoc, {
+        ...savedDoc.documentMemory,
+        status: 'ready',
+        sourceName: normalizedSourceName,
+        sourceType: normalizedSourceType,
+        sourcePath: paths.sourceRelPath,
+        extractedText: normalizedText,
+        extractedTextPath: paths.extractedRelPath,
+        markdown: normalizedMarkdown,
+        markdownPath: paths.markdownRelPath,
+        summaryMode: 'auto',
+        error: '',
+        uploadedAt: savedDoc.documentMemory?.uploadedAt || uploadedAt || now,
+        updatedAt: new Date().toISOString(),
+      });
+      return savedDoc;
+    } catch (error) {
+      await fs.writeFile(paths.markdownAbsPath, '', 'utf8');
+      savedDoc = await finalizeDocumentMemoryRecord(folderName, savedDoc, {
+        ...savedDoc.documentMemory,
+        status: 'error',
+        sourceName: normalizedSourceName,
+        sourceType: normalizedSourceType,
+        sourcePath: paths.sourceRelPath,
+        extractedText: normalizedText,
+        extractedTextPath: paths.extractedRelPath,
+        markdown: '',
+        markdownPath: paths.markdownRelPath,
+        summaryMode: 'manual',
+        error: `${error?.message || 'Automatic summarization failed.'}`.trim(),
+        uploadedAt: savedDoc.documentMemory?.uploadedAt || uploadedAt || now,
+        updatedAt: new Date().toISOString(),
+      });
+      return savedDoc;
+    }
+  } catch (error) {
+    await fs.mkdir(paths.baseDir, { recursive: true }).catch(() => {});
+    await fs.writeFile(paths.markdownAbsPath, '', 'utf8').catch(() => {});
+    return finalizeDocumentMemoryRecord(folderName, savedDoc, {
+      ...savedDoc.documentMemory,
+      status: 'error',
+      sourceName: normalizedSourceName,
+      sourceType: normalizedSourceType,
+      sourcePath: paths.sourceRelPath,
+      extractedText: '',
+      extractedTextPath: paths.extractedRelPath,
+      markdown: '',
+      markdownPath: paths.markdownRelPath,
+      summaryMode: 'manual',
+      error: `${error?.message || 'Document import failed.'}`.trim(),
+      uploadedAt: savedDoc.documentMemory?.uploadedAt || uploadedAt || now,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+}
+
+async function importDocumentMemoryForProject(folderName = '', filePath = '', providerKey = '', profile = {}) {
+  const sourceType = detectDocumentMemorySourceType(filePath);
+  return processDocumentMemoryFromSource({
+    folderName,
+    sourceFilePath: filePath,
+    sourceName: path.basename(filePath || ''),
+    sourceType,
+    providerKey,
+    profile,
+    replaceSourceCopy: true,
+  });
+}
+
+async function rebuildDocumentMemoryForProject(folderName = '', providerKey = '', profile = {}) {
+  const doc = await loadProject(folderName);
+  const documentMemory = normalizeDocumentMemory(doc.documentMemory);
+  if (!documentMemory.sourcePath) {
+    throw new Error('No uploaded document source is available to rebuild.');
+  }
+  const sourceAbsPath = resolveProjectRelativePath(folderName, documentMemory.sourcePath);
+  if (!sourceAbsPath) {
+    throw new Error('Document source path is missing.');
+  }
+  return processDocumentMemoryFromSource({
+    folderName,
+    sourceFilePath: sourceAbsPath,
+    sourceName: documentMemory.sourceName || path.basename(sourceAbsPath),
+    sourceType: documentMemory.sourceType || detectDocumentMemorySourceType(sourceAbsPath),
+    providerKey,
+    profile,
+    uploadedAt: documentMemory.uploadedAt || new Date().toISOString(),
+    replaceSourceCopy: false,
+  });
+}
+
+async function saveDocumentMemoryMarkdown(folderName = '', markdown = '') {
+  const doc = await loadProject(folderName);
+  const documentMemory = normalizeDocumentMemory(doc.documentMemory);
+  if (!documentMemory.sourcePath) {
+    throw new Error('Upload a document before saving Document Memory Markdown.');
+  }
+
+  const normalizedMarkdown = `${markdown || ''}`.trim();
+  const now = new Date().toISOString();
+  const sourceName = documentMemory.sourceName || path.basename(documentMemory.sourcePath || 'document.txt');
+  const paths = buildDocumentMemoryPaths(folderName, sourceName);
+  await fs.mkdir(paths.baseDir, { recursive: true });
+  await fs.writeFile(paths.markdownAbsPath, normalizedMarkdown, 'utf8');
+
+  return finalizeDocumentMemoryRecord(folderName, doc, {
+    ...documentMemory,
+    status: normalizedMarkdown ? 'ready' : 'error',
+    markdown: normalizedMarkdown,
+    markdownPath: paths.markdownRelPath,
+    summaryMode: 'manual',
+    error: normalizedMarkdown ? '' : 'Document Memory Markdown is empty.',
+    updatedAt: now,
+  });
+}
+
 async function saveCondensedMarkdown(reviewerId, condensedMarkdown, folderName = autosaveState.currentFolder) {
   if (!folderName) {
     throw new Error('No project is currently open.');
@@ -950,6 +1246,17 @@ function normalizeStage1Breakdown(payload = {}, conference = 'ICLR') {
 function buildStage2Prompt(payload = {}, conference = 'ICLR') {
   const conf = (conference || 'ICLR').toUpperCase();
   const skillPath = `stage2/${conf.toLowerCase()}/SKILL.md`;
+  const documentMemoryBlock = `${payload.documentMemoryMarkdown || ''}`.trim()
+    ? `
+
+Document Memory (Background Knowledge):
+${payload.documentMemoryMarkdown || ''}
+
+Document Memory rules:
+- Use this only as supporting background knowledge.
+- Do not let it override the quoted reviewer issue or the user outline.
+- Do not invent claims that are not grounded in the outline or the background text.`
+    : '';
 
   return `You are executing the skills -> ${skillPath} workflow.
 
@@ -973,7 +1280,7 @@ Quoted Issue:
 ${payload.quotedIssue || ''}
 
 User Outline:
-${payload.outline || ''}`;
+${payload.outline || ''}${documentMemoryBlock}`;
 }
 
 async function runGeminiStage2Refine(profile = {}, payload = {}, conference = 'ICLR') {
@@ -1119,6 +1426,17 @@ async function runGeminiStage4Condense(profile = {}, allSource = '') {
 }
 
 function buildStage4RefinePrompt(payload = {}) {
+  const documentMemoryBlock = `${payload.documentMemoryMarkdown || ''}`.trim()
+    ? `
+
+Document Memory (Background Knowledge):
+${payload.documentMemoryMarkdown || ''}
+
+Document Memory rules:
+- Use this only as supporting background knowledge.
+- Do not let it override the current follow-up question or the user's current draft.
+- Do not invent claims that are not grounded in the provided context.`
+    : '';
   return `You are executing the skills -> stage4/refine/SKILL.md workflow.
 
 Task:
@@ -1140,7 +1458,7 @@ Follow-up question text:
 ${payload.followupQuestion || ''}
 
 User draft:
-${payload.draft || ''}`;
+${payload.draft || ''}${documentMemoryBlock}`;
 }
 
 async function runGeminiStage4Refine(profile = {}, payload = {}) {
@@ -1288,6 +1606,107 @@ async function runGeminiStage5FinalRemarks(profile = {}, payload = {}) {
   }
 
   return { filledMarkdown, raw: parsed };
+}
+
+function buildDocumentMemorySummarizePrompt(extractedText = '') {
+  return `You are executing the skills -> document-memory/summarize/SKILL.md workflow.
+
+Task:
+- Convert the provided document text into a concise Markdown memory for later rebuttal drafting.
+- Preserve the paper's main ideas, methodological logic, major experiments, and key conclusions.
+- Ignore references, appendices, and supplementary material unless the main text clearly depends on them.
+- Return JSON only.
+
+JSON schema:
+{
+  "markdown": "..."
+}
+
+Required Markdown structure:
+- ## Contribution Overview
+- ## Introduction
+- ## Methods
+- ## Logic Chain
+- ## Experiments
+- ## Key Conclusions
+
+Rules:
+- Keep the Markdown concise and scannable.
+- Do not fabricate numbers, citations, experiments, or claims.
+- Preserve the main theoretical points and conclusions when present.
+- If a section is weak or absent in the source, keep the heading and write a brief grounded note.
+
+Document text:
+${extractedText}`;
+}
+
+async function runGeminiDocumentMemorySummarize(profile = {}, extractedText = '') {
+  const apiKey = (profile.apiKey || '').trim();
+  const baseUrl = (profile.baseUrl || '').trim().replace(/\/$/, '') || 'https://generativelanguage.googleapis.com/v1beta';
+  const model = (profile.model || '').trim() || 'gemini-3-flash-preview';
+  if (!apiKey) {
+    throw new Error('Gemini API key is required.');
+  }
+  if (!`${extractedText || ''}`.trim()) {
+    throw new Error('Document text is empty.');
+  }
+
+  const endpoint = `${baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body = {
+    generationConfig: {
+      temperature: 0.1,
+      responseMimeType: 'application/json',
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: buildDocumentMemorySummarizePrompt(extractedText) }],
+      },
+    ],
+  };
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Gemini document memory summarization failed (${res.status}): ${detail.slice(0, 240)}`);
+  }
+
+  const data = await res.json();
+  await addTokenUsage(data?.usageMetadata?.promptTokenCount, data?.usageMetadata?.candidatesTokenCount);
+  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p?.text || '').join('')?.trim();
+  if (!text) {
+    throw new Error('Gemini returned empty content for Document Memory summarization.');
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/, '').trim();
+    parsed = JSON.parse(cleaned);
+  }
+
+  const markdown = `${parsed?.markdown ?? parsed?.summary ?? parsed?.condensedMarkdown ?? ''}`.trim();
+  if (!markdown) {
+    throw new Error('Document Memory summarization did not return markdown.');
+  }
+
+  return markdown;
+}
+
+async function runOpenAIDocumentMemorySummarize(profile = {}, extractedText = '', providerKey = '') {
+  const prompt = buildDocumentMemorySummarizePrompt(extractedText);
+  const parsed = await requestOpenAICompatibleJson(profile, prompt, providerKey, null);
+  const markdown = `${parsed?.markdown ?? parsed?.summary ?? parsed?.condensedMarkdown ?? ''}`.trim();
+  if (!markdown) {
+    throw new Error('Document Memory summarization did not return markdown.');
+  }
+  return markdown;
 }
 
 
@@ -1676,6 +2095,7 @@ ipcMain.handle('app:stage2:refine', async (_event, payload) => {
     sourceId: `${payload?.source_id || payload?.sourceId || ''}`,
     quotedIssue: `${payload?.quotedIssue || ''}`,
     outline: `${payload?.outline || ''}`,
+    documentMemoryMarkdown: `${payload?.documentMemoryMarkdown || ''}`,
   };
 
   if (providerKey === 'gemini') {
@@ -1717,6 +2137,7 @@ ipcMain.handle('app:stage4:refine', async (_event, payload) => {
     condensedMarkdown: `${payload?.condensedMarkdown || ''}`,
     followupQuestion: `${payload?.followupQuestion || ''}`,
     draft: `${payload?.draft || ''}`,
+    documentMemoryMarkdown: `${payload?.documentMemoryMarkdown || ''}`,
   };
 
   if (providerKey === 'gemini') {
@@ -1796,6 +2217,67 @@ ipcMain.handle('app:api:listModels', async (_event, payload) => {
   const providerKey = payload?.providerKey;
   const profile = payload?.profile || {};
   return listProviderModels(providerKey, profile);
+});
+
+ipcMain.handle('documentMemory:pickFile', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win, {
+    title: 'Choose Document Memory Source',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Supported Documents', extensions: ['txt', 'md', 'markdown', 'tex', 'latex', 'pdf'] },
+      { name: 'Text', extensions: ['txt'] },
+      { name: 'Markdown', extensions: ['md', 'markdown'] },
+      { name: 'LaTeX', extensions: ['tex', 'latex'] },
+      { name: 'PDF', extensions: ['pdf'] },
+    ],
+  });
+  if (result.canceled || !result.filePaths?.length) {
+    return { canceled: true };
+  }
+  const filePath = result.filePaths[0];
+  return {
+    canceled: false,
+    filePath,
+    fileName: path.basename(filePath),
+    sourceType: detectDocumentMemorySourceType(filePath),
+  };
+});
+
+ipcMain.handle('documentMemory:import', async (_event, payload) => {
+  const folderName = `${payload?.folderName || autosaveState.currentFolder || ''}`.trim();
+  const filePath = `${payload?.filePath || ''}`.trim();
+  const providerKey = `${payload?.providerKey || ''}`.trim();
+  const profile = payload?.profile || {};
+  if (!folderName) {
+    throw new Error('No project is currently open.');
+  }
+  if (!filePath) {
+    throw new Error('No document file was selected.');
+  }
+  const doc = await importDocumentMemoryForProject(folderName, filePath, providerKey, profile);
+  return { doc };
+});
+
+ipcMain.handle('documentMemory:rebuild', async (_event, payload) => {
+  const folderName = `${payload?.folderName || autosaveState.currentFolder || ''}`.trim();
+  const providerKey = `${payload?.providerKey || ''}`.trim();
+  const profile = payload?.profile || {};
+  if (!folderName) {
+    throw new Error('No project is currently open.');
+  }
+  const doc = await rebuildDocumentMemoryForProject(folderName, providerKey, profile);
+  return { doc };
+});
+
+ipcMain.handle('documentMemory:saveMarkdown', async (_event, payload) => {
+  const folderName = `${payload?.folderName || autosaveState.currentFolder || ''}`.trim();
+  const markdown = `${payload?.markdown || ''}`;
+  if (!folderName) {
+    throw new Error('No project is currently open.');
+  }
+  const doc = await saveDocumentMemoryMarkdown(folderName, markdown);
+  return { doc };
 });
 
 ipcMain.handle('projects:create', async (_event, { projectName, conference, autosaveIntervalSeconds }) => {

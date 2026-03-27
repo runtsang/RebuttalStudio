@@ -420,11 +420,14 @@ const state = {
     typeKey: 'nudge_reply',
     values: { reviewerId: 'X', submissionId: 'X' },
   },
+  pendingDocumentMemoryFile: null,
+  documentMemoryPanelOpen: false,
 };
 
 let stage2RefineProgress = null;
 let stage4RefineRuntime = { running: false, reviewerIdx: -1 };
 let stage5AutoFillRuntime = { running: false };
+let documentMemoryRuntime = { importing: false, saving: false };
 let stage2OutlineContext = { responseId: null, x: 0, y: 0 };
 let stage3SourceContext = { responseId: null, x: 0, y: 0, start: 0, end: 0 };
 let apiErrorModalState = { expanded: false, issueUrl: '', report: '' };
@@ -482,12 +485,18 @@ const namingPanelEl = document.getElementById('namingPanel');
 const projectNameInput = document.getElementById('projectNameInput');
 const projectNameError = document.getElementById('projectNameError');
 const conferenceSelect = document.getElementById('conferenceSelect');
+const projectDocumentPickBtnEl = document.getElementById('projectDocumentPickBtn');
+const projectDocumentClearBtnEl = document.getElementById('projectDocumentClearBtn');
+const projectDocumentSelectedEl = document.getElementById('projectDocumentSelected');
 const reviewerInput = document.getElementById('reviewerInput');
 const autosaveInput = document.getElementById('autosaveInput');
 const settingsError = document.getElementById('settingsError');
 const docsTabListEl = document.getElementById('docsTabList');
 const docsLangEnBtnEl = document.getElementById('docsLangEnBtn');
 const docsLangZhBtnEl = document.getElementById('docsLangZhBtn');
+const documentMemoryPanelEl = document.getElementById('documentMemoryPanel');
+const documentMemoryContentEl = document.getElementById('documentMemoryContent');
+const documentMemoryCloseBtnEl = document.getElementById('documentMemoryCloseBtn');
 const projectSearchEl = document.getElementById('projectSearch');
 const searchProjectsToggleBtn = document.getElementById('searchProjectsToggleBtn');
 const projectSearchContainer = document.getElementById('projectSearchContainer');
@@ -544,6 +553,7 @@ const homeSendBtnEl = document.getElementById('homeSendBtn');
 
 
 const API_PROVIDER_KEYS = ['openai', 'anthropic', 'gemini', 'deepseek', 'azureOpenai', 'qwen', 'openrouter', 'groq', 'grok', 'together', 'kimi', 'minimax', 'huggingface', 'portkey', 'bedrock', 'custom'];
+const DOCUMENT_MEMORY_PROMPT_LIMIT = 12000;
 
 
 const API_PROVIDER_GUIDE = {
@@ -731,6 +741,67 @@ function fmtDate(value) {
   return new Date(value).toLocaleString();
 }
 
+function createEmptyDocumentMemoryState() {
+  return {
+    status: 'empty',
+    sourceName: '',
+    sourceType: '',
+    sourcePath: '',
+    extractedText: '',
+    extractedTextPath: '',
+    markdown: '',
+    markdownPath: '',
+    summaryMode: 'manual',
+    error: '',
+    uploadedAt: null,
+    updatedAt: null,
+  };
+}
+
+function normalizeDocumentMemoryState(raw = {}) {
+  const base = createEmptyDocumentMemoryState();
+  if (!raw || typeof raw !== 'object') return base;
+  const next = {
+    ...base,
+    ...raw,
+  };
+  if (!['empty', 'processing', 'ready', 'error'].includes(next.status)) next.status = base.status;
+  if (!['auto', 'manual'].includes(next.summaryMode)) next.summaryMode = base.summaryMode;
+  return next;
+}
+
+function getDocumentMemoryState() {
+  if (!state.currentDoc) return createEmptyDocumentMemoryState();
+  state.currentDoc.documentMemory = normalizeDocumentMemoryState(state.currentDoc.documentMemory);
+  return state.currentDoc.documentMemory;
+}
+
+function renderPendingDocumentMemorySelection() {
+  if (!projectDocumentSelectedEl || !projectDocumentClearBtnEl) return;
+  const selected = state.pendingDocumentMemoryFile;
+  if (selected?.fileName) {
+    const typeLabel = (selected.sourceType || '').toUpperCase() || 'FILE';
+    projectDocumentSelectedEl.textContent = `${selected.fileName} · ${typeLabel}`;
+    projectDocumentClearBtnEl.classList.remove('hidden');
+  } else {
+    projectDocumentSelectedEl.textContent = 'No document selected.';
+    projectDocumentClearBtnEl.classList.add('hidden');
+  }
+}
+
+function getTrimmedDocumentMemoryMarkdownForStage() {
+  const documentMemory = getDocumentMemoryState();
+  const markdown = `${documentMemory.markdown || ''}`.trim();
+  if (!markdown || documentMemory.status !== 'ready') {
+    return '';
+  }
+  if (markdown.length <= DOCUMENT_MEMORY_PROMPT_LIMIT) {
+    return markdown;
+  }
+  alert(`Document Memory is longer than ${DOCUMENT_MEMORY_PROMPT_LIMIT} characters. Only the first ${DOCUMENT_MEMORY_PROMPT_LIMIT} characters will be sent to the API.`);
+  return markdown.slice(0, DOCUMENT_MEMORY_PROMPT_LIMIT).trim();
+}
+
 function stageIndexFromCurrent() {
   if (!state.currentDoc?.currentStage) return 0;
   const normalized = state.currentDoc.currentStage.toLowerCase().replace(/\s+/g, '');
@@ -793,6 +864,7 @@ function clampReviewerIndex(idx, reviewerCount = state.reviewers.length || 1) {
 
 function buildProjectDocFromState() {
   if (!state.currentDoc) return null;
+  state.currentDoc.documentMemory = normalizeDocumentMemoryState(state.currentDoc.documentMemory);
   return deepCloneJson({
     ...state.currentDoc,
     reviewers: state.reviewers,
@@ -824,7 +896,7 @@ function clearProjectHistoryTypingTimer() {
 }
 
 function isProjectHistoryBusy() {
-  return Boolean(stage2RefineProgress || stage4RefineRuntime.running || stage5AutoFillRuntime.running);
+  return Boolean(stage2RefineProgress || stage4RefineRuntime.running || stage5AutoFillRuntime.running || documentMemoryRuntime.importing || documentMemoryRuntime.saving);
 }
 
 function updateHistoryButtons() {
@@ -1048,6 +1120,17 @@ function renderSidebarStages() {
   const docsPanelEl = document.getElementById('docsPanel');
   const isDocsActive = docsPanelEl && !docsPanelEl.classList.contains('hidden');
   const docsActiveCls = isDocsActive ? ' active' : '';
+  const documentMemory = getDocumentMemoryState();
+  const isDocumentMemoryActive = Boolean(documentMemoryPanelEl && !documentMemoryPanelEl.classList.contains('hidden'));
+  const memoryActiveCls = isDocumentMemoryActive ? ' active' : '';
+  const memoryReadyCls = documentMemory.status === 'ready' ? ' sidebar-memory-trigger--ready' : '';
+
+  sidebarStageListEl.innerHTML = `
+    <button class="sidebar-memory-trigger${memoryReadyCls}${memoryActiveCls}" type="button" data-document-memory-open="1" aria-label="Open Document Memory">
+      <span class="sidebar-memory-icon">≣</span>
+      <span class="sidebar-memory-text">Document Memory</span>
+    </button>
+  ` + sidebarStageListEl.innerHTML;
 
   sidebarStageListEl.insertAdjacentHTML('beforeend', `
     <button class="sidebar-template-trigger${docsActiveCls}" type="button" data-docs-open="${cur + 1}" aria-label="Open Stage Documents" style="margin-bottom: 8px;">
@@ -1464,6 +1547,8 @@ async function renderDocsPanel(docId = docsCurrentDocId) {
   document.getElementById('namingPanel').classList.add('hidden');
   const skillsPanelEl = document.getElementById('skillsPanel');
   if (skillsPanelEl) skillsPanelEl.classList.add('hidden');
+  documentMemoryPanelEl?.classList.add('hidden');
+  state.documentMemoryPanelOpen = false;
   docsPanelEl.classList.remove('hidden');
 
   try {
@@ -1481,6 +1566,218 @@ async function renderDocsPanel(docId = docsCurrentDocId) {
   }
 }
 
+function documentMemoryStatusLabel(status = '') {
+  if (status === 'ready') return 'Ready';
+  if (status === 'processing') return 'Processing';
+  if (status === 'error') return 'Needs Review';
+  return 'Not Ready';
+}
+
+function hideProjectContentPanels() {
+  document.getElementById('workspace')?.classList.add('hidden');
+  document.getElementById('docsPanel')?.classList.add('hidden');
+  document.getElementById('skillsPanel')?.classList.add('hidden');
+  documentMemoryPanelEl?.classList.add('hidden');
+}
+
+function renderDocumentMemoryPanel() {
+  if (!documentMemoryContentEl) return;
+  const documentMemory = getDocumentMemoryState();
+  const hasSource = Boolean(documentMemory.sourcePath);
+  const isBusy = documentMemoryRuntime.importing || documentMemoryRuntime.saving;
+  const badgeStatus = documentMemoryRuntime.importing ? 'processing' : documentMemory.status;
+  const sourceMeta = hasSource
+    ? `${documentMemory.sourceName || 'Document'} · ${(documentMemory.sourceType || 'file').toUpperCase()}`
+    : 'No document uploaded yet.';
+  const sourcePathLine = documentMemory.sourcePath
+    ? `<p class="document-memory-meta">Source file: ${escapeHTML(documentMemory.sourcePath)}</p>`
+    : '';
+  const extractedPathLine = documentMemory.extractedTextPath
+    ? `<p class="document-memory-meta">Extracted text: ${escapeHTML(documentMemory.extractedTextPath)}</p>`
+    : '';
+  const summaryPathLine = documentMemory.markdownPath
+    ? `<p class="document-memory-meta">Markdown file: ${escapeHTML(documentMemory.markdownPath)}</p>`
+    : '';
+  const errorLine = documentMemory.error
+    ? `<p class="document-memory-error">${escapeHTML(documentMemory.error)}</p>`
+    : '';
+  const uploadButtonLabel = hasSource ? 'Replace Document' : 'Upload Document';
+
+  documentMemoryContentEl.innerHTML = `
+    <div class="document-memory-shell">
+      <div class="document-memory-card">
+        <div class="document-memory-status-row">
+          <span class="document-memory-status-badge" data-status="${escapeHTML(badgeStatus)}">${escapeHTML(documentMemoryStatusLabel(badgeStatus))}</span>
+          <span class="document-memory-meta">${escapeHTML(sourceMeta)}</span>
+        </div>
+        <div class="document-memory-helper">
+          <p class="document-memory-helper-intro">This feature always converts your input into text before calling the API. It does not rely on native file-upload support from the model provider.</p>
+          <ul class="document-memory-helper-list">
+            <li>Most APIs do not accept document files directly. We recommend uploading plain text, Markdown, or LaTeX whenever possible.</li>
+            <li>PDF text extraction can be imperfect. If you already have clean text, Markdown, or LaTeX, use that instead of PDF.</li>
+            <li>We recommend uploading only the main paper. Skip references and appendices unless they are essential.</li>
+            <li>Document memory can significantly increase token usage and cost.</li>
+          </ul>
+          <p class="document-memory-helper-footnote">Some platforms also offer native document workflows, such as OpenAI, Gemini, and Anthropic. Support depends on the exact model and endpoint.</p>
+        </div>
+        ${!hasSource ? `
+          <button class="document-memory-empty-button" type="button" data-document-memory-upload="1" ${isBusy ? 'disabled' : ''}>
+            <span class="document-memory-empty-title">Upload a document source</span>
+            <span class="document-memory-empty-copy">Choose a .txt, .md, .tex, or .pdf file. Text, Markdown, and LaTeX are recommended because they avoid PDF extraction errors.</span>
+          </button>
+        ` : ''}
+        <div class="document-memory-actions">
+          <button class="btn" type="button" data-document-memory-upload="1" ${isBusy ? 'disabled' : ''}>${uploadButtonLabel}</button>
+          <button class="btn" type="button" data-document-memory-rebuild="1" ${(!hasSource || isBusy) ? 'disabled' : ''}>Rebuild Summary</button>
+          <button class="btn primary" type="button" data-document-memory-save="1" ${(!hasSource || isBusy) ? 'disabled' : ''}>Save</button>
+        </div>
+        ${sourcePathLine}
+        ${extractedPathLine}
+        ${summaryPathLine}
+        <p class="document-memory-meta">Uploaded: ${escapeHTML(fmtDate(documentMemory.uploadedAt))} · Updated: ${escapeHTML(fmtDate(documentMemory.updatedAt))}</p>
+        ${errorLine}
+      </div>
+      <div class="document-memory-card">
+        <div class="document-memory-banner">If the API summary is inaccurate, you can edit and save it here, or paste in a summary produced by another model.</div>
+        <textarea id="documentMemoryEditor" class="document-memory-editor" spellcheck="false" ${isBusy ? 'disabled' : ''} placeholder="Markdown summary will appear here after import. You can also paste a manual summary.">${escapeHTML(documentMemory.markdown || '')}</textarea>
+        <p class="document-memory-meta">Current Markdown length: ${escapeHTML(String((documentMemory.markdown || '').length))} characters.</p>
+      </div>
+    </div>`;
+}
+
+function openDocumentMemoryPanel() {
+  if (!state.currentDoc || !documentMemoryPanelEl) return;
+  clearHomeIntroTimers();
+  state.documentMemoryPanelOpen = true;
+  hideProjectContentPanels();
+  emptyStateEl.classList.add('hidden');
+  namingPanelEl.classList.add('hidden');
+  documentMemoryPanelEl.classList.remove('hidden');
+  renderDocumentMemoryPanel();
+  renderSidebarStages();
+}
+
+function closeDocumentMemoryPanel() {
+  state.documentMemoryPanelOpen = false;
+  documentMemoryPanelEl?.classList.add('hidden');
+  if (state.currentDoc) {
+    renderWorkspace();
+  } else {
+    emptyStateEl.classList.remove('hidden');
+  }
+}
+
+async function pickDocumentMemoryFile() {
+  const result = await window.studioApi.pickDocumentMemoryFile();
+  if (!result || result.canceled) return null;
+  return {
+    filePath: result.filePath,
+    fileName: result.fileName,
+    sourceType: result.sourceType,
+  };
+}
+
+async function importDocumentMemorySelection(fileInfo, options = {}) {
+  if (!state.currentFolderName || !fileInfo?.filePath) return null;
+  const providerKey = state.apiSettings.activeApiProvider;
+  const profile = getActiveApiProfile(providerKey) || {};
+
+  documentMemoryRuntime = { importing: true, saving: false };
+  if (state.currentDoc) {
+    state.currentDoc.documentMemory = normalizeDocumentMemoryState({
+      ...getDocumentMemoryState(),
+      status: 'processing',
+      sourceName: fileInfo.fileName || '',
+      sourceType: fileInfo.sourceType || '',
+      error: '',
+    });
+  }
+  if (options.openPanel !== false) {
+    openDocumentMemoryPanel();
+  } else {
+    renderSidebarStages();
+  }
+
+  try {
+    const result = await window.studioApi.importDocumentMemory({
+      folderName: state.currentFolderName,
+      filePath: fileInfo.filePath,
+      providerKey,
+      profile,
+    });
+    state.currentDoc = result?.doc || state.currentDoc;
+    state.currentDoc.documentMemory = normalizeDocumentMemoryState(state.currentDoc.documentMemory);
+    commitProjectHistorySnapshot();
+    renderReviewerTabs();
+    renderDocumentMemoryPanel();
+    renderSidebarStages();
+    return state.currentDoc;
+  } catch (error) {
+    alert(error.message || 'Failed to import Document Memory.');
+    return null;
+  } finally {
+    documentMemoryRuntime = { importing: false, saving: false };
+    if (state.documentMemoryPanelOpen) {
+      renderDocumentMemoryPanel();
+      renderSidebarStages();
+    }
+  }
+}
+
+async function rebuildDocumentMemorySummary() {
+  if (!state.currentFolderName) return;
+  const providerKey = state.apiSettings.activeApiProvider;
+  const profile = getActiveApiProfile(providerKey) || {};
+  documentMemoryRuntime = { importing: true, saving: false };
+  if (state.currentDoc) {
+    state.currentDoc.documentMemory = normalizeDocumentMemoryState({
+      ...getDocumentMemoryState(),
+      status: 'processing',
+      error: '',
+    });
+  }
+  openDocumentMemoryPanel();
+  try {
+    const result = await window.studioApi.rebuildDocumentMemory({
+      folderName: state.currentFolderName,
+      providerKey,
+      profile,
+    });
+    state.currentDoc = result?.doc || state.currentDoc;
+    state.currentDoc.documentMemory = normalizeDocumentMemoryState(state.currentDoc.documentMemory);
+    commitProjectHistorySnapshot();
+  } catch (error) {
+    alert(error.message || 'Failed to rebuild Document Memory.');
+  } finally {
+    documentMemoryRuntime = { importing: false, saving: false };
+    renderDocumentMemoryPanel();
+    renderSidebarStages();
+  }
+}
+
+async function saveDocumentMemoryMarkdownFromPanel() {
+  if (!state.currentFolderName) return;
+  const editor = document.getElementById('documentMemoryEditor');
+  if (!editor) return;
+  documentMemoryRuntime = { importing: false, saving: true };
+  renderDocumentMemoryPanel();
+  try {
+    const result = await window.studioApi.saveDocumentMemoryMarkdown({
+      folderName: state.currentFolderName,
+      markdown: editor.value || '',
+    });
+    state.currentDoc = result?.doc || state.currentDoc;
+    state.currentDoc.documentMemory = normalizeDocumentMemoryState(state.currentDoc.documentMemory);
+    commitProjectHistorySnapshot();
+  } catch (error) {
+    alert(error.message || 'Failed to save Document Memory Markdown.');
+  } finally {
+    documentMemoryRuntime = { importing: false, saving: false };
+    renderDocumentMemoryPanel();
+    renderSidebarStages();
+  }
+}
+
 /* ────────────────────────────────────────────────────────────
    Skills Panel
    ──────────────────────────────────────────────────────────── */
@@ -1494,6 +1791,8 @@ function renderSkillsPanel() {
   document.getElementById('workspace').classList.add('hidden');
   document.getElementById('namingPanel').classList.add('hidden');
   document.getElementById('docsPanel').classList.add('hidden');
+  documentMemoryPanelEl?.classList.add('hidden');
+  state.documentMemoryPanelOpen = false;
   skillsPanelEl.classList.remove('hidden');
 
   skillsGridEl.innerHTML = SKILLS_CATALOG.map((group) => `
@@ -1859,6 +2158,7 @@ function restoreActiveReviewerSelection() {
 
 function loadProjectStateFromDoc(doc = state.currentDoc) {
   if (!doc) return;
+  doc.documentMemory = normalizeDocumentMemoryState(doc.documentMemory);
   if (doc.reviewers && doc.reviewers.length > 0) {
     state.reviewers = doc.reviewers;
   } else {
@@ -2784,7 +3084,7 @@ async function saveCondensedMarkdown(reviewerId, condensedMarkdown) {
   return `${result?.path || ''}`.trim();
 }
 
-async function skill2_refine(condensedMarkdown, followupQuestion, draft) {
+async function skill2_refine(condensedMarkdown, followupQuestion, draft, documentMemoryMarkdown = '') {
   const providerKey = state.apiSettings.activeApiProvider;
   const profile = getActiveApiProfile(providerKey);
   if (!profile || !profile.apiKey) {
@@ -2796,6 +3096,7 @@ async function skill2_refine(condensedMarkdown, followupQuestion, draft) {
     condensedMarkdown,
     followupQuestion,
     draft,
+    documentMemoryMarkdown,
   });
   fetchAndRenderTokenUsage();
   return `${result?.refinedText || ''}`.trim();
@@ -2930,7 +3231,8 @@ async function runStage4RefinePipeline() {
   try {
     setProgress('step2', 'running');
     renderStage4Panels();
-    const refinedText = await skill2_refine(stage4.condensedMarkdown, stage4.followupQuestion, stage4.draft);
+    const documentMemoryMarkdown = getTrimmedDocumentMemoryMarkdownForStage();
+    const refinedText = await skill2_refine(stage4.condensedMarkdown, stage4.followupQuestion, stage4.draft, documentMemoryMarkdown);
     stage4.refinedText = refinedText;
     setProgress('step2', 'done');
     queueStateSync();
@@ -4266,6 +4568,7 @@ async function runStage2RefineOneResponse(responseId) {
 
   const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
   const draftCell = stage2Map[resp.id] || { outline: '', draft: '', assets: [] };
+  const documentMemoryMarkdown = getTrimmedDocumentMemoryMarkdownForStage();
   if (!`${draftCell.outline || ''}`.trim()) {
     alert('This response has no outline yet. Please write an outline first.');
     return;
@@ -4286,6 +4589,7 @@ async function runStage2RefineOneResponse(responseId) {
       source_id: resp.source_id || '',
       quotedIssue: resp.quoted_issue || '',
       outline: draftCell.outline || '',
+      documentMemoryMarkdown,
       conference: state.currentDoc?.conference || 'ICLR',
     });
     fetchAndRenderTokenUsage();
@@ -4324,6 +4628,7 @@ async function runStage2RefineForResponses() {
   }
 
   const stage2Map = getStage2ResponsesForReviewer(state.activeReviewerIdx);
+  const documentMemoryMarkdown = getTrimmedDocumentMemoryMarkdownForStage();
   convertBtnEl.disabled = true;
   convertBtnEl.classList.add('loading');
 
@@ -4352,6 +4657,7 @@ async function runStage2RefineForResponses() {
         source_id: resp.source_id || '',
         quotedIssue: resp.quoted_issue || '',
         outline: draftCell.outline || '',
+        documentMemoryMarkdown,
         conference: state.currentDoc?.conference || 'ICLR',
       });
       fetchAndRenderTokenUsage();
@@ -4498,6 +4804,8 @@ function toggleDrawer() {
 function renderWorkspace() {
   document.getElementById('docsPanel')?.classList.add('hidden');
   document.getElementById('skillsPanel')?.classList.add('hidden');
+  documentMemoryPanelEl?.classList.add('hidden');
+  state.documentMemoryPanelOpen = false;
   const hasProject = Boolean(state.currentDoc);
   const showingHomeLanding = !hasProject && !state.pendingCreate;
   workspaceEl.classList.toggle('hidden', !hasProject);
@@ -4564,7 +4872,13 @@ async function createProjectFromPrompt() {
     projectNameError.textContent = 'Project name is required.';
     return;
   }
+  const pendingDocumentMemoryFile = state.pendingDocumentMemoryFile;
+  const confirmBtn = document.getElementById('confirmProjectBtn');
   try {
+    if (confirmBtn) confirmBtn.disabled = true;
+    projectNameError.textContent = pendingDocumentMemoryFile
+      ? 'Creating project and processing Document Memory...'
+      : '';
     const created = await window.studioApi.createProject({
       projectName: rawName,
       conference: conferenceSelect.value,
@@ -4576,11 +4890,21 @@ async function createProjectFromPrompt() {
     state.pendingCreate = false;
     state.breakdownData = {};
     projectNameInput.value = '';
+    state.pendingDocumentMemoryFile = null;
+    renderPendingDocumentMemorySelection();
+    if (pendingDocumentMemoryFile) {
+      await importDocumentMemorySelection(pendingDocumentMemoryFile, { openPanel: false });
+    }
     projectNameError.textContent = '';
     renderWorkspace();
+    if (pendingDocumentMemoryFile) {
+      openDocumentMemoryPanel();
+    }
     await loadProjects();
   } catch (error) {
     projectNameError.textContent = error.message;
+  } finally {
+    if (confirmBtn) confirmBtn.disabled = false;
   }
 }
 
@@ -4848,8 +5172,11 @@ async function saveApiSettings() {
 
 function beginProjectCreation() {
   clearProjectHistory();
+  documentMemoryRuntime = { importing: false, saving: false };
   state.pendingCreate = true;
   state.currentDoc = null;
+  state.pendingDocumentMemoryFile = null;
+  state.documentMemoryPanelOpen = false;
   state.stage4Data = {};
   state.stage5Data = {};
   state.stage5Settings = { style: 'run' };
@@ -4857,6 +5184,7 @@ function beginProjectCreation() {
   conferenceSelect.value = 'ICLR';
   exitProjectMode();
   renderWorkspace();
+  renderPendingDocumentMemorySelection();
   projectNameInput.focus();
 }
 
@@ -4866,6 +5194,11 @@ function selectStage(label) {
   const docsPanelEl = document.getElementById('docsPanel');
   if (docsPanelEl && !docsPanelEl.classList.contains('hidden')) {
     docsPanelEl.classList.add('hidden');
+    document.getElementById('workspace').classList.remove('hidden');
+  }
+  if (documentMemoryPanelEl && !documentMemoryPanelEl.classList.contains('hidden')) {
+    documentMemoryPanelEl.classList.add('hidden');
+    state.documentMemoryPanelOpen = false;
     document.getElementById('workspace').classList.remove('hidden');
   }
 
@@ -5002,6 +5335,7 @@ async function init() {
   renderActiveModelBadge();
   renderTokenUsageBadge({ input: 0, output: 0 });
   autosaveInput.value = state.appSettings.defaultAutosaveIntervalSeconds;
+  renderPendingDocumentMemorySelection();
   await loadProjects();
   renderWorkspace();
   syncStageUi();
@@ -5119,6 +5453,31 @@ document.getElementById('docsCloseBtn')?.addEventListener('click', () => {
   renderWorkspace();
 });
 
+documentMemoryCloseBtnEl?.addEventListener('click', () => {
+  closeDocumentMemoryPanel();
+});
+
+documentMemoryContentEl?.addEventListener('click', async (e) => {
+  const uploadBtn = e.target.closest('[data-document-memory-upload]');
+  if (uploadBtn) {
+    const fileInfo = await pickDocumentMemoryFile();
+    if (!fileInfo) return;
+    await importDocumentMemorySelection(fileInfo, { openPanel: true });
+    return;
+  }
+
+  const rebuildBtn = e.target.closest('[data-document-memory-rebuild]');
+  if (rebuildBtn) {
+    await rebuildDocumentMemorySummary();
+    return;
+  }
+
+  const saveBtn = e.target.closest('[data-document-memory-save]');
+  if (saveBtn) {
+    await saveDocumentMemoryMarkdownFromPanel();
+  }
+});
+
 // Skills nav button
 document.getElementById('skillsNavBtn')?.addEventListener('click', () => {
   renderSkillsPanel();
@@ -5190,6 +5549,8 @@ document.getElementById('brandBtn').addEventListener('click', () => {
   state.pendingCreate = false;
   state.currentDoc = null;
   state.currentFolderName = null;
+  state.pendingDocumentMemoryFile = null;
+  state.documentMemoryPanelOpen = false;
   state.reviewers = [{ id: 0, name: '', content: '' }];
   state.activeReviewerIdx = 0;
   state.breakdownData = {};
@@ -5200,6 +5561,7 @@ document.getElementById('brandBtn').addEventListener('click', () => {
   state.stage4Data = {};
   state.stage5Data = {};
   state.stage5Settings = { style: 'run' };
+  documentMemoryRuntime = { importing: false, saving: false };
   hideCopyPopup();
   closeStage5TemplateModal();
   renderWorkspace();
@@ -5207,8 +5569,22 @@ document.getElementById('brandBtn').addEventListener('click', () => {
 });
 document.getElementById('cancelProjectBtn').addEventListener('click', () => {
   state.pendingCreate = false;
+  state.pendingDocumentMemoryFile = null;
+  renderPendingDocumentMemorySelection();
   renderWorkspace();
   syncStageUi();
+});
+
+projectDocumentPickBtnEl?.addEventListener('click', async () => {
+  const fileInfo = await pickDocumentMemoryFile();
+  if (!fileInfo) return;
+  state.pendingDocumentMemoryFile = fileInfo;
+  renderPendingDocumentMemorySelection();
+});
+
+projectDocumentClearBtnEl?.addEventListener('click', () => {
+  state.pendingDocumentMemoryFile = null;
+  renderPendingDocumentMemorySelection();
 });
 
 document.getElementById('confirmProjectBtn').addEventListener('click', createProjectFromPrompt);
@@ -5255,9 +5631,14 @@ sidebarStageListEl.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-stage]');
   const templateBtn = e.target.closest('[data-template-open]');
   const docsBtn = e.target.closest('[data-docs-open]');
+  const documentMemoryBtn = e.target.closest('[data-document-memory-open]');
 
   if (templateBtn) {
     openTemplateModal();
+    return;
+  }
+  if (documentMemoryBtn) {
+    openDocumentMemoryPanel();
     return;
   }
   if (docsBtn) {

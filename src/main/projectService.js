@@ -93,6 +93,35 @@ function createEmptyStage() {
   };
 }
 
+function createEmptyDocumentMemory() {
+  return {
+    status: 'empty',
+    sourceName: '',
+    sourceType: '',
+    sourcePath: '',
+    extractedText: '',
+    extractedTextPath: '',
+    markdown: '',
+    markdownPath: '',
+    summaryMode: 'manual',
+    error: '',
+    uploadedAt: null,
+    updatedAt: null,
+  };
+}
+
+function normalizeDocumentMemory(raw = {}) {
+  const base = createEmptyDocumentMemory();
+  if (!raw || typeof raw !== 'object') return base;
+  const next = {
+    ...base,
+    ...raw,
+  };
+  if (!['empty', 'processing', 'ready', 'error'].includes(next.status)) next.status = base.status;
+  if (!['auto', 'manual'].includes(next.summaryMode)) next.summaryMode = base.summaryMode;
+  return next;
+}
+
 function createProjectDoc(projectName, conference, autosaveIntervalSeconds) {
   const now = new Date().toISOString();
   const doc = {
@@ -106,6 +135,7 @@ function createProjectDoc(projectName, conference, autosaveIntervalSeconds) {
     stage4Data: {},
     stage5Data: {},
     stage5Settings: { style: 'run' },
+    documentMemory: createEmptyDocumentMemory(),
     snapshots: [],
   };
 
@@ -232,6 +262,7 @@ async function loadProject(folderName) {
     throw new Error(`Could not load project.json: ${parsed.__error}`);
   }
   if (!parsed.conference) parsed.conference = 'ICLR';
+  parsed.documentMemory = normalizeDocumentMemory(parsed.documentMemory);
   return parsed;
 }
 
@@ -378,6 +409,7 @@ async function saveProject(folderName, projectDoc) {
   const nextDoc = {
     ...projectDoc,
     conference: projectDoc.conference || 'ICLR',
+    documentMemory: normalizeDocumentMemory(projectDoc.documentMemory),
     updatedAt: now,
   };
   await saveProjectDoc(folderName, nextDoc);
@@ -421,6 +453,8 @@ module.exports = {
   APP_SETTINGS_FILE,
   PROJECTS_ROOT,
   STAGE_KEYS,
+  createEmptyDocumentMemory,
+  normalizeDocumentMemory,
   sanitizeProjectName,
   createProject,
   listProjects,
