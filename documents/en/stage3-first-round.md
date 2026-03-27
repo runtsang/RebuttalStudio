@@ -28,16 +28,16 @@ Switches the view to the full assembled rebuttal for the current reviewer. This 
 - An **opening paragraph** addressed to the reviewer, thanking them for specific strengths they acknowledged.
 - All response blocks in numbered sequence.
 - A **closing paragraph** wrapping up the rebuttal.
-- A **Total words** counter in the header showing the combined word count.
+- A **Total words** badge in the header. In the current app, this badge is character-based even though the label still says "Total words".
 
 **Formatting toolbar**
-Available in both per-issue and All views. Tools include: **Bold**, *Italic*, text color, and heading levels. Select text in the response area and click a toolbar button to apply formatting.
+Available in both per-issue and All views. Tools include: **Bold**, *Italic*, underline, text color, heading levels, and **Writing Anti-AI** on selected text. Select text in the response area and use the available controls to apply formatting or de-formulaic rewriting.
 
 **"Style" button**
 Opens the First Round Style modal, where you can choose a theme color for the response labels (the `Response N:` and `Weakness-N:` identifiers). Options include 7 preset colors or a custom hex code. Colored labels help reviewers navigate a long rebuttal with multiple responses.
 
 **"To break down" button**
-Appears when the Total words count is close to or exceeds your platform's limit. Opens a modal where you enter the maximum character count per part (e.g., `4000`). The app splits the full "All" text into chunks at natural paragraph boundaries and displays each chunk in a result modal for copying.
+Appears when the assembled text is close to or exceeds your platform's limit. Opens a modal where you enter the maximum character count per part (e.g., `4000`). The app splits the full "All" text into chunks at natural paragraph boundaries and displays each chunk in a result modal for copying.
 
 ## Step-by-Step Walkthrough
 
@@ -64,8 +64,8 @@ Appears when the Total words count is close to or exceeds your platform's limit.
    - Transitions between adjacent response blocks — do they flow naturally together, or do they feel abrupt?
    - The **closing paragraph**: standard template; review and adjust if your situation warrants a different closing note.
 
-5. **Check the "Total words" counter.**
-   If the word count approaches your platform's limit, you have two options:
+5. **Check the "Total words" badge.**
+   In the current app this is effectively a character counter. If it approaches your platform's limit, you have two options:
    - **Manually trim:** Go back to Stage 2 and shorten specific Refined Drafts. This gives you control over where content is cut.
    - **Use "To break down":** Enter your platform's character limit per post in the modal. The app splits the content into chunks and presents each chunk for copying. Post each chunk separately in the rebuttal field with a "Part 1 of N / Part 2 of N" header so the reviewer can follow the sequence.
 
@@ -78,6 +78,7 @@ Appears when the Total words count is close to or exceeds your platform's limit.
 - **Replace the opening paragraph placeholders before copying.** The default opening template has `A`, `B`, and `C` as placeholders for the reviewer's acknowledged strengths. If you paste without replacing these, the reviewer will see literal "A, B, and C" in your opening sentence.
 - **Avoid splitting mid-argument.** If "To break down" produces a split that cuts in the middle of a related argument, adjust the character limit slightly or trim one response to keep the split at a natural boundary between issues.
 - **Check theme colors in context.** The same color can look very different in OpenReview's white background vs. a dark-mode browser. Preview a few response labels before committing to a color.
+- **Use Writing Anti-AI surgically.** If one paragraph sounds stiff, select only that span and rewrite it, rather than restyling the whole response.
 - **Use the per-issue tabs for focused review, the All tab for final review.** Doing one pass in per-issue view and one pass in All view catches different categories of issues.
 
 ## What to Expect
@@ -86,7 +87,7 @@ A complete Stage 3 for each reviewer produces:
 
 - A clean, formatted document with an opening paragraph, numbered response blocks, and a closing paragraph.
 - All `A`, `B`, `C` opening paragraph placeholders replaced with actual reviewer-acknowledged strengths.
-- Total word count within the platform's limit (or split into clearly labeled parts if needed).
+- Overall length within the platform's limit (or split into clearly labeled parts if needed).
 - Colored, scannable response labels if a theme color was applied.
 
 ## Next Steps

@@ -15,6 +15,7 @@ Stage 2 takes the atomic issue list from Stage 1 and produces a drafted response
 - [ ] Stage 1 is complete for the reviewer you are working on — the atomic issue list is clean and finalized.
 - [ ] Your API key is configured in **API Settings**.
 - [ ] You have thought through your actual technical responses. The LLM refines your prose — it does not invent claims, numbers, or experiments on your behalf.
+- [ ] If you want paper-level background knowledge available during Refine, your project-level **Document Memory** is already uploaded and reviewed.
 
 > **Warning:** Never let a Refined Draft go to Stage 3 without reading it carefully. The LLM can misstate a nuance or introduce imprecision. You are responsible for every factual claim in the final rebuttal.
 
@@ -46,8 +47,16 @@ Displays the LLM-generated response after Refine is clicked. The output always f
 
 This panel is also directly editable — you can and should make manual corrections after the LLM runs.
 
+If the wording still sounds too generic or formulaic, select a span of text and use **Writing Anti-AI** from the selection context menu to humanize that specific passage without rewriting the whole row from scratch.
+
 **"Auto Fit" button**
 Located in the center column. Click it to resize all table rows to match their content height, which helps when rows contain varying amounts of text.
+
+**"Transfer" button**
+Also located in the center column. It copies every non-empty `My Reply` outline into its corresponding `Refined Draft` cell without calling the API. This is useful when you want a manual starting point before polishing or editing.
+
+**Sidebar "Document Memory" button**
+Opens the project-level background document editor. If your project has a saved Markdown summary there, Stage 2 Refine automatically receives it as supporting background knowledge. It helps with paper context, but it does not override the quoted reviewer issue or your outline.
 
 ## Step-by-Step Walkthrough
 
@@ -73,6 +82,8 @@ Located in the center column. Click it to resize all table rows to match their c
 5. **Click "Refine".**
    The LLM receives the quoted issue and your draft outline, then generates a polished response. It selects a contextually appropriate courtesy opening phrase, structures your points into clear paragraphs, and formats the output with the standard `> Reviewer's Comment` / `**Response**:` block.
 
+   If you do not want to call the API yet, you can use **Transfer** instead to copy your outline directly into the draft column and continue editing manually.
+
 6. **Read and edit the Refined Draft.**
    This is the most important step. Go through the generated text sentence by sentence:
    - Verify every number, citation, and claim against your actual results.
@@ -92,8 +103,10 @@ Located in the center column. Click it to resize all table rows to match their c
 
 - **More outline input → better Refined output.** Write at least 2–3 substantive bullet points before clicking Refine. A one-line outline produces a shallow, generic response. Specific technical details (numbers, references, experimental conditions) produce specific, accurate responses.
 - **Use tables for numeric results.** If you are addressing a concern about missing experiments, embed the numbers using Insert Table. The Refined Draft will preserve the table structure.
+- **Document Memory is background, not authority.** Use it to recover context from the paper, but keep the row grounded in the current reviewer issue and in your own outline.
 - **Multiple bullets → multiple paragraphs.** Each bullet point in your outline tends to map to a separate paragraph in the Refined Draft. Use this intentionally if you want to address sub-points with clear visual separation.
 - **Read the output aloud.** This quickly catches unnatural phrasing, repeated sentence structures, or places where the LLM lost the thread of your argument.
+- **Use Writing Anti-AI selectively.** If one sentence sounds stiff, select only that span and run the tool there instead of regenerating the whole draft.
 - **Stage 2 is your last chance to add content.** Stage 3 is about formatting and assembly, not writing. Any concern not addressed here will not appear in the final rebuttal.
 
 ## What to Expect

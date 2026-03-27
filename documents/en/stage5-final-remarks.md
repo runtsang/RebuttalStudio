@@ -32,7 +32,7 @@ A Markdown editor pre-filled with the template structure. You can edit this dire
 - **IV. Commitment to Revision** — A concrete list of changes you have already made or committed to making in the revised manuscript.
 
 **Rating change fields (per reviewer)**
-Fields for entering the **Original Rating** and **Final Rating** for each reviewer. Fill these when a reviewer stated during the discussion that they would raise their score. This data is used to populate the Acknowledgments section.
+Each reviewer row shows the original rating parsed from Stage 1 and provides an input for the **Final Rating**. Fill the final rating only when a reviewer explicitly indicated a score change during the discussion. This data is used to populate the Acknowledgments section.
 
 **"Auto Fill" button**
 Triggers the LLM to fill all template placeholder tokens automatically. The LLM reads the condensed context from all reviewers' Stage 4 (or Stage 3, if Stage 4 was not used) and generates appropriate content for each placeholder.
@@ -40,13 +40,16 @@ Triggers the LLM to fill all template placeholder tokens automatically. The LLM 
 **"Preview" button**
 Renders the current raw Markdown in the editor as formatted HTML, so you can see exactly what the Final Remarks will look like when copied and displayed.
 
+**"Final Template" toggle**
+In the preview area, you can switch between your current rendered project output and a read-only sample template. This is useful when you want to compare your filled result against the reference layout.
+
 ## Step-by-Step Walkthrough
 
 1. **Click "Template" and apply the template.**
    This loads the skeleton with all placeholder tokens. Start from the template rather than a blank editor to ensure the four-section structure is in place.
 
-2. **Fill in the rating change fields.**
-   For each reviewer who explicitly stated they would raise their score during the discussion, enter their original rating and their new rating in the corresponding fields. Leave the fields blank for reviewers who did not indicate a change. This data will be incorporated into the Acknowledgments section when Auto Fill runs.
+2. **Fill in the final rating fields.**
+   For each reviewer who explicitly stated they would raise their score during the discussion, enter the new rating in the corresponding input. The original rating is already shown from Stage 1. Leave the input blank for reviewers who did not indicate a change. This data will be incorporated into the Acknowledgments section when Auto Fill runs.
 
 3. **Click "Auto Fill".**
    The LLM reads the condensed discussion context for each reviewer and fills the placeholder tokens with appropriate content:
@@ -81,6 +84,8 @@ Renders the current raw Markdown in the editor as formatted HTML, so you can see
    - Table alignment in the Key Concerns section.
    - Markdown formatting (bold, bullet lists) rendering correctly.
    - Any `{{placeholder}}` tokens that were not filled by Auto Fill and still need manual replacement.
+
+   If helpful, click the preview toggle to compare your current output against the built-in sample template.
 
 6. **Copy and submit.**
    Once the Preview looks correct, copy the rendered text (or the raw Markdown, depending on your platform's input format) and paste it into the appropriate field on your conference platform.

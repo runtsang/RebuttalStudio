@@ -1,6 +1,6 @@
 # Stage 1 — Breakdown
 
-Stage 1 transforms a raw reviewer comment into a structured, atomic issue list. It extracts numeric scores, preserves the reviewer's summary and strengths, and splits weaknesses and questions into individual addressable items — so that nothing gets missed and every concern can be answered systematically in Stage 2.
+Stage 1 transforms a raw reviewer comment into a structured, atomic issue list. It extracts conference-specific numeric scores, preserves the reviewer's summary and strengths, and splits weaknesses and questions into individual addressable items — so that nothing gets missed and every concern can be answered systematically in Stage 2.
 
 ## In the Pipeline
 
@@ -12,7 +12,7 @@ This is the foundation stage. The issue list you produce here determines the str
 
 ## Before You Begin
 
-- [ ] You have created a project and selected the correct conference (ICLR or ICML) — this controls which score fields are extracted.
+- [ ] You have created a project and selected the correct conference (ICLR, ICML, NeurIPS, or ARR) — this controls which score fields are extracted.
 - [ ] You have the reviewer's complete comment ready to paste (all sections: summary, strengths, weaknesses, questions, and ratings).
 - [ ] Your API key is configured in **API Settings** (required for the "Break down" button).
 
@@ -29,17 +29,21 @@ Contains the **Break down** button. Clicking it sends the left-panel content to 
 **Right panel — Structured Breakdown**
 Displays the parsed output in four sections:
 
-- **Scores** — Numeric ratings extracted from the review. For ICLR: Rating, Confidence, Soundness, Presentation, Contribution. For ICML: the same five fields, plus Significance and Originality.
+- **Scores** — Numeric ratings extracted from the review. The exact fields depend on your selected venue:
+  - ICLR: Rating, Confidence, Soundness, Presentation, Contribution
+  - ICML: Rating, Confidence, Soundness, Presentation, Significance, Originality
+  - NeurIPS: Rating, Confidence, Quality, Clarity, Significance, Originality
+  - ARR: Confidence, Soundness, Excitement, Assessment, Reproducibility
 - **Summary** — The reviewer's overall summary, preserved verbatim.
 - **Strengths** — The reviewer's positive remarks, preserved verbatim.
 - **Atomic Issues** — The list of individual weaknesses and questions, each as a separate response item with a short title and a quoted source excerpt.
 
-> **Conference note:** ICLR extracts 5 scores; ICML extracts 7 (adds Significance and Originality). If your conference is not yet listed, select the closer match and verify the score fields manually.
+> **Conference note:** Make sure the project conference matches the real review form before you run Breakdown. If your venue is not listed, choose the closest match and verify the score fields manually.
 
 ## Step-by-Step Walkthrough
 
 1. **Open or create a project.**
-   On the home screen, create a new project and select your conference (ICLR or ICML). This setting affects which score fields the parser looks for, so choose before you paste any content.
+   On the home screen, create a new project and select your conference (ICLR, ICML, NeurIPS, or ARR). This setting affects which score fields the parser looks for, so choose before you paste any content.
 
 2. **Select the reviewer tab you want to work on.**
    Each reviewer in your project gets its own tab. If this is a new project, there is one tab by default. Add more with the `+` button on the tab row.
@@ -80,7 +84,7 @@ Displays the parsed output in four sections:
 A well-executed Stage 1 breakdown produces:
 
 - All numeric score fields populated with integers (no dashes or letters).
-- An atomic issue list with 4–12 items for a typical ICLR/ICML review.
+- An atomic issue list whose size roughly matches the density of the original review. For many ML venues, 4–12 items is a common range.
 - Each item titled with a short, descriptive phrase (e.g., "Regarding missing baseline comparison on Dataset X").
 - No two items that substantially overlap in what they are asking you to address.
 
