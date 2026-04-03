@@ -493,10 +493,38 @@ const projectHistoryState = {
   typing: null,
 };
 
+const STAGE_I18N_KEYS = {
+  stage1: 'breakdown',
+  stage2: 'reply',
+  stage3: 'firstRound',
+  stage4: 'multiRounds',
+  stage5: 'finalRemarks',
+};
+
+function t(key, vars = null, fallback = '') {
+  if (typeof I18n !== 'undefined' && typeof I18n.t === 'function') {
+    const translated = I18n.t(key, vars || undefined);
+    if (translated !== key) return translated;
+  }
+  return fallback || key;
+}
+
 function normalizePositiveInt(value, fallback, min = 1, max = 20) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, Math.floor(n)));
+}
+
+function updateDrawerToggleUi() {
+  if (!drawerToggleEl) return;
+  const iconEl = drawerToggleEl.querySelector('.drawer-toggle-icon');
+  const isOpen = Boolean(state.drawerOpen);
+  if (iconEl) iconEl.textContent = isOpen ? '◂' : '▸';
+  const label = isOpen
+    ? t('drawer.closeProjectList', null, 'Close project list')
+    : t('drawer.openProjectList', null, 'Open project list');
+  drawerToggleEl.setAttribute('aria-label', label);
+  drawerToggleEl.title = label;
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -1147,6 +1175,7 @@ function renderSidebarStages() {
   sidebarStageListEl.innerHTML = STAGES.map((stage, idx) => {
     const completed = isStageComplete(stage.key);
     const isCurrent = idx === cur;
+    const stageNameKey = STAGE_I18N_KEYS[stage.key] || '';
     const cls = ['sidebar-stage-item'];
     if (completed) cls.push('completed');
     if (isCurrent) cls.push('current');
@@ -1156,8 +1185,8 @@ function renderSidebarStages() {
     return `<button class="${cls.join(' ')}" data-stage="${stage.label}" data-stage-key="${stage.key}">
       <span class="sidebar-stage-dot">${dotContent}</span>
       <span class="sidebar-stage-info">
-        <span class="sidebar-stage-title">${stage.label}</span>
-        <span class="sidebar-stage-desc">${stage.desc}</span>
+        <span class="sidebar-stage-title">${escapeHTML(t(`stage.${stageNameKey}`, null, stage.label))}</span>
+        <span class="sidebar-stage-desc">${escapeHTML(t(`stage.${stageNameKey}Desc`, null, stage.desc))}</span>
       </span>
     </button>`;
   }).join('');
@@ -1171,14 +1200,14 @@ function renderSidebarStages() {
   const memoryReadyCls = documentMemory.status === 'ready' ? ' sidebar-memory-trigger--ready' : '';
 
   sidebarStageListEl.innerHTML = `
-    <button class="sidebar-memory-trigger${memoryReadyCls}${memoryActiveCls}" type="button" data-document-memory-open="1" aria-label="Open Document Memory">
+    <button class="sidebar-memory-trigger${memoryReadyCls}${memoryActiveCls}" type="button" data-document-memory-open="1" aria-label="${escapeHTML(t('docMemory.title', null, 'Document Memory'))}">
       <span class="sidebar-memory-icon">≣</span>
-      <span class="sidebar-memory-text">Document Memory</span>
+      <span class="sidebar-memory-text">${escapeHTML(t('docMemory.sidebarLabel', null, 'Document Memory'))}</span>
     </button>
   ` + sidebarStageListEl.innerHTML;
 
   sidebarStageListEl.insertAdjacentHTML('beforeend', `
-    <button class="sidebar-template-trigger${docsActiveCls}" type="button" data-docs-open="${cur + 1}" aria-label="Open Stage Documents" style="margin-bottom: 8px;">
+    <button class="sidebar-template-trigger${docsActiveCls}" type="button" data-docs-open="${cur + 1}" aria-label="${escapeHTML(t('docMemory.sidebarDocuments', null, 'Documents'))}" style="margin-bottom: 8px;">
       <span class="sidebar-template-icon" style="display:flex; align-items:center; justify-content:center;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -1188,11 +1217,11 @@ function renderSidebarStages() {
           <line x1="10" y1="9" x2="8" y2="9"></line>
         </svg>
       </span>
-      <span class="sidebar-template-text">Documents</span>
+      <span class="sidebar-template-text">${escapeHTML(t('docMemory.sidebarDocuments', null, 'Documents'))}</span>
     </button>
-    <button class="sidebar-template-trigger" type="button" data-template-open="1" aria-label="Open template center">
+    <button class="sidebar-template-trigger" type="button" data-template-open="1" aria-label="${escapeHTML(t('template.title', null, 'Template Center'))}">
       <span class="sidebar-template-icon">✦</span>
-      <span class="sidebar-template-text">Template</span>
+      <span class="sidebar-template-text">${escapeHTML(t('docMemory.sidebarTemplate', null, 'Template'))}</span>
     </button>
   `);
 }
@@ -1233,8 +1262,8 @@ function renderTemplateModal() {
   }).join('');
 
   if (!selected) {
-    templatePreviewTitleEl.textContent = 'Template';
-    templateFieldsEl.innerHTML = '<p class="muted">No template found.</p>';
+    templatePreviewTitleEl.textContent = t('template.previewTitle', null, 'Template');
+    templateFieldsEl.innerHTML = `<p class="muted">${escapeHTML(t('misc.noTemplateFound', null, 'No template found.'))}</p>`;
     return;
   }
 
@@ -1279,7 +1308,7 @@ async function runTemplatePolish() {
   const providerKey = state.apiSettings.activeApiProvider;
   const profile = getActiveApiProfile(providerKey);
   if (!profile || !profile.apiKey) {
-    templateErrorEl.textContent = 'Please configure API Settings first.';
+    templateErrorEl.textContent = t('alert.configureApi', null, 'Please configure API Settings first.');
     return;
   }
   const raw = renderTemplateText();
@@ -1296,7 +1325,7 @@ async function runTemplatePolish() {
     templateRenderedOutputEl.value = polished || raw;
     await copyText(templateRenderedOutputEl.value);
   } catch (error) {
-    templateErrorEl.textContent = error.message || 'AI polish failed.';
+    templateErrorEl.textContent = error.message || t('alert.polishFailed', null, 'AI polish failed.');
   } finally {
     polishBtn.disabled = false;
     polishBtn.classList.remove('loading');
@@ -1337,7 +1366,7 @@ function renderProjectList() {
           <div class="project-item-name">${escapeHTML(p.projectName)}</div>
           <span class="project-meta">${escapeHTML(p.conference || 'ICLR')} · ${fmtDate(p.updatedAt)}</span>
         </div>
-        <div class="project-export-btn" data-export-folder="${p.folderName}" title="Export First Round">
+        <div class="project-export-btn" data-export-folder="${p.folderName}" title="${escapeHTML(t('export.title', null, 'Export First Round'))}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 3 21 3 21 9"></polyline>
             <line x1="10" y1="14" x2="21" y2="3"></line>
@@ -1518,6 +1547,7 @@ async function deleteProjectFromContext(folderName) {
     state.currentFolderName = null;
     projectDrawerEl.classList.remove('open');
     state.drawerOpen = false;
+    updateDrawerToggleUi();
     renderWorkspace();
     syncStageUi();
   }
@@ -1868,7 +1898,7 @@ async function openSkillModal(path, label) {
   const contentEl = document.getElementById('skillModalContent');
 
   titleEl.textContent = label;
-  contentEl.innerHTML = '<p style="color:var(--text-muted)">Loading…</p>';
+  contentEl.innerHTML = `<p style="color:var(--text-muted)">${escapeHTML(t('misc.loading', null, 'Loading…'))}</p>`;
   modalEl.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 
@@ -1878,7 +1908,7 @@ async function openSkillModal(path, label) {
     const raw = await resp.text();
     contentEl.innerHTML = DOMPurify.sanitize(marked.parse(raw));
   } catch (err) {
-    contentEl.textContent = `Failed to load skill: ${err.message}`;
+    contentEl.textContent = t('skill.loadFailed', { message: err.message || '' }, `Failed to load skill: ${err.message}`);
   }
 }
 
@@ -2275,11 +2305,11 @@ function promptReviewerName(onConfirm, onCancel, prefill = '') {
 function confirmReviewerName() {
   const suffix = reviewerNameInputEl.value.trim();
   if (!suffix) {
-    reviewerNameErrorEl.textContent = 'Reviewer identifier is required.';
+    reviewerNameErrorEl.textContent = t('alert.reviewerIdRequired', null, 'Reviewer identifier is required.');
     return;
   }
   if (suffix.length !== 4) {
-    reviewerNameErrorEl.textContent = 'Please enter exactly 4 characters.';
+    reviewerNameErrorEl.textContent = t('alert.reviewerIdLength', null, 'Please enter exactly 4 characters.');
     return;
   }
   reviewerNameModalEl.classList.add('hidden');
@@ -2618,8 +2648,9 @@ function renderStage2Panels(data) {
   const stage2LeftEl = document.getElementById('stage2LeftPanel');
 
   if (!responses.length) {
-    stage2LeftEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Outline</h4><p class="breakdown-placeholder">No responses found. Please run Breakdown in Stage 1 first.</p></div></div>`;
-    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Refined Draft</h4><p class="breakdown-placeholder">No responses found. Please run Breakdown in Stage 1 first.</p></div></div>`;
+    const emptyText = escapeHTML(t('stage2.noResponses', null, 'No responses found. Please run Breakdown in Stage 1 first.'));
+    stage2LeftEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">${escapeHTML(t('stage2.outline', null, 'Outline'))}</h4><p class="breakdown-placeholder">${emptyText}</p></div></div>`;
+    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">${escapeHTML(t('workspace.refinedDraft', null, 'Refined Draft'))}</h4><p class="breakdown-placeholder">${emptyText}</p></div></div>`;
     return;
   }
 
@@ -2627,20 +2658,22 @@ function renderStage2Panels(data) {
   const outlineCards = responses.map((resp, idx) => {
     const item = stage2Map[resp.id] || { outline: '', draft: '', assets: [] };
     const sourceIdx = Number((`${resp.source_id || ''}`.match(/(\d+)$/) || [])[1] || idx + 1);
-    const sourceLabel = resp.source === 'question' ? 'Question' : 'Weakness';
-    const headerTitle = `${sourceLabel} ${sourceIdx}: ${resp.title || 'Untitled'}`;
+    const sourceLabel = resp.source === 'question'
+      ? t('stage2.sourceQuestion', null, 'Question')
+      : t('stage2.sourceWeakness', null, 'Weakness');
+    const headerTitle = `${sourceLabel} ${sourceIdx}: ${resp.title || t('stage2.untitled', null, 'Untitled')}`;
     return `<div class="response-card stage2-outline-card" data-response-id="${escapeHTML(resp.id)}">
       <div class="response-header response-header-red">Response ${idx + 1}</div>
       <div class="fixed-issue-meta">
         <h5 class="stage2-issue-title">${escapeHTML(headerTitle)}</h5>
         <div class="fixed-issue-quote">&gt; ${escapeHTML(resp.quoted_issue || '')}</div>
       </div>
-      <textarea class="response-textarea outline-textarea" data-stage2-field="outline" data-response-id="${escapeHTML(resp.id)}" placeholder="Input a response outline for this issue (key points, evidence, and writing strategy).">${escapeHTML(item.outline || '')}</textarea>
-      <div class="stage2-outline-tip">Right click in outline box: Insert Table / Code</div>
+      <textarea class="response-textarea outline-textarea" data-stage2-field="outline" data-response-id="${escapeHTML(resp.id)}" placeholder="${escapeHTML(t('stage2.outlinePlaceholder', null, 'Input a response outline for this issue (key points, evidence, and writing strategy).'))}">${escapeHTML(item.outline || '')}</textarea>
+      <div class="stage2-outline-tip">${escapeHTML(t('stage2.outlineTip', null, 'Right click in outline box: Insert Table / Code'))}</div>
     </div>`;
   }).join('');
 
-  stage2LeftEl.innerHTML = `<h3 class="breakdown-heading">My Reply</h3><div class="responses-grid">${outlineCards}</div>`;
+  stage2LeftEl.innerHTML = `<h3 class="breakdown-heading">${escapeHTML(t('stage2.myReply', null, 'My Reply'))}</h3><div class="responses-grid">${outlineCards}</div>`;
 
   // ── Right panel: Refined Draft cards ──
   const progressTotal = stage2RefineProgress?.total || 0;
@@ -2648,7 +2681,7 @@ function renderStage2Panels(data) {
   const progressPercent = progressTotal > 0 ? Math.min(100, Math.round((progressCurrent / progressTotal) * 100)) : 0;
   const progressHtml = progressTotal > 0
     ? `<div class="stage2-progress-wrap">
-      <div class="stage2-progress-title">Refine progress: ${progressCurrent}/${progressTotal}${stage2RefineProgress?.responseId ? ` · ${escapeHTML(stage2RefineProgress.responseId)}` : ''}</div>
+      <div class="stage2-progress-title">${escapeHTML(t('stage2.refineProgress', { current: `${progressCurrent}`, total: `${progressTotal}` }, `Refine progress: ${progressCurrent}/${progressTotal}`))}${stage2RefineProgress?.responseId ? ` · ${escapeHTML(stage2RefineProgress.responseId)}` : ''}</div>
       <div class="stage2-progress-track"><div class="stage2-progress-fill" style="width:${progressPercent}%"></div></div>
     </div>`
     : '';
@@ -2657,18 +2690,20 @@ function renderStage2Panels(data) {
     const item = stage2Map[resp.id] || { outline: '', draft: '', assets: [] };
     const hasDraft = (item.draft || '').trim().length > 0;
     const sourceIdx = Number((`${resp.source_id || ''}`.match(/(\d+)$/) || [])[1] || idx + 1);
-    const sourceLabel = resp.source === 'question' ? 'Question' : 'Weakness';
-    const headerTitle = `${sourceLabel} ${sourceIdx}: ${resp.title || 'Untitled'}`;
+    const sourceLabel = resp.source === 'question'
+      ? t('stage2.sourceQuestion', null, 'Question')
+      : t('stage2.sourceWeakness', null, 'Weakness');
+    const headerTitle = `${sourceLabel} ${sourceIdx}: ${resp.title || t('stage2.untitled', null, 'Untitled')}`;
     const isRefining = stage2RefineProgress?.responseId === resp.id;
     return `<div class="response-card stage2-draft-card" data-response-id="${escapeHTML(resp.id)}">
       <div class="response-header response-header-blue">Response ${idx + 1}</div>
       <div class="stage2-draft-head-row">
         <h5 class="stage2-issue-title">${escapeHTML(headerTitle)}</h5>
-        <button class="stage2-refine-one-btn ${isRefining ? 'loading' : ''}" data-stage2-refine-one="${escapeHTML(resp.id)}" title="Refine this response only" aria-label="Refine this response only">${isRefining ? '…' : '↗'}</button>
+        <button class="stage2-refine-one-btn ${isRefining ? 'loading' : ''}" data-stage2-refine-one="${escapeHTML(resp.id)}" title="${escapeHTML(t('stage2.refineOnly', null, 'Refine this response only'))}" aria-label="${escapeHTML(t('stage2.refineOnly', null, 'Refine this response only'))}">${isRefining ? '…' : '↗'}</button>
       </div>
       ${hasDraft
-        ? `<textarea class="response-textarea draft-textarea" data-stage2-field="draft" data-response-id="${escapeHTML(resp.id)}" placeholder="Refined academic reply will appear here.">${escapeHTML(item.draft)}</textarea>`
-        : `<div class="stage2-draft-placeholder">Click <strong>Refine</strong> to generate academic reply for this response.</div>`
+        ? `<textarea class="response-textarea draft-textarea" data-stage2-field="draft" data-response-id="${escapeHTML(resp.id)}" placeholder="${escapeHTML(t('stage2.refinedPlaceholder', null, 'Refined academic reply will appear here.'))}">${escapeHTML(item.draft)}</textarea>`
+        : `<div class="stage2-draft-placeholder">${escapeHTML(t('stage2.refinedHint', null, 'Click Refine to generate academic reply for this response.'))}</div>`
       }
     </div>`;
   }).join('');
@@ -2683,8 +2718,8 @@ function ensureStage2ContextMenu() {
   menu.id = 'stage2OutlineMenu';
   menu.className = 'stage2-outline-menu hidden';
   menu.innerHTML = `
-    <button class="stage2-outline-menu-item" data-outline-insert="table">Insert Table</button>
-        <button class="stage2-outline-menu-item" data-outline-insert="code">Insert Code</button>
+    <button class="stage2-outline-menu-item" data-outline-insert="table">${escapeHTML(t('insertTable.title', null, 'Insert Table'))}</button>
+        <button class="stage2-outline-menu-item" data-outline-insert="code">${escapeHTML(t('insertCode.title', null, 'Insert Code'))}</button>
   `;
   document.body.appendChild(menu);
   return menu;
@@ -2888,7 +2923,7 @@ async function runSelectedTextAction(actionKey) {
   const providerKey = state.apiSettings.activeApiProvider;
   const profile = getActiveApiProfile(providerKey);
   if (!profile || !profile.apiKey) {
-    showTextActionErrorToast('Please configure API Settings first.');
+    showTextActionErrorToast(t('alert.configureApi', null, 'Please configure API Settings first.'));
     return;
   }
 
@@ -3150,7 +3185,7 @@ async function skill1_condense(allSource) {
   const providerKey = state.apiSettings.activeApiProvider;
   const profile = getActiveApiProfile(providerKey);
   if (!profile || !profile.apiKey) {
-    throw new Error('Please configure API Settings first.');
+    throw new Error(t('alert.configureApi', null, 'Please configure API Settings first.'));
   }
   const result = await window.studioApi.runStage4Condense({
     providerKey,
@@ -3174,7 +3209,7 @@ async function skill2_refine(condensedMarkdown, followupQuestion, draft, documen
   const providerKey = state.apiSettings.activeApiProvider;
   const profile = getActiveApiProfile(providerKey);
   if (!profile || !profile.apiKey) {
-    throw new Error('Please configure API Settings first.');
+    throw new Error(t('alert.configureApi', null, 'Please configure API Settings first.'));
   }
   const result = await window.studioApi.runStage4Refine({
     providerKey,
@@ -3229,7 +3264,7 @@ function renderStage4ProgressLine(label, step) {
   return `<div class="stage4-progress-line" data-status="${escapeHTML(status)}">
     <span class="stage4-progress-dot"></span>
     <span class="stage4-progress-label">${escapeHTML(label)}</span>
-    <span class="stage4-progress-text">${escapeHTML(text || 'Waiting...')}</span>
+    <span class="stage4-progress-text">${escapeHTML(text || t('stage4.waiting', null, 'Waiting...'))}</span>
   </div>`;
 }
 
@@ -3242,17 +3277,17 @@ function renderStage4Panels() {
 
   stage2LeftEl.innerHTML = `
     <div class="stage4-left-wrap">
-      <div class="stage3-reviewer-label">Reviewer ${escapeHTML(reviewerName)}</div>
+      <div class="stage3-reviewer-label">${escapeHTML(t('stage3.reviewerLabel', { name: reviewerName }, `Reviewer ${reviewerName}`))}</div>
       <div class="breakdown-block stage4-left-block">
         <div class="breakdown-section">
-          <h4 class="breakdown-section-title">Reviewer Follow-up (Raw)</h4>
-          <textarea class="response-textarea stage4-followup-editor" data-stage4-field="followupQuestion" placeholder="Paste the complete reviewer follow-up question or concern here.">${escapeHTML(stage4.followupQuestion || '')}</textarea>
+          <h4 class="breakdown-section-title">${escapeHTML(t('stage4.reviewerFollowupRaw', null, 'Reviewer Follow-up (Raw)'))}</h4>
+          <textarea class="response-textarea stage4-followup-editor" data-stage4-field="followupQuestion" placeholder="${escapeHTML(t('stage4.followupPlaceholder', null, 'Paste the complete reviewer follow-up question or concern here.'))}">${escapeHTML(stage4.followupQuestion || '')}</textarea>
         </div>
       </div>
       <div class="breakdown-block stage4-left-block">
         <div class="breakdown-section">
-          <h4 class="breakdown-section-title">Draft Editor</h4>
-          <textarea class="response-textarea stage4-draft-editor" data-stage4-field="draft" placeholder="Draft your follow-up response for this reviewer...">${escapeHTML(stage4.draft || '')}</textarea>
+          <h4 class="breakdown-section-title">${escapeHTML(t('stage4.draftEditor', null, 'Draft Editor'))}</h4>
+          <textarea class="response-textarea stage4-draft-editor" data-stage4-field="draft" placeholder="${escapeHTML(t('stage4.draftPlaceholder', null, 'Draft your follow-up response for this reviewer...'))}">${escapeHTML(stage4.draft || '')}</textarea>
         </div>
       </div>
     </div>`;
@@ -3260,23 +3295,23 @@ function renderStage4Panels() {
   const refinedText = stage4.refinedText || '';
   const previewBody = refinedText
     ? `<div class="stage5-preview-host stage4-preview-host">${renderStage5PreviewHtml(refinedText)}</div>`
-    : '<p class="breakdown-placeholder">Nothing to preview yet. Click Refine to generate the follow-up response.</p>';
+    : `<p class="breakdown-placeholder">${escapeHTML(t('stage4.nothingToPreview', null, 'Nothing to preview yet. Click Refine to generate the follow-up response.'))}</p>`;
   const progress = stage4.progress || createStage4ProgressState();
   const hasProgress = Boolean(progress.step1?.text || progress.step2?.text || isRunning);
   breakdownContentEl.innerHTML = `
     <div class="stage4-right-wrap">
       <div class="stage4-progress-wrap ${hasProgress ? '' : 'stage4-progress-muted'}">
-        ${renderStage4ProgressLine('Step 1', progress.step1)}
-        ${renderStage4ProgressLine('Step 2', progress.step2)}
+        ${renderStage4ProgressLine(t('stage4.step1', null, 'Step 1'), progress.step1)}
+        ${renderStage4ProgressLine(t('stage4.step2', null, 'Step 2'), progress.step2)}
       </div>
       <div class="breakdown-block">
         <div class="breakdown-section">
           <div class="stage4-section-head">
-            <h4 class="breakdown-section-title">Final Refined Output (Preview)</h4>
-            <button class="btn" data-stage4-copy-refined="1">Copy</button>
+            <h4 class="breakdown-section-title">${escapeHTML(t('stage4.finalOutputPreview', null, 'Final Refined Output (Preview)'))}</h4>
+            <button class="btn" data-stage4-copy-refined="1">${escapeHTML(t('stage4Popup.copy', null, 'Copy'))}</button>
           </div>
           ${previewBody}
-          ${stage4.condensedPath ? `<p class="muted stage4-condensed-path">Condensed context: ${escapeHTML(stage4.condensedPath)}</p>` : ''}
+          ${stage4.condensedPath ? `<p class="muted stage4-condensed-path">${escapeHTML(t('stage4.condensedContext', { path: stage4.condensedPath }, `Condensed context: ${stage4.condensedPath}`))}</p>` : ''}
         </div>
       </div>
     </div>`;
@@ -3424,12 +3459,12 @@ function closeStage5TemplateModal() {
 function applyStage5TemplateSelection() {
   const picked = `${stage5TemplateSelectEl?.value || ''}`.trim();
   if (!picked) {
-    stage5TemplateErrorEl.textContent = 'Please select a template.';
+    stage5TemplateErrorEl.textContent = t('stage5.selectTemplate', null, 'Please select a template.');
     return;
   }
   const selected = getStage5TemplateEntry(picked);
   if (!selected?.entry) {
-    stage5TemplateErrorEl.textContent = 'Selected template is unavailable.';
+    stage5TemplateErrorEl.textContent = t('stage5.selectedTemplateUnavailable', null, 'Selected template is unavailable.');
     return;
   }
   const stage5 = getStage5State();
@@ -3450,7 +3485,7 @@ function applyStage5TemplateSelection() {
 function renderStage5PreviewHtml(markdownSource = '') {
   const rawHtml = renderStage3Markdown(markdownSource || '');
   const safeHtml = sanitizeStage3Html(rawHtml);
-  return `<div class="stage5-openreview-preview">${safeHtml || '<p class="breakdown-placeholder">Nothing to preview yet.</p>'}</div>`;
+  return `<div class="stage5-openreview-preview">${safeHtml || `<p class="breakdown-placeholder">${escapeHTML(t('stage3.nothingToPreview', null, 'Nothing to preview yet.'))}</p>`}</div>`;
 }
 
 function fitStage5SourceEditorHeight() {
@@ -3496,7 +3531,7 @@ function renderStage5ProgressLine(label, step) {
   return `<div class="stage4-progress-line" data-status="${escapeHTML(status)}">
     <span class="stage4-progress-dot"></span>
     <span class="stage4-progress-label">${escapeHTML(label)}</span>
-    <span class="stage4-progress-text">${escapeHTML(text || 'Waiting...')}</span>
+    <span class="stage4-progress-text">${escapeHTML(text || t('stage4.waiting', null, 'Waiting...'))}</span>
   </div>`;
 }
 
@@ -3507,8 +3542,8 @@ function renderStage5Panels() {
   const selectedTemplate = getStage5TemplateEntry(stage5.styleKey);
 
   if (!stage5.templateConfirmed || !selectedTemplate?.entry) {
-    stage2LeftEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Final Remarks Template</h4><p class="breakdown-placeholder">Please select a Stage5 template first.</p></div></div>`;
-    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Rendered Preview</h4><p class="breakdown-placeholder">Nothing to preview yet.</p></div></div>`;
+    stage2LeftEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">${escapeHTML(t('stage5.finalRemarksTemplate', null, 'Final Remarks Template'))}</h4><p class="breakdown-placeholder">${escapeHTML(t('stage5.selectTemplateFirst', null, 'Please select a Stage5 template first.'))}</p></div></div>`;
+    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">${escapeHTML(t('stage5.renderedPreview', null, 'Rendered Preview'))}</h4><p class="breakdown-placeholder">${escapeHTML(t('stage3.nothingToPreview', null, 'Nothing to preview yet.'))}</p></div></div>`;
     if (stage5TemplateModalEl?.classList.contains('hidden')) {
       openStage5TemplateModal();
     }
@@ -3521,13 +3556,13 @@ function renderStage5Panels() {
 
   const reviewerRows = state.reviewers.map((reviewer, idx) => {
     const reviewerId = getReviewerId(idx);
-    const reviewerLabel = reviewer.name ? `Reviewer ${reviewer.name}` : `Reviewer ${idx + 1}`;
+    const reviewerLabel = t('stage3.reviewerLabel', { name: reviewer.name || `${idx + 1}` }, `Reviewer ${reviewer.name || idx + 1}`);
     const original = `${state.breakdownData?.[idx]?.scores?.rating || ''}`.trim() || 'N/A';
     const finalRating = `${stage5.finalRatings[reviewerId] || ''}`;
     return `<label class="stage5-score-row">
       <span class="stage5-score-row-label">${escapeHTML(reviewerLabel)}: ${escapeHTML(original)}</span>
       <span class="stage5-score-row-arrow">→</span>
-      <input class="text-input stage5-rating-input" data-stage5-rating="${escapeHTML(reviewerId)}" value="${escapeHTML(finalRating)}" placeholder="final rating" />
+      <input class="text-input stage5-rating-input" data-stage5-rating="${escapeHTML(reviewerId)}" value="${escapeHTML(finalRating)}" placeholder="${escapeHTML(t('stage5.finalRating', null, 'final rating'))}" />
     </label>`;
   }).join('');
 
@@ -3537,35 +3572,35 @@ function renderStage5Panels() {
   stage2LeftEl.innerHTML = `
     <div class="stage5-left-wrap">
       <div class="stage5-score-board">
-        ${reviewerRows || '<p class="muted">No reviewers found.</p>'}
+        ${reviewerRows || `<p class="muted">${escapeHTML(t('stage5.noReviewers', null, 'No reviewers found.'))}</p>`}
       </div>
       <div class="breakdown-block stage4-left-block">
         <div class="breakdown-section">
-          <h4 class="breakdown-section-title">Raw Source (Editable)</h4>
-          <textarea class="response-textarea stage5-source-editor" data-stage5-field="source" placeholder="Stage5 template source...">${escapeHTML(stage5.source || '')}</textarea>
+          <h4 class="breakdown-section-title">${escapeHTML(t('stage5.rawSourceEditable', null, 'Raw Source (Editable)'))}</h4>
+          <textarea class="response-textarea stage5-source-editor" data-stage5-field="source" placeholder="${escapeHTML(t('stage5.sourcePlaceholder', null, 'Stage5 template source...'))}">${escapeHTML(stage5.source || '')}</textarea>
         </div>
       </div>
     </div>`;
 
   const sampleMode = stage5.previewMode === 'sample';
-  const toggleLabel = sampleMode ? 'Return' : 'Final Template';
+  const toggleLabel = sampleMode ? t('stage5.return', null, 'Return') : t('stage5.finalTemplateBtn', null, 'Final Template');
   const previewHtml = sampleMode
     ? renderStage5PreviewHtml(STAGE5_SAMPLE_TEMPLATE || '')
     : (stage5.renderedHtml || '');
   const previewBody = previewHtml
     ? `<div class="stage5-preview-host">${previewHtml}</div>`
-    : `<p class="breakdown-placeholder">${sampleMode ? 'Sample template is unavailable.' : 'Click Preview to render the current Stage5 source.'}</p>`;
+    : `<p class="breakdown-placeholder">${escapeHTML(sampleMode ? t('stage5.sampleUnavailable', null, 'Sample template is unavailable.') : t('stage5.clickPreview', null, 'Click Preview to render the current Stage5 source.'))}</p>`;
 
   breakdownContentEl.innerHTML = `
     <div class="stage5-right-wrap">
       <div class="stage4-progress-wrap ${hasProgress ? '' : 'stage4-progress-muted'}">
-        ${renderStage5ProgressLine('Step 1', progress.step1)}
-        ${renderStage5ProgressLine('Step 2', progress.step2)}
+        ${renderStage5ProgressLine(t('stage4.step1', null, 'Step 1'), progress.step1)}
+        ${renderStage5ProgressLine(t('stage4.step2', null, 'Step 2'), progress.step2)}
       </div>
       <div class="breakdown-block">
         <div class="breakdown-section">
           <div class="stage4-section-head">
-            <h4 class="breakdown-section-title">${sampleMode ? 'Final Template Sample (Read-only)' : 'Rendered Preview (Read-only)'}</h4>
+            <h4 class="breakdown-section-title">${escapeHTML(sampleMode ? t('stage5.finalTemplateSampleReadonly', null, 'Final Template Sample (Read-only)') : t('stage3.renderedPreviewReadonly', null, 'Rendered Preview (Read-only)'))}</h4>
             <button class="btn" data-stage5-toggle-sample="1">${toggleLabel}</button>
           </div>
           ${previewBody}
@@ -3588,7 +3623,7 @@ async function skill5_finalize(templateSource, reviewerSummaries) {
   const providerKey = state.apiSettings.activeApiProvider;
   const profile = getActiveApiProfile(providerKey);
   if (!profile || !profile.apiKey) {
-    throw new Error('Please configure API Settings first.');
+    throw new Error(t('alert.configureApi', null, 'Please configure API Settings first.'));
   }
   const result = await window.studioApi.runStage5FinalRemarks({
     providerKey,
@@ -3604,11 +3639,11 @@ async function runStage5AutoFillPipeline() {
   if (stage5AutoFillRuntime.running) return;
   const stage5 = getStage5State();
   if (!`${stage5.source || ''}`.trim()) {
-    alert('Stage5 template source is empty. Please select a template first.');
+    alert(t('alert.stage5Empty', null, 'Stage5 template source is empty. Please select a template first.'));
     return;
   }
   if (!state.reviewers.length) {
-    alert('No reviewers found.');
+    alert(t('stage5.noReviewers', null, 'No reviewers found.'));
     return;
   }
 
@@ -3629,9 +3664,9 @@ async function runStage5AutoFillPipeline() {
       const reviewerLabel = state.reviewers[idx]?.name || `${idx + 1}`;
       const allSource = getStage3AllSource(idx);
       if (!`${allSource || ''}`.trim()) {
-        throw new Error(`Stage3 All source is empty for Reviewer ${reviewerLabel}.`);
+        throw new Error(t('stage5.stage3AllEmpty', { reviewer: reviewerLabel }, `Stage3 All source is empty for Reviewer ${reviewerLabel}.`));
       }
-      setStage5Progress('step1', 'running', `Condensing Reviewer ${reviewerLabel}...`);
+      setStage5Progress('step1', 'running', t('stage5.condensingReviewer', { reviewer: reviewerLabel }, `Condensing Reviewer ${reviewerLabel}...`));
       renderStage5Panels();
       const condensedMarkdown = await skill1_condense(allSource);
       const pathSaved = await saveStage5CondensedMarkdownFile(reviewerId, condensedMarkdown);
@@ -3837,7 +3872,7 @@ function renderPreview(text) {
 function updateStage3CharCounter(text) {
   const label = document.querySelector('[data-stage3-char-counter]');
   if (!label) return;
-  label.textContent = `Total words: ${countChars(text)}`;
+  label.textContent = t('stage3.totalChars', { count: `${countChars(text)}` }, `Total chars: ${countChars(text)}`);
 }
 
 function openStage3BreakdownModal() {
@@ -4215,7 +4250,7 @@ function parseAndSanitizeStage3Markdown(markdownSource, themeColor) {
   const rawHtml = renderStage3Markdown(markedSource);
   const htmlWithColorTokens = injectStage3LatexTokens(rawHtml, tokens);
   const safeHtml = sanitizeStage3Html(htmlWithColorTokens);
-  return `<div class="stage3-openreview-preview" style="--stage3-theme-color:${themeColor};">${safeHtml || '<p class="breakdown-placeholder">Nothing to preview yet.</p>'}</div>`;
+  return `<div class="stage3-openreview-preview" style="--stage3-theme-color:${themeColor};">${safeHtml || `<p class="breakdown-placeholder">${escapeHTML(t('stage3.nothingToPreview', null, 'Nothing to preview yet.'))}</p>`}</div>`;
 }
 
 function renderStage3Panels() {
@@ -4224,8 +4259,8 @@ function renderStage3Panels() {
   const selectedId = ensureStage3Selection();
 
   if (!responses.length) {
-    stage2LeftEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Markdown Source</h4><p class="breakdown-placeholder">No responses found. Please complete Stage 1 and Stage 2 first.</p></div></div>`;
-    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Rendered Preview</h4><p class="breakdown-placeholder">Nothing to preview yet.</p></div></div>`;
+    stage2LeftEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">${escapeHTML(t('stage3.rawSourceEditable', null, 'Editable Raw Source (Markdown)'))}</h4><p class="breakdown-placeholder">${escapeHTML(t('stage3.noResponses', null, 'No responses found. Please complete Stage 1 and Stage 2 first.'))}</p></div></div>`;
+    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">${escapeHTML(t('stage3.renderedPreview', null, 'Rendered Preview'))}</h4><p class="breakdown-placeholder">${escapeHTML(t('stage3.nothingToPreview', null, 'Nothing to preview yet.'))}</p></div></div>`;
     return;
   }
 
@@ -4240,18 +4275,18 @@ function renderStage3Panels() {
     stage2LeftEl.innerHTML = `
       <div class="stage3-left-wrap">
         <div class="stage3-head-row">
-          <div class="stage3-reviewer-label">Reviewer ${escapeHTML(reviewerName)}</div>
+          <div class="stage3-reviewer-label">${escapeHTML(t('stage3.reviewerLabel', { name: reviewerName }, `Reviewer ${reviewerName}`))}</div>
           <div class="stage3-head-actions">
-            <div class="stage3-counter-label" data-stage3-char-counter>Total words: ${countChars(allDoc)}</div>
-            <button class="btn primary stage3-breakdown-float-btn" type="button" data-stage3-breakdown-open="1">To break down</button>
+            <div class="stage3-counter-label" data-stage3-char-counter>${escapeHTML(t('stage3.totalChars', { count: `${countChars(allDoc)}` }, `Total chars: ${countChars(allDoc)}`))}</div>
+            <button class="btn primary stage3-breakdown-float-btn" type="button" data-stage3-breakdown-open="1">${escapeHTML(t('stage3Breakdown.title', null, 'To break down'))}</button>
           </div>
         </div>
         <div class="stage3-issues-row">${chips}</div>
-        <div class="stage3-plan-head">Combined Raw Source (Read-only)</div>
+        <div class="stage3-plan-head">${escapeHTML(t('stage3.rawSourceCombinedReadonly', null, 'Combined Raw Source (Read-only)'))}</div>
         <textarea class="response-textarea outline-textarea stage3-source-editor stage3-source-editor-readonly" readonly>${escapeHTML(allDoc)}</textarea>
       </div>`;
     const allPreviewHtml = renderPreview(allDoc);
-    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Rendered Preview (Read-only)</h4><div class="stage3-preview-host">${allPreviewHtml}</div></div></div>`;
+    breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">${escapeHTML(t('stage3.renderedPreviewReadonly', null, 'Rendered Preview (Read-only)'))}</h4><div class="stage3-preview-host">${allPreviewHtml}</div></div></div>`;
     autoExpandStage3Editor();
     updateStage3CharCounter(allDoc);
     return;
@@ -4271,19 +4306,19 @@ function renderStage3Panels() {
   stage2LeftEl.innerHTML = `
     <div class="stage3-left-wrap">
       <div class="stage3-head-row">
-        <div class="stage3-reviewer-label">Reviewer ${escapeHTML(reviewerName)}</div>
-        <div class="stage3-counter-label" data-stage3-char-counter>Total words: ${countChars(draft.markdownSource)}</div>
+        <div class="stage3-reviewer-label">${escapeHTML(t('stage3.reviewerLabel', { name: reviewerName }, `Reviewer ${reviewerName}`))}</div>
+        <div class="stage3-counter-label" data-stage3-char-counter>${escapeHTML(t('stage3.totalChars', { count: `${countChars(draft.markdownSource)}` }, `Total chars: ${countChars(draft.markdownSource)}`))}</div>
       </div>
       <div class="stage3-issues-row">${chips}</div>
-      <div class="stage3-plan-head">Editable Raw Source (Markdown)</div>
-      <textarea class="response-textarea outline-textarea stage3-source-editor" data-stage3-field="markdownSource" data-response-id="${escapeHTML(selectedResp.id)}" placeholder="Write raw markdown source here...">${escapeHTML(draft.markdownSource)}</textarea>
+      <div class="stage3-plan-head">${escapeHTML(t('stage3.rawSourceEditable', null, 'Editable Raw Source (Markdown)'))}</div>
+      <textarea class="response-textarea outline-textarea stage3-source-editor" data-stage3-field="markdownSource" data-response-id="${escapeHTML(selectedResp.id)}" placeholder="${escapeHTML(t('stage3.writeRawSource', null, 'Write raw markdown source here...'))}">${escapeHTML(draft.markdownSource)}</textarea>
     </div>`;
 
   const previewBody = draft.renderedHtml
     ? `<div class="stage3-preview-host">${draft.renderedHtml}</div>`
-    : '<p class="breakdown-placeholder">Click Preview to render the current Markdown source.</p>';
+    : `<p class="breakdown-placeholder">${escapeHTML(t('stage3.nothingToPreview', null, 'Nothing to preview yet.'))}</p>`;
 
-  breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">Rendered Preview (Read-only)</h4>${previewBody}</div></div>`;
+  breakdownContentEl.innerHTML = `<div class="breakdown-block"><div class="breakdown-section"><h4 class="breakdown-section-title">${escapeHTML(t('stage3.renderedPreviewReadonly', null, 'Rendered Preview (Read-only)'))}</h4>${previewBody}</div></div>`;
   autoExpandStage3Editor();
   updateStage3CharCounter(draft.markdownSource);
 }
@@ -4605,7 +4640,7 @@ async function runStage1ApiBreakdown(rawText) {
   const providerKey = state.apiSettings.activeApiProvider;
   const profile = getActiveApiProfile(providerKey);
   if (!profile || !profile.apiKey) {
-    throw new Error('Please configure API Settings first.');
+    throw new Error(t('alert.configureApi', null, 'Please configure API Settings first.'));
   }
   return window.studioApi.runStage1Breakdown({
     providerKey,
@@ -4631,7 +4666,7 @@ function runStage2DirectTransfer() {
     }
   }
   if (!transferred) {
-    alert('No outlines to transfer. Please write outlines first.');
+    alert(t('stage2.noOutlinesToTransfer', null, 'No outlines to transfer. Please write outlines first.'));
     return;
   }
   state.stage2Replies[state.activeReviewerIdx] = stage2Map;
@@ -4651,7 +4686,7 @@ async function runStage2RefineOneResponse(responseId) {
   const providerKey = state.apiSettings.activeApiProvider;
   const profile = getActiveApiProfile(providerKey);
   if (!profile || !profile.apiKey) {
-    alert('Please configure API Settings first.');
+    alert(t('alert.configureApi', null, 'Please configure API Settings first.'));
     return;
   }
 
@@ -4659,7 +4694,7 @@ async function runStage2RefineOneResponse(responseId) {
   const draftCell = stage2Map[resp.id] || { outline: '', draft: '', assets: [] };
   const documentMemoryMarkdown = getTrimmedDocumentMemoryMarkdownForStage();
   if (!`${draftCell.outline || ''}`.trim()) {
-    alert('This response has no outline yet. Please write an outline first.');
+    alert(t('stage2.noOutlineYet', null, 'This response has no outline yet. Please write an outline first.'));
     return;
   }
 
@@ -4705,14 +4740,14 @@ async function runStage2RefineForResponses() {
   const data = getBreakdownDataForReviewer(state.activeReviewerIdx);
   const responses = Array.isArray(data.responses) ? data.responses : [];
   if (!responses.length) {
-    alert('No Stage1 responses found.');
+    alert(t('stage2.noStage1Responses', null, 'No Stage1 responses found.'));
     return;
   }
 
   const providerKey = state.apiSettings.activeApiProvider;
   const profile = getActiveApiProfile(providerKey);
   if (!profile || !profile.apiKey) {
-    alert('Please configure API Settings first.');
+    alert(t('alert.configureApi', null, 'Please configure API Settings first.'));
     return;
   }
 
@@ -4827,7 +4862,7 @@ function showStageAdvanceModal() {
   // If advancing from Stage 2 to Stage 3
   if (curIdx === 1) {
     if (!isStage2FullyRefined()) {
-      alert("Missing Refined Answers: Please ensure all responses have a generated or manually entered Refined Draft before proceeding.");
+      alert(t('stage2.missingRefinedAnswers', null, 'Missing Refined Answers: Please ensure all responses have a generated or manually entered Refined Draft before proceeding.'));
       return;
     }
   }
@@ -4868,6 +4903,7 @@ function enterProjectMode() {
   appEl.classList.add('project-mode');
   projectDrawerEl.classList.remove('hidden');
   renderSidebarStages();
+  updateDrawerToggleUi();
 }
 
 function exitProjectMode() {
@@ -4877,6 +4913,7 @@ function exitProjectMode() {
   projectDrawerEl.classList.add('hidden');
   projectDrawerEl.classList.remove('open');
   state.drawerOpen = false;
+  updateDrawerToggleUi();
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -4885,6 +4922,7 @@ function exitProjectMode() {
 function toggleDrawer() {
   state.drawerOpen = !state.drawerOpen;
   projectDrawerEl.classList.toggle('open', state.drawerOpen);
+  updateDrawerToggleUi();
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -5312,7 +5350,9 @@ function syncStageUi() {
   const isStage5 = stageKey === 'stage5';
   const isRefineMode = isStage2 || isStage4;
   const isPreviewMode = isStage3 || isStage5;
-  convertBtnEl.querySelector('.convert-label').textContent = isRefineMode ? 'Refine' : (isPreviewMode ? 'Preview' : 'Break down');
+  convertBtnEl.querySelector('.convert-label').textContent = isRefineMode
+    ? t('workspace.refine', null, 'Refine')
+    : (isPreviewMode ? t('workspace.preview', null, 'Preview') : t('workspace.breakDown', null, 'Break down'));
 
   const iconEl = convertBtnEl.querySelector('.convert-icon');
   if (isRefineMode) {
@@ -5326,12 +5366,12 @@ function syncStageUi() {
   const heading = document.querySelector('.breakdown-panel > .breakdown-heading');
   if (heading) {
     heading.textContent = isStage2
-      ? 'Refined Draft'
+      ? t('workspace.refinedDraft', null, 'Refined Draft')
       : (isStage3
-        ? 'Preview'
+        ? t('workspace.preview', null, 'Preview')
         : (isStage4
-          ? 'Final Refined Output'
-          : (isStage5 ? 'Final Remarks Preview' : 'Structured Breakdown')));
+          ? t('workspace.finalRefinedOutput', null, 'Final Refined Output')
+          : (isStage5 ? t('workspace.finalRemarksPreview', null, 'Final Remarks Preview') : t('workspace.structuredBreakdown', null, 'Structured Breakdown'))));
   }
 
   // Toggle left panel: reviewer input vs outline panel
@@ -5356,14 +5396,14 @@ function syncStageUi() {
     const labelEl = stage3AdjustStyleBtn.querySelector('.convert-label');
     const iconSpan = stage3AdjustStyleBtn.querySelector('.convert-icon');
     if (isStage5) {
-      if (labelEl) labelEl.textContent = 'Template';
-      stage3AdjustStyleBtn.title = 'Choose template';
-      stage3AdjustStyleBtn.setAttribute('aria-label', 'Choose template');
+      if (labelEl) labelEl.textContent = t('workspace.template', null, 'Template');
+      stage3AdjustStyleBtn.title = t('workspace.chooseTemplate', null, 'Choose template');
+      stage3AdjustStyleBtn.setAttribute('aria-label', t('workspace.chooseTemplate', null, 'Choose template'));
       if (iconSpan) {
         iconSpan.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="6" rx="1.5"></rect><rect x="3" y="14" width="18" height="6" rx="1.5"></rect></svg>';
       }
     } else {
-      if (labelEl) labelEl.textContent = 'Style';
+      if (labelEl) labelEl.textContent = t('workspace.style', null, 'Style');
       stage3AdjustStyleBtn.title = 'Adjust Style';
       stage3AdjustStyleBtn.setAttribute('aria-label', 'Adjust Style');
       if (iconSpan) {
@@ -5383,14 +5423,14 @@ function syncStageUi() {
     const labelEl = stage2AutoFitBtn.querySelector('.convert-label');
     const iconSpan = stage2AutoFitBtn.querySelector('.convert-icon');
     if (isStage5) {
-      if (labelEl) labelEl.textContent = 'Auto Fill';
+      if (labelEl) labelEl.textContent = t('workspace.autoFill', null, 'Auto Fill');
       stage2AutoFitBtn.title = 'Auto fill final remarks';
       stage2AutoFitBtn.setAttribute('aria-label', 'Auto fill final remarks');
       if (iconSpan) {
         iconSpan.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>';
       }
     } else {
-      if (labelEl) labelEl.textContent = 'Auto Fit';
+      if (labelEl) labelEl.textContent = t('workspace.autoFit', null, 'Auto Fit');
       stage2AutoFitBtn.title = 'Auto fit heights';
       stage2AutoFitBtn.setAttribute('aria-label', 'Auto fit heights');
       if (iconSpan) {
@@ -5428,6 +5468,7 @@ async function init() {
   await loadProjects();
   renderWorkspace();
   syncStageUi();
+  updateDrawerToggleUi();
 }
 
 function isProjectHistoryEditableTarget(target) {
@@ -6580,5 +6621,16 @@ window.addEventListener('resize', () => {
   autoExpandStage3Editor();
   fitStage5SourceEditorHeight();
 });
+
+if (typeof I18n !== 'undefined' && typeof I18n.onChange === 'function') {
+  I18n.onChange(() => {
+    if (state.currentDoc) {
+      renderSidebarStages();
+      renderBreakdownPanel();
+      syncStageUi();
+    }
+    updateDrawerToggleUi();
+  });
+}
 
 init();

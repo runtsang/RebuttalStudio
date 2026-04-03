@@ -23,6 +23,8 @@
   --panel-muted: #1a1a1a;
   --text: rgba(255, 255, 255, 0.88);
   --text-muted: rgba(255, 255, 255, 0.35);
+  --sidebar-surface: rgba(12, 12, 12, 0.96);
+  --sidebar-muted: rgba(255, 255, 255, 0.62);
   --border: rgba(255, 255, 255, 0.06);
   --hover: rgba(255, 255, 255, 0.06);
   --accent: #f26921;
@@ -36,6 +38,8 @@
   --panel-muted: #e8e8e8;
   --text: #0d0d0d;
   --text-muted: #8e8e93;
+  --sidebar-surface: rgba(241, 240, 241, 0.96);
+  --sidebar-muted: #6e6e73;
   --border: rgba(0, 0, 0, 0.08);
   --hover: rgba(0, 0, 0, 0.05);
   --accent: #f26921;
@@ -141,7 +145,7 @@ select {
 .sidebar-title {
   margin: 0 0 var(--space-2);
   padding-left: 10px;
-  color: var(--text-muted);
+  color: var(--sidebar-muted);
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.8rem;
   font-weight: 500;
@@ -165,7 +169,7 @@ select {
   border-radius: 5px;
   padding: 4px 5px;
   cursor: pointer;
-  color: var(--text-muted);
+  color: var(--sidebar-muted);
   display: flex;
   align-items: center;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
@@ -893,7 +897,7 @@ select {
 
 .sidebar-stage-desc {
   font-size: 0.72rem;
-  color: var(--text-muted);
+  color: var(--sidebar-muted);
   line-height: 1.3;
 }
 
@@ -968,11 +972,7 @@ select {
 }
 
 .drawer-toggle-icon {
-  transition: transform 0.25s ease;
-}
-
-.project-drawer.open .drawer-toggle-icon {
-  transform: rotate(180deg);
+  transition: color 0.2s ease;
 }
 
 .drawer-panel {
@@ -1022,18 +1022,18 @@ select {
 
 [data-theme="dark"] .sidebar,
 :root:not([data-theme="light"]) .sidebar {
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--sidebar-surface);
 }
 
 [data-theme="light"] .sidebar {
-  background: rgba(241, 240, 241, 0.9);
+  background: var(--sidebar-surface);
 }
 
 /* Windows: sidebar must be fully opaque (backdrop-filter unreliable on Win32) */
 html.platform-win32[data-theme="dark"] .sidebar,
 html.platform-win32[data-theme="light"] .sidebar,
 html.platform-win32:not([data-theme]) .sidebar {
-  background: var(--panel);
+  background: var(--sidebar-surface);
 }
 
 .topbar button,
