@@ -1,5 +1,10 @@
+> [!NOTE]
+> **📦 Archived README / 存档版 README.** This is the original README of the Rebuttal Studio editor, kept unchanged for reference. The project is no longer updated — see the [current README](../README.md) ([中文](../README.zh-CN.md)) for the archive notice, the `rebuttal-studio` skill, and the copy-paste templates.
+>
+> The editor itself still runs at its final version (v0.4.8). Run the commands below (`npm install`, `npm start`) from the repository root.
+
 <p align="center">
-  <img src="img/rebuttalstudio_hori.png" alt="Rebuttal Studio Logo" width="600"/>
+  <img src="../img/rebuttalstudio_hori.png" alt="Rebuttal Studio Logo" width="600"/>
 </p>
 
 <p align="center">
@@ -23,7 +28,7 @@
 
 
 <p align="center">
-  <img src="img/teaser.png" alt="Rebuttal Studio Teaser" width="800"/>
+  <img src="../img/teaser.png" alt="Rebuttal Studio Teaser" width="800"/>
 </p>
 
 ---
@@ -52,12 +57,12 @@ Through this principled pipeline, we aim to help academic researchers **focus on
 
 ## 📚 Documents
 
-- [中文文档总览](documents/ch/README.md) | [English Docs Overview](documents/en/README.md)
-- Stage 1: [Breakdown (EN)](documents/en/stage1-breakdown.md) | [阶段一：Breakdown（中文）](documents/ch/stage1-breakdown.md)
-- Stage 2: [Reply (EN)](documents/en/stage2-reply.md) | [阶段二：Reply（中文）](documents/ch/stage2-reply.md)
-- Stage 3: [First Round (EN)](documents/en/stage3-first-round.md) | [阶段三：First Round（中文）](documents/ch/stage3-first-round.md)
-- Stage 4: [Multi Rounds (EN)](documents/en/stage4-multi-rounds.md) | [阶段四：Multi Rounds（中文）](documents/ch/stage4-multi-rounds.md)
-- Stage 5: [Final Remarks (EN)](documents/en/stage5-final-remarks.md) | [阶段五：Final Remarks（中文）](documents/ch/stage5-final-remarks.md)
+- [中文文档总览](../documents/ch/README.md) | [English Docs Overview](../documents/en/README.md)
+- Stage 1: [Breakdown (EN)](../documents/en/stage1-breakdown.md) | [阶段一：Breakdown（中文）](../documents/ch/stage1-breakdown.md)
+- Stage 2: [Reply (EN)](../documents/en/stage2-reply.md) | [阶段二：Reply（中文）](../documents/ch/stage2-reply.md)
+- Stage 3: [First Round (EN)](../documents/en/stage3-first-round.md) | [阶段三：First Round（中文）](../documents/ch/stage3-first-round.md)
+- Stage 4: [Multi Rounds (EN)](../documents/en/stage4-multi-rounds.md) | [阶段四：Multi Rounds（中文）](../documents/ch/stage4-multi-rounds.md)
+- Stage 5: [Final Remarks (EN)](../documents/en/stage5-final-remarks.md) | [阶段五：Final Remarks（中文）](../documents/ch/stage5-final-remarks.md)
 
 ---
 
@@ -106,12 +111,12 @@ npm start
 
 <p align="center">
   <b>Example 1: Point-to-Point response</b><br>
-  <img src="img/ex1.jpg" alt="Example 1" width="800"/>
+  <img src="../img/ex1.jpg" alt="Example 1" width="800"/>
 </p>
 
 <p align="center">
   <b>Example 2: Final remarks</b><br>
-  <img src="img/ex2.jpg" alt="Example 2" width="800"/>
+  <img src="../img/ex2.jpg" alt="Example 2" width="800"/>
 </p>
 
 ---
@@ -184,7 +189,7 @@ We deeply appreciate every contributor's effort — **you deserve this credit**.
 
 ## 📄 License
 
-This project is open-source and available under the [MIT License](LICENSE).
+This project is open-source and available under the [MIT License](../LICENSE).
 
 ---
 
