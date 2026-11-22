@@ -2,7 +2,7 @@
 
 This section contains the current user-facing workflow guides for Rebuttal Studio. It covers both the 5-stage rebuttal pipeline and the project-level tools that were added recently, such as Document Memory, Template Center, project snapshots, and expanded API settings.
 
-> For the project overview, installation instructions, and contributing guidelines, see the [main README](../../README.md).
+> **Archived.** Rebuttal Studio is no longer updated; these guides describe the editor at its final version (v0.4.8). For the editor's overview and installation instructions, see the [archived README](../../archive/README.md). For the `rebuttal-studio` skill and the copy-paste templates that replace the editor, see the [main README](../../README.md).
 
 ---
 
