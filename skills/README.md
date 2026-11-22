@@ -1,5 +1,7 @@
 # RebuttalStudio Skills
 
+> **Looking for the skill to install in Claude Code or Codex?** It is [`rebuttal-studio/`](rebuttal-studio/SKILL.md) (English) or [`rebuttal-studio-zh/`](rebuttal-studio-zh/SKILL.md) (中文). Each is self-contained: copy that one folder into your agent's skills directory, as described in the [main README](../README.md). It was distilled from the per-stage prompts documented below, which the archived editor loads and which you do not need to install.
+
 This folder contains all LLM skill definitions used by the RebuttalStudio application. Each `SKILL.md` file is a structured prompt instruction that the app sends to the configured LLM provider to guide a specific rebuttal task.
 
 ---
