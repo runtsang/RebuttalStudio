@@ -2,7 +2,7 @@
 
 这套文档是当前版本 Rebuttal Studio 的用户说明，既覆盖五阶段 rebuttal 工作流，也覆盖最近新增的项目级功能，例如 Document Memory、Template Center、项目快照和扩展后的 API 设置。
 
-> 项目介绍、安装说明和贡献指南请参阅[主 README](../../README.md)。
+> **已存档。** Rebuttal Studio 不再更新，这套文档描述的是编辑器的最后一个版本（v0.4.8）。编辑器的项目介绍和安装说明请参阅[存档版 README](../../archive/README.md)；替代编辑器的 `rebuttal-studio` skill 和可直接复制的模板请参阅[主 README](../../README.zh-CN.md)。
 
 ---
 
@@ -145,4 +145,4 @@ API Settings 对话框现在支持：
 
 ---
 
-[→ 返回主 README](../../README.md)
+[→ 返回主 README](../../README.zh-CN.md)
